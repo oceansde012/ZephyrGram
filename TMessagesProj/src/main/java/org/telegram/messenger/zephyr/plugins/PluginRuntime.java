@@ -157,6 +157,12 @@ public final class PluginRuntime implements PluginHost {
         });
     }
 
+    /** Delivers an app event to one plugin only (e.g. "settings_changed" after the core edited its prefs). */
+    public void dispatchAppEventTo(String id, String event) {
+        if (!loaded.containsKey(id)) return;
+        background.execute(() -> invoke(id, "on_app_event", event));
+    }
+
     public boolean isLoaded(String id) { return loaded.containsKey(id); }
 
     public void requirePermission(String id, String permission) {
@@ -312,6 +318,15 @@ public final class PluginRuntime implements PluginHost {
     }
     public int selectedAccount() { return UserConfig.selectedAccount; }
     public String appVersion() { return BuildConfig.ZEPHYR_VERSION; }
+    /** Language code of the app UI (e.g. "uk", "ru", "en"); never null. */
+    public String appLocale() {
+        try {
+            org.telegram.messenger.LocaleController.LocaleInfo info = org.telegram.messenger.LocaleController.getInstance().getCurrentLocaleInfo();
+            String code = info != null ? info.getLangCode() : null;
+            if (code != null && !code.isEmpty()) return code;
+        } catch (Throwable ignore) { }
+        return java.util.Locale.getDefault().getLanguage();
+    }
     public Context context() { return ApplicationLoader.applicationContext; }
 
     public void copyToClipboard(String id, String text) {

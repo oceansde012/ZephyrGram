@@ -240,6 +240,8 @@ public final class PluginManager {
     }
 
     public void dispatchAppEvent(String event) { if (initialized) PluginRuntime.INSTANCE.dispatchAppEvent(event); }
+    /** Tells one plugin that its stored settings were changed from outside ("settings_changed" -> on_app_event). */
+    public void notifySettingsChanged(String pluginId) { if (initialized) PluginRuntime.INSTANCE.dispatchAppEventTo(pluginId, "settings_changed"); }
 
     private interface Operation { void run() throws Exception; }
     private void execute(Operation operation, Callback callback) {

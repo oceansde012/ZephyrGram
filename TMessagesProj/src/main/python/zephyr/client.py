@@ -187,5 +187,11 @@ def app_version():
     return str(Runtime.appVersion())
 
 
+def app_locale():
+    """Language code of the app UI, e.g. 'uk', 'ru', 'en' (no permission needed)."""
+    _state.owner()
+    return str(Runtime.appLocale())
+
+
 def api_version():
     return 1

@@ -56,12 +56,13 @@ public class ZephyrSettingsActivity extends BaseFragment {
     private static final int ROW_CHATS = 21;
     private static final int ROW_OTHER_SCREEN = 22;
     private static final int ROW_AI = 23;
-    private static final int ROW_PLUGINS = 24;
-    private static final int ROW_MORE_SHADOW = 25;
-    private static final int ROW_RESET = 26;
-    private static final int ROW_CREDITS = 27;
-    private static final int ROW_CREDITS_INFO = 28;
-    private static final int ROW_COUNT = 29;
+    private static final int ROW_AUTOREPLY = 24;
+    private static final int ROW_PLUGINS = 25;
+    private static final int ROW_MORE_SHADOW = 26;
+    private static final int ROW_RESET = 27;
+    private static final int ROW_CREDITS = 28;
+    private static final int ROW_CREDITS_INFO = 29;
+    private static final int ROW_COUNT = 30;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -139,7 +140,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
     private static boolean isLinkRow(int position) {
         return position == ROW_PLUGINS || position == ROW_CHECK_UPDATE || position == ROW_GENERAL || position == ROW_APPEARANCE
                 || position == ROW_CHATS || position == ROW_OTHER_SCREEN || position == ROW_AI || position == ROW_RESET
-                || position == ROW_CREDITS;
+                || position == ROW_CREDITS || position == ROW_AUTOREPLY;
     }
 
     private void onRowClicked(int position) {
@@ -165,6 +166,9 @@ public class ZephyrSettingsActivity extends BaseFragment {
             return;
         } else if (position == ROW_AI) {
             presentFragment(new ZephyrAssistantActivity());
+            return;
+        } else if (position == ROW_AUTOREPLY) {
+            presentFragment(new ZephyrAutoReplyChatsActivity());
             return;
         } else if (position == ROW_RESET) {
             ZephyrBaseSettingsActivity.confirmReset(this, null);
@@ -282,12 +286,40 @@ public class ZephyrSettingsActivity extends BaseFragment {
             return R.drawable.msg_customize;
         } else if (position == ROW_AI) {
             return R.drawable.msg_bot;
+        } else if (position == ROW_AUTOREPLY) {
+            return R.drawable.msg_reply_small;
         } else if (position == ROW_RESET) {
             return R.drawable.msg_reset;
         } else if (position == ROW_CHECK_UPDATE) {
             return R.drawable.msg_download;
         }
         return R.drawable.msg_info;
+    }
+
+    private static String autoReplySubtitle() {
+        try {
+            if (!org.telegram.messenger.zephyr.ZephyrAutoReplyStore.isInstalledAndEnabled()) {
+                return LocaleController.getString(org.telegram.messenger.zephyr.plugins.PluginManager.INSTANCE.getInstalled(
+                        org.telegram.messenger.zephyr.ZephyrAutoReplyStore.PLUGIN_ID) == null
+                        ? R.string.ZephyrArHubNoPlugin : R.string.ZephyrArHubPluginOff);
+            }
+            int n = org.telegram.messenger.zephyr.ZephyrAutoReplyStore.countActive();
+            if (!org.telegram.messenger.zephyr.ZephyrAutoReplyStore.isMaster()) {
+                return LocaleController.formatString(R.string.ZephyrArHubMasterOff, n);
+            }
+            return n == 0 ? LocaleController.getString(R.string.ZephyrArHubNone)
+                    : LocaleController.formatString(R.string.ZephyrArHubCount, n);
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (adapter != null) {
+            adapter.notifyItemChanged(ROW_AUTOREPLY);
+        }
     }
 
     private static String headerTitle(int position) {
@@ -394,6 +426,8 @@ public class ZephyrSettingsActivity extends BaseFragment {
                         titleRes = R.string.ZephyrSettingsChats;
                     } else if (position == ROW_OTHER_SCREEN) {
                         titleRes = R.string.ZephyrSettingsOther;
+                    } else if (position == ROW_AUTOREPLY) {
+                        titleRes = R.string.ZephyrArTitle;
                     } else if (position == ROW_AI) {
                         titleRes = R.string.ZephyrAi;
                     } else if (position == ROW_RESET) {
@@ -404,7 +438,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
                     final int info = linkInfo(position);
                     settingsCell.setTextAndValueAndIcon(
                             LocaleController.getString(titleRes),
-                            info != 0 ? LocaleController.getString(info) : "",
+                            position == ROW_AUTOREPLY ? autoReplySubtitle() : info != 0 ? LocaleController.getString(info) : "",
                             linkIcon(position),
                             position != ROW_PLUGINS && position != ROW_RESET && position != ROW_CREDITS);
                 }

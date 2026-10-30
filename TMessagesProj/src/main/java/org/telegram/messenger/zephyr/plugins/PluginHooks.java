@@ -725,6 +725,20 @@ public final class PluginHooks {
         }
     }
 
+    /** Messages delivered by getDifference / getChannelDifference bypass processUpdateArray; recent ones are dispatched as new. */
+    public static void onDifferenceMessages(int account, List<TLRPC.Message> messages) {
+        if (!hasNewMessageHooks || messages == null) return;
+        try {
+            final int now = (int) (System.currentTimeMillis() / 1000);
+            for (TLRPC.Message m : new ArrayList<>(messages)) {
+                if (m == null || m instanceof TLRPC.TL_messageEmpty || m.date < now - 600) continue; // do not answer stale backlog
+                onNewMessage(account, m);
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+    }
+
     static List<String> debugDump() {
         ArrayList<String> l = new ArrayList<>();
         l.add("requestHooks=" + hasRequestHooks + " updateHooks=" + hasUpdateHooks + " sendHooks=" + hasSendHooks);
