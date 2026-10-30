@@ -83,13 +83,23 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
         run: |
-          { yes || true; } | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1" "platform-tools"
+          # ubuntu-latest ships an Android SDK with cmdline-tools, so android-actions/setup-android
+          # (which runs `sdkmanager tools`, a package that no longer exists) is not used.
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          sdkmanager="$(ls -d "$sdk"/cmdline-tools/latest/bin/sdkmanager "$sdk"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n1 || true)"
+          if [[ -z "$sdkmanager" ]]; then
+            echo "error: sdkmanager not found under $sdk/cmdline-tools" >&2
+            exit 1
+          fi
+          echo "Using $sdkmanager"
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          { yes || true; } | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null
+          "$sdkmanager" --sdk_root="$sdk" "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;27.2.12479018" "cmake;3.22.1" "platform-tools" >/dev/null
+          ls "$sdk/build-tools" "$sdk/ndk"
 
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v4
@@ -132,6 +142,8 @@ jobs:
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # TG_API_ID / TG_API_HASH reach Gradle through the environment (read by TMessagesProj/build.gradle),
+          # so they never appear on the command line.
           if [[ -z "${TG_API_ID}" || -z "${TG_API_HASH}" ]]; then
             echo "error: secrets TG_API_ID and TG_API_HASH must be set" >&2
             exit 1
@@ -140,7 +152,6 @@ jobs:
           ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx6g \
             --init-script "${RUNNER_TEMP}/abi-arm64.gradle" \
             -PZEPHYR_VERSION_NAME="${VERSION}" \
-            -PTG_API_ID="${TG_API_ID}" -PTG_API_HASH="${TG_API_HASH}" \
             assembleAfatRelease
 
       - name: Locate, verify and rename APK
@@ -154,7 +165,7 @@ jobs:
             printf '  %s\n' "${apks[@]}" >&2
             exit 1
           fi
-          apksigner="${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+          apksigner="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/36.0.0/apksigner"
           if ! "$apksigner" verify "${apks[0]}"; then
             echo "error: the APK is not signed (check the ZEPHYR_* signing secrets)" >&2
             exit 1
