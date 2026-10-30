@@ -504,6 +504,88 @@ public class ZephyrAiClient {
         }
     }
 
+    /**
+     * Blocking speech-to-text for plugins: multipart POST {server}/v1/audio/transcriptions. Must NOT run on the UI
+     * thread. language may be null/empty (auto). Returns the transcript (may be empty only if the server says so -> error).
+     */
+    public static String transcribeBlocking(byte[] audio, String mime, String language, int timeoutSec) throws AiException {
+        if (notConfigured()) {
+            throw new AiException(ERR_NOT_CONFIGURED, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrAiErrNotConfigured));
+        }
+        HttpURLConnection c = null;
+        try {
+            final String boundary = "----ZephyrBoundary" + Long.toHexString(System.nanoTime());
+            String m = mime == null || mime.isEmpty() ? "audio/ogg" : mime;
+            String ext = m.contains("mpeg") || m.contains("mp3") ? "mp3" : m.contains("mp4") || m.contains("m4a") || m.contains("aac") ? "m4a"
+                    : m.contains("wav") ? "wav" : m.contains("webm") ? "webm" : "ogg";
+            ByteArrayOutputStream body = new ByteArrayOutputStream(audio.length + 1024);
+            writePart(body, boundary, "response_format", "json");
+            if (language != null && !language.isEmpty()) {
+                writePart(body, boundary, "language", language);
+            }
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio." + ext
+                    + "\"\r\nContent-Type: " + m + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            body.write(audio);
+            body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            final byte[] bytes = body.toByteArray();
+            final int tmo = Math.max(1, timeoutSec);
+            c = openWithRetry(null, () -> {
+                HttpURLConnection cc = open("POST", "/audio/transcriptions", ZephyrConfig.getAiToken());
+                cc.setRequestProperty("Accept", "application/json");
+                cc.setConnectTimeout(Math.min(45000, tmo * 1000));
+                cc.setReadTimeout(tmo * 1000);
+                cc.setDoOutput(true);
+                cc.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+                cc.setFixedLengthStreamingMode(bytes.length);
+                try (OutputStream os = cc.getOutputStream()) {
+                    os.write(bytes);
+                }
+                return cc;
+            });
+            int status = c.getResponseCode();
+            if (status != 200) {
+                ApiException e = httpError(c, status);
+                throw new AiException(e.code, e.getMessage());
+            }
+            JSONObject o;
+            try {
+                o = parseJsonBody(readAll(c.getInputStream()), status);
+            } catch (ApiException pe) {
+                throw new AiException(pe.code, pe.getMessage());
+            }
+            JSONObject err = o.optJSONObject("error");
+            if (err != null) {
+                throw new AiException(ERR_SERVER, err.optString("message", "error"));
+            }
+            String text = o.optString("text", "").trim();
+            if (text.isEmpty()) {
+                throw new AiException(ERR_SERVER, "Empty transcription");
+            }
+            return text;
+        } catch (AiException e) {
+            FileLog.w("ZephyrAI transcribeBlocking: error code=" + e.code);
+            throw e;
+        } catch (java.net.SocketTimeoutException e) {
+            FileLog.w("ZephyrAI transcribeBlocking: timeout");
+            throw new AiException(ERR_NETWORK, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrUxAiTimeout));
+        } catch (Throwable e) {
+            logFailure("transcribeBlocking", e);
+            throw new AiException(ERR_NETWORK, netMessage(e));
+        } finally {
+            if (c != null) {
+                try {
+                    c.disconnect();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+    }
+
+    private static void writePart(ByteArrayOutputStream out, String boundary, String name, String value) throws IOException {
+        out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n" + value + "\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
     // ------------------------------------------------------------------ owner admin API (core only, never exposed to plugins)
 
     /** One access token record as listed by the server (the token value itself is never listed). */
