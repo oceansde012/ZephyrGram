@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrEditHistory">История изменений</string>
+    <string name="ZephyrEditHistoryCurrent">Текущая версия</string>
+    <string name="ZephyrEditHistoryOriginal">Оригинал</string>
+    <string name="ZephyrEditHistoryVersion">Версия %1$d</string>
+    <string name="ZephyrEditHistoryEmpty">Для этого сообщения изменения не записаны. Убедитесь, что включено сохранение изменённых сообщений.</string>
+    <string name="ZephyrEditHistoryDeleted">Удалено на сервере: %1$s (сохранено локально)</string>
+    <string name="ZephyrEditHistoryCopy">Копировать текст</string>
+    <string name="ZephyrEditHistoryEmptyText">(без текста)</string>
+    <string name="ZephyrHistoryStorageHeader">Сохранённая история</string>
+    <string name="ZephyrHistoryStats">Удалённых сообщений: %1$d\nВерсий правок: %2$d\nРазмер: %3$s</string>
+    <string name="ZephyrHistoryLoading">Подсчёт…</string>
+    <string name="ZephyrHistoryClear">Очистить сохранённую историю</string>
+    <string name="ZephyrHistoryClearConfirm">Все локально сохранённые удалённые сообщения и версии правок будут удалены. Это действие нельзя отменить.</string>
+    <string name="ZephyrHistoryCleared">Сохранённая история очищена</string>
+</resources>

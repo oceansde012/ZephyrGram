@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrShareLogs">Поделиться логами</string>
+    <string name="ZephyrLogsInfo">В ZephyrGram журнал включён по умолчанию. Токены, секреты и текст сообщений никогда не записываются в логи. Чтобы открыть меню отладки, коснитесь номера версии внизу Настроек.</string>
+</resources>

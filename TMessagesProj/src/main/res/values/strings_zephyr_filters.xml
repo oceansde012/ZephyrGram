@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrMessageFilters">Message filters</string>
+    <string name="ZephyrFiltersEnable">Enable message filters</string>
+    <string name="ZephyrFiltersInfo">Filters work only on this device. Matching incoming messages are hidden in the open chat and produce no notification. Nothing changes on the server, and unread counters and chat previews are not affected.</string>
+    <string name="ZephyrFiltersHeader">Filters</string>
+    <string name="ZephyrFiltersAdd">Add filter</string>
+    <string name="ZephyrFiltersTest">Test filters on a sample text</string>
+    <string name="ZephyrFiltersEmpty">No filters yet</string>
+    <string name="ZephyrFilterNew">New filter</string>
+    <string name="ZephyrFilterName">Name (optional)</string>
+    <string name="ZephyrFilterPattern">Keyword or regex</string>
+    <string name="ZephyrFilterRegex">Regular expression</string>
+    <string name="ZephyrFilterMatchCase">Match case</string>
+    <string name="ZephyrFilterSender">Sender ID (0 = any)</string>
+    <string name="ZephyrFilterChat">Chat ID (0 = any)</string>
+    <string name="ZephyrFilterInvalid">Enter a keyword, a sender ID or a chat ID, and make sure the regex is valid.</string>
+    <string name="ZephyrFilterOn">On</string>
+    <string name="ZephyrFilterOff">Off</string>
+    <string name="ZephyrFilterTestPrompt">Sample message text</string>
+    <string name="ZephyrFilterTestMatch">Hidden by filter: %1$s</string>
+    <string name="ZephyrFilterTestNoMatch">No enabled filter matches this text (sender and chat conditions are ignored in the test).</string>
+    <string name="ZephyrLocalPremiumInfo">Local Premium only changes how this app looks and which features it unlocks on this device. Anything the server enforces (limits, Premium-only sending, stickers, reactions, translations, speech recognition) will not work. Hiding ads is also local.</string>
+</resources>

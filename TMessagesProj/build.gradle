@@ -1,0 +1,306 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+apply plugin: 'com.android.library'
+apply plugin: 'org.telegram.build-plugin'
+apply plugin: 'com.chaquo.python'
+apply plugin: 'idea'
+
+idea {
+    module {
+        excludeDirs += [
+            file('jni/td'),
+            file('jni/third_party/absl'),
+            file('jni/third_party/boringssl'),
+            file('jni/third_party/dav1d'),
+            file('jni/third_party/ffmpeg'),
+            file('jni/third_party/libvpx'),
+            file('jni/third_party/libyuv'),
+            file('jni/third_party/openh264'),
+            file('jni/third_party/xiph'),
+            file('jni/third_party/wamr'),
+            file('jni/third_party/libprisma'),
+            file('jni/third_party/boost-regex'),
+            file('jni/tgcalls'),
+            file('jni/tlottie'),
+            file('jni/voip/webrtc'),
+            file('jni/sqlite')
+        ]
+    }
+}
+
+repositories {
+    mavenCentral()
+    google()
+}
+
+configurations {
+    compile.exclude module: 'support-v4'
+}
+
+configurations.all {
+    exclude group: 'com.google.firebase', module: 'firebase-core'
+    exclude group: 'androidx.recyclerview', module: 'recyclerview'
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.16.0'
+    implementation 'androidx.palette:palette:1.0.0'
+    implementation 'androidx.exifinterface:exifinterface:1.3.6'
+    implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
+    implementation "androidx.sharetarget:sharetarget:1.2.0"
+    implementation 'androidx.interpolator:interpolator:1.0.0'
+    implementation 'androidx.biometric:biometric:1.1.0'
+    implementation 'androidx.webkit:webkit:1.14.0'
+
+    implementation 'com.google.android.gms:play-services-cast-framework:21.4.0'
+    implementation "androidx.mediarouter:mediarouter:1.7.0"
+    implementation 'com.google.zxing:core:3.5.4'
+    implementation 'com.neovisionaries:nv-websocket-client:2.14'
+
+    implementation 'androidx.car.app:app:1.4.0'
+    implementation 'androidx.car.app:app-projected:1.4.0'
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+
+    compileOnly 'org.checkerframework:checker-qual:2.5.2'
+    compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
+    implementation 'com.google.firebase:firebase-messaging:22.0.0'
+    implementation 'com.google.firebase:firebase-datatransport:18.1.0'
+    implementation 'com.google.firebase:firebase-appindexing:20.0.0'
+    implementation 'com.google.android.gms:play-services-maps:18.1.0'
+    implementation 'com.google.android.gms:play-services-auth:20.4.0'
+    implementation 'com.google.android.gms:play-services-vision:20.1.3'
+    implementation 'com.google.android.gms:play-services-wearable:18.0.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'com.google.android.gms:play-services-wallet:19.1.0'
+    implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
+    implementation 'com.stripe:stripe-android:2.0.2'
+    implementation 'com.google.mlkit:language-id:17.0.6'
+    implementation 'com.android.billingclient:billing:8.0.0'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'com.google.guava:guava:31.1-android'
+    implementation 'com.google.android.play:integrity:1.3.0'
+    implementation 'com.google.android.gms:play-services-safetynet:18.0.1'
+
+    implementation 'com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1'
+    implementation 'com.google.android.gms:play-services-mlkit-image-labeling:16.0.8'
+
+    implementation "androidx.credentials:credentials:1.6.0-alpha04"
+    implementation "androidx.credentials:credentials-play-services-auth:1.6.0-alpha04"
+
+    implementation "io.noties.markwon:core:4.6.2"
+    implementation "io.noties.markwon:ext-strikethrough:4.6.2"
+    implementation "io.noties.markwon:ext-tables:4.6.2"
+    implementation "io.noties.markwon:html:4.6.2"
+    implementation "io.noties.markwon:inline-parser:4.6.2"
+    implementation("io.noties.markwon:ext-latex:4.6.2") {
+        exclude group: 'ru.noties', module: 'jlatexmath-android'
+    }
+
+    api project(":TMessagesProj_Modules:media3:media-lib-exoplayer")
+    api project(":TMessagesProj_Modules:media3:media-lib-exoplayer-dash")
+    api project(":TMessagesProj_Modules:media3:media-lib-exoplayer-hls")
+    api project(":TMessagesProj_Modules:media3:media-lib-decoder-ffmpeg")
+    api project(":TMessagesProj_Modules:media3:media-lib-session")
+    api project(':jlatexmath')
+
+//    implementation 'com.google.mlkit:translate:17.0.3'
+
+    implementation 'com.google.android.recaptcha:recaptcha:18.7.1'
+
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+}
+
+android {
+    compileSdkVersion 36
+    buildToolsVersion '36.0.0'
+    ndkVersion "27.2.12479018"
+
+
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+        }
+    }
+
+    lintOptions {
+        disable 'MissingTranslation'
+        disable 'ExtraTranslation'
+        disable 'BlockedPrivateApi'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+
+        coreLibraryDesugaringEnabled true
+    }
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 36
+
+        // Credentials may also live in local.properties, which is excluded from Git.
+        def tgApiId = (project.findProperty('TG_API_ID') ?: System.getenv('TG_API_ID') ?: getProps('TG_API_ID') ?: '').toString().trim()
+        def tgApiHash = (project.findProperty('TG_API_HASH') ?: System.getenv('TG_API_HASH') ?: getProps('TG_API_HASH') ?: '').toString().trim()
+        if (!(tgApiId ==~ /[0-9]+/) || !tgApiId.isInteger() || tgApiId.toInteger() <= 0 || !(tgApiHash ==~ /[0-9a-fA-F]{32}/)) {
+            throw new GradleException('TG_API_ID (positive 32-bit integer) and TG_API_HASH (32 hex chars) must be set in local.properties, environment variables or -P properties. On Windows run scripts/configure-windows.ps1. Get your own at https://my.telegram.org')
+        }
+        tgApiId = tgApiId.toInteger().toString()
+        buildConfigField 'int', 'TG_API_ID', tgApiId
+        buildConfigField 'String', 'TG_API_HASH', '"' + tgApiHash + '"'
+
+        // In-app file logging (Debug menu -> Logs / share logs) for non-debuggable builds.
+        // Default ON for ZephyrGram; disable with -PZEPHYR_LOGS=false, env var or local.properties.
+        def zephyrLogs = (project.findProperty('ZEPHYR_LOGS') ?: System.getenv('ZEPHYR_LOGS') ?: getProps('ZEPHYR_LOGS') ?: 'true').toString().trim().toLowerCase() != 'false'
+        buildConfigField 'boolean', 'ZEPHYR_LOGS', zephyrLogs.toString()
+
+        vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
+
+        multiDexEnabled true
+
+        // Chaquopy requires explicit ABIs and only supports these two.
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+
+        externalNativeBuild {
+            cmake {
+                version '3.22.1'
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-24' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                targets 'tmessages.49'
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            jniDebuggable true
+            shrinkResources false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PRIVATE_URL") + "\""
+            buildConfigField "boolean", "DEBUG_VERSION", "true"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "0"
+        }
+
+        HA_private {
+            matchingFallbacks = ['release']
+            jniDebuggable false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PRIVATE_URL") + "\""
+            buildConfigField "boolean", "DEBUG_VERSION", "true"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "1"
+        }
+
+        HA_public {
+            matchingFallbacks = ['release']
+            jniDebuggable false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PUBLIC_URL") + "\""
+            buildConfigField "boolean", "DEBUG_VERSION", "true"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "4"
+        }
+
+        HA_hardcore {
+            matchingFallbacks = ['release']
+            jniDebuggable false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_HARDCORE_URL") + "\""
+            buildConfigField "boolean", "DEBUG_VERSION", "true"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "5"
+        }
+
+        standalone {
+            matchingFallbacks = ['release']
+            jniDebuggable false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"\""
+            buildConfigField "boolean", "DEBUG_VERSION", "false"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "6"
+        }
+
+        release {
+            jniDebuggable false
+            shrinkResources false
+            multiDexEnabled true
+            ndk.debugSymbolLevel = 'FULL'
+            buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
+            buildConfigField "String", "BETA_URL", "\"\""
+            buildConfigField "boolean", "DEBUG_VERSION", "false"
+            buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
+            buildConfigField "boolean", "BUNDLE", "false"
+            buildConfigField "int", "VERSION_NUM", "7"
+        }
+    }
+
+    namespace 'org.telegram.messenger'
+}
+
+// Python runtime for ZephyrGram plugins (Chaquopy). Only arm64-v8a and x86_64 ABIs are supported.
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        // Keep Chaquopy default bytecode behavior: compile when Python 3.13 is available,
+        // otherwise package source for compilation on the device. CI installs Python 3.13.
+    }
+}
+
+
+def getProps(String propName) {
+    def propsFile = rootProject.file('local.properties')
+    if (propsFile.exists()) {
+        def props = new Properties()
+        props.load(new FileInputStream(propsFile))
+        return props[propName]
+    } else {
+        return "";
+    }
+}
+apply plugin: 'com.google.gms.google-services'
+
+task checkVisibility {
+    doFirst {
+        def isPrivateBuild = project.gradle.startParameter.taskNames.find {
+            it.contains("HA_private") || it.contains("HA_hardcore") || it.contains("Debug") || it.contains("Release")
+        }
+        def isPublicAllowed = !project.hasProperty("IS_PRIVATE") || !project.property("IS_PRIVATE").toBoolean()
+        if (!isPrivateBuild && !isPublicAllowed) {
+            throw new GradleException("Building public version of private code!")
+        }
+    }
+    doLast {
+        if (project.gradle.startParameter.taskNames.find { it.contains("HA_public") }) {
+            def privateBuild = file("${projectDir}_AppHockeyApp/afat/HA_private/Telegram-Beta.apk")
+            if (privateBuild.exists()) {
+                privateBuild.delete()
+            }
+        }
+    }
+}
+
+preBuild.dependsOn checkVisibility
