@@ -15,6 +15,8 @@ Package id: `org.zephyrgram.messenger`
 - **Edit history recording**: the old text of edited messages is recorded. There is no UI for it yet.
 - **ZephyrGram settings**: a "ZephyrGram" entry in Settings (`org.telegram.ui.ZephyrSettingsActivity`) with toggles. Config lives in `org.telegram.messenger.zephyr.ZephyrConfig`.
 
+Telegram's own Google/Firebase API keys and release keystore were removed from this fork (SafetyNet and Maps keys are empty). Only the `TMessagesProj_App` module is supported; the other app modules are left from upstream and are not built.
+
 Push notifications (FCM) are disabled. A custom package cannot use Telegram's Firebase project.
 
 ## Status / roadmap
@@ -50,7 +52,7 @@ Requirements: JDK 17+ and Android SDK packages `platforms;android-36`, `build-to
    export TG_API_HASH=<your api_hash>
    ```
 
-4. Build. Use `assembleRelease` for a release build. Release signing needs your own keystore. Never commit it.
+4. Build. Debug builds are signed with the default Android debug keystore. For `assembleRelease`, point the build at your own keystore through `ZEPHYR_KEYSTORE` (path), `ZEPHYR_KEYSTORE_PASSWORD`, `ZEPHYR_KEY_ALIAS` and `ZEPHYR_KEY_PASSWORD`; without them the release APK is unsigned. Never commit the keystore.
 
    ```bash
    scripts/build-android.sh . assembleDebug
