@@ -367,18 +367,19 @@ public class ApplicationLoader extends Application {
     });
 
     public static void startPushService() {
-        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
-        }
+        // ZephyrGram: no FCM in this fork, so the persistent connection is on by default
+        boolean enabled = org.telegram.messenger.zephyr.ZephyrPush.isServiceEnabled();
         if (enabled) {
             try {
-                applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-            } catch (Throwable ignore) {
-
+                Intent serviceIntent = new Intent(applicationContext, NotificationsService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    applicationContext.startForegroundService(serviceIntent);
+                } else {
+                    applicationContext.startService(serviceIntent);
+                }
+            } catch (Throwable e) {
+                // e.g. ForegroundServiceStartNotAllowedException when the process was started in background
+                FileLog.e(e);
             }
         } else {
             applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));

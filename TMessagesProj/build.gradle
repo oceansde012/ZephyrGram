@@ -149,6 +149,11 @@ android {
         buildConfigField 'int', 'TG_API_ID', tgApiId
         buildConfigField 'String', 'TG_API_HASH', '"' + tgApiHash + '"'
 
+        // In-app file logging (Debug menu -> Logs / share logs) for non-debuggable builds.
+        // Default ON for ZephyrGram; disable with -PZEPHYR_LOGS=false, env var or local.properties.
+        def zephyrLogs = (project.findProperty('ZEPHYR_LOGS') ?: System.getenv('ZEPHYR_LOGS') ?: getProps('ZEPHYR_LOGS') ?: 'true').toString().trim().toLowerCase() != 'false'
+        buildConfigField 'boolean', 'ZEPHYR_LOGS', zephyrLogs.toString()
+
         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         multiDexEnabled true

@@ -9680,6 +9680,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     } else {
                         maxHeight = maxWidth = (int) (Math.min(getParentWidth(), AndroidUtilities.displaySize.y) * 0.5f);
                     }
+                    // ZephyrGram: sticker size (ported from exteraGram stickerSize, GPLv2)
+                    if (org.telegram.messenger.zephyr.ZephyrConfig.stickerSize != 100 && !messageObject.isAnimatedEmoji() && !messageObject.isDice()) {
+                        final float zScale = Math.max(30, Math.min(200, org.telegram.messenger.zephyr.ZephyrConfig.stickerSize)) / 100f;
+                        maxHeight = (int) (maxHeight * zScale);
+                        maxWidth = (int) (maxWidth * zScale);
+                    }
                     String filter;
                     if (messageObject.isAnimatedEmoji() || messageObject.isDice()) {
                         float zoom = MessagesController.getInstance(currentAccount).animatedEmojisZoom;

@@ -44,6 +44,23 @@ class Text(_Item):
         self.subtext = subtext
 
 
+class DialogPicker(_Item):
+    """Button that opens Telegram's own chat picker. on_pick(dialog_id, title) runs on the UI thread."""
+    type = 6
+    def __init__(self, key, text, on_pick, subtext=None):
+        self.key, self.text, self.on_pick, self.subtext = str(key), str(text), on_pick, subtext
+
+
+class UsernameInput(_Item):
+    """Button that asks for a @username / t.me link, resolves it (cache, then network) and calls
+    on_resolved(dialog_id, title) on the UI thread; an error is shown if nothing is found."""
+    type = 7
+    def __init__(self, key, text, on_resolved, subtext=None, hint=None):
+        self.key, self.text, self.on_resolved, self.subtext = str(key), str(text), on_resolved, subtext
+        if hint is not None:
+            self.hint = str(hint)
+
+
 class Divider(_Item):
     type = 5
     text = ""

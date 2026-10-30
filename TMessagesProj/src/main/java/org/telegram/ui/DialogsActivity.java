@@ -2278,6 +2278,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 }
                                 ((DialogCell) view).startOutAnimation();
                                 parentPage.archivePullViewState = ARCHIVE_ITEM_STATE_SHOWED;
+                                if (ZephyrConfig.archiveOnPull) {
+                                    AndroidUtilities.runOnUIThread(() -> {
+                                        Bundle zephyrArgs = new Bundle();
+                                        zephyrArgs.putInt("folderId", 1);
+                                        presentFragment(new DialogsActivity(zephyrArgs));
+                                    });
+                                }
                                 if (AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
                                     AndroidUtilities.makeAccessibilityAnnouncement(LocaleController.getString(R.string.AccDescrArchivedChatsShown));
                                 }
@@ -2463,6 +2470,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 canSwipeBack = false;
                             }
                         }
+                    }
+                    if (ZephyrConfig.disableUnarchiveSwipe && (folderId != 0 || DialogObject.isFolderDialogId(dialogId))) {
+                        return 0;
                     }
                     swipeFolderBack = false;
                     swipingFolder = (canSwipeBack && !DialogObject.isFolderDialogId(dialogCell.getDialogId())) || (SharedConfig.archiveHidden && DialogObject.isFolderDialogId(dialogCell.getDialogId()));
@@ -3015,6 +3025,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             dialogStoriesCell.updateStatus(user, animated);
         }
         if (statusDrawable == null || actionBar == null) {
+            return;
+        }
+        if (ZephyrConfig.hideActionBarStatus) {
+            statusDrawable.set((Drawable) null, animated);
+            statusDrawable.setParticles(false, animated);
+            actionBar.setRightDrawableOnClick(null);
             return;
         }
         Long emojiStatusId = UserObject.getEmojiStatusDocumentId(user);
@@ -13760,6 +13776,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         if (folderId == 0 && !onlySelect) {
             addZephyrGhostOption(io);
+            io.add(R.drawable.msg_bot, getString(R.string.ZephyrAi), () -> presentFragment(new ZephyrAssistantActivity()));
             io.addGap();
         }
 

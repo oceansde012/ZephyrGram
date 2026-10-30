@@ -4454,7 +4454,10 @@ public class Theme {
     }
 
     public static boolean canStartHolidayAnimation() {
-        return canStartHolidayAnimation;
+        // ZephyrGram: forceSnow / holidayMode (ported from exteraGram forceSnow/eventType, GPLv2)
+        return org.telegram.messenger.zephyr.ZephyrConfig.forceSnow
+                || org.telegram.messenger.zephyr.ZephyrConfig.holidayMode != 2
+                && (canStartHolidayAnimation || org.telegram.messenger.zephyr.ZephyrConfig.holidayMode == 1);
     }
 
     public static int getEventType() {
@@ -4477,6 +4480,18 @@ public class Theme {
     }
 
     public static Drawable getCurrentHolidayDrawable() {
+        final int zHolidayMode = org.telegram.messenger.zephyr.ZephyrConfig.holidayMode;
+        if (zHolidayMode == 2) {
+            return null;
+        }
+        if (zHolidayMode == 1) {
+            if (dialogs_holidayDrawable == null) {
+                dialogs_holidayDrawable = ApplicationLoader.applicationContext.getResources().getDrawable(R.drawable.newyear);
+                dialogs_holidayDrawableOffsetX = -dp(3);
+                dialogs_holidayDrawableOffsetY = -dp(-7);
+            }
+            return dialogs_holidayDrawable;
+        }
         if ((System.currentTimeMillis() - lastHolidayCheckTime) >= 60 * 1000) {
             lastHolidayCheckTime = System.currentTimeMillis();
             Calendar calendar = Calendar.getInstance();
@@ -4496,6 +4511,8 @@ public class Theme {
                     dialogs_holidayDrawableOffsetX = -dp(3);
                     dialogs_holidayDrawableOffsetY = -dp(-7);
                 }
+            } else if (!(monthOfYear == 11 && dayOfMonth >= (BuildVars.DEBUG_PRIVATE_VERSION ? 29 : 31) && dayOfMonth <= 31 || monthOfYear == 0 && dayOfMonth == 1)) {
+                dialogs_holidayDrawable = null;
             }
         }
         return dialogs_holidayDrawable;
@@ -7727,7 +7744,7 @@ public class Theme {
         if (dividerPaint == null) {
             return;
         }
-        dividerPaint.setColor(getColor(key_divider));
+        dividerPaint.setColor(org.telegram.messenger.zephyr.ZephyrConfig.disableDividers ? 0 : getColor(key_divider));
         linkSelectionPaint.setColor(getColor(key_windowBackgroundWhiteLinkSelection));
 
         for (int a = 0; a < avatarDrawables.length; a++) {

@@ -659,6 +659,29 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int infoEndRowEmpty;
     private int phoneRow;
     private int noteRow;
+    private int zephyrIdRow = -1;
+
+    /** ID of the shown user/chat in Bot API form (exteraGram-derived "show ID and DC", GPLv2). */
+    private String zephyrIdValue() {
+        if (userId != 0) {
+            return String.valueOf(userId);
+        }
+        if (chatId != 0) {
+            return ChatObject.isChannel(currentChat) ? "-100" + chatId : "-" + chatId;
+        }
+        return null;
+    }
+
+    private String zephyrDcValue() {
+        TLRPC.User zephyrUser = userId != 0 ? getMessagesController().getUser(userId) : null;
+        if (zephyrUser != null && zephyrUser.photo != null && zephyrUser.photo.dc_id != 0) {
+            return String.valueOf(zephyrUser.photo.dc_id);
+        }
+        if (currentChat != null && currentChat.photo != null && currentChat.photo.dc_id != 0) {
+            return String.valueOf(currentChat.photo.dc_id);
+        }
+        return null;
+    }
     private int locationRow;
     private int userInfoRow;
     private int channelInfoRow;
@@ -4681,6 +4704,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
             } else if (position == noteRow) {
                 editNotes(view, position);
+            } else if (position == zephyrIdRow) {
+                final String zephyrId = zephyrIdValue();
+                if (zephyrId != null) {
+                    AndroidUtilities.addToClipboard(zephyrId);
+                    BulletinFactory.of(this).createCopyBulletin(zephyrId).show();
+                }
             } else {
                 processOnClickOrPress(position, view, x, y);
             }
@@ -10502,6 +10531,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         numberSectionRow = -1;
         numberRow = -1;
         birthdayRow = -1;
+        zephyrIdRow = -1;
         setUsernameRow = -1;
         bioRow = -1;
         channelRow = -1;
@@ -10762,6 +10792,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
+                if (org.telegram.messenger.zephyr.ZephyrConfig.showIdAndDc > 0 && user != null) {
+                    zephyrIdRow = rowCount++;
+                }
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10897,7 +10930,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 sharedMediaRow = rowCount++;
             }
         } else if (chatId != 0) {
-            if (chatInfo != null && (!TextUtils.isEmpty(chatInfo.about) || chatInfo.location instanceof TLRPC.TL_channelLocation) || ChatObject.isPublic(currentChat)) {
+            if (chatInfo != null && (!TextUtils.isEmpty(chatInfo.about) || chatInfo.location instanceof TLRPC.TL_channelLocation) || ChatObject.isPublic(currentChat) || org.telegram.messenger.zephyr.ZephyrConfig.showIdAndDc > 0) {
                 if (emptyRow < 0 && emptyRow2 < 0) {
                     if (hasMusic || hasBalance || peerColor != null || actionsView == null) {
                         emptyRow2 = rowCount++;
@@ -10919,6 +10952,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (ChatObject.isPublic(currentChat)) {
                     usernameRow = rowCount++;
+                }
+                if (org.telegram.messenger.zephyr.ZephyrConfig.showIdAndDc > 0 && currentChat != null) {
+                    zephyrIdRow = rowCount++;
                 }
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
@@ -13514,7 +13550,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     TextDetailCell detailCell = (TextDetailCell) holder.itemView;
                     boolean containsQr = false;
                     boolean containsGift = false;
-                    if (position == birthdayRow) {
+                    if (position == zephyrIdRow) {
+                        final String zephyrId = zephyrIdValue();
+                        final String zephyrDc = zephyrDcValue();
+                        final boolean zephyrShowDc = org.telegram.messenger.zephyr.ZephyrConfig.showIdAndDc >= 2 && zephyrDc != null;
+                        detailCell.setTextAndValue(zephyrId == null ? "" : (zephyrShowDc ? zephyrId + " · DC " + zephyrDc : zephyrId),
+                                zephyrShowDc ? "ID, DC" : "ID", false);
+                    } else if (position == birthdayRow) {
                         TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
                         if (userFull != null && userFull.birthday != null) {
                             final boolean today = BirthdayController.isToday(userFull);
@@ -14372,7 +14414,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == zephyrIdRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
@@ -15810,6 +15852,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, bizHoursRow, sparseIntArray);
             put(++pointer, bizLocationRow, sparseIntArray);
             put(++pointer, birthdayRow, sparseIntArray);
+            put(++pointer, zephyrIdRow, sparseIntArray);
             put(++pointer, channelRow, sparseIntArray);
             put(++pointer, botStarsBalanceRow, sparseIntArray);
             put(++pointer, botTonBalanceRow, sparseIntArray);

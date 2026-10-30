@@ -739,6 +739,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             if (!useCamera2) {
                 isFrontface = true;
             }
+            isFrontface = org.telegram.messenger.zephyr.ZephyrConfig.roundCameraFront(isFrontface);
             updateFlash();
             recordedTime = 0;
             progress = 0;
@@ -782,6 +783,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
         if (useCamera2) {
             bothCameras = DualCameraView.roundDualAvailableStatic(getContext());
+            if (bothCameras && org.telegram.messenger.zephyr.ZephyrConfig.videoMessagesCamera != 0) {
+                surfaceIndex = isFrontface ? 0 : 1;
+            }
             if (bothCameras) {
                 for (int a = 0; a < 2; ++a) {
                     if (camera2Sessions[a] == null) {
@@ -1166,6 +1170,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
         }
         isFrontface = !isFrontface;
+        org.telegram.messenger.zephyr.ZephyrConfig.setRoundLastFront(isFrontface);
         updateFlash();
         if (useCamera2) {
             if (bothCameras) {
@@ -3909,7 +3914,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
             });
 
-            finishZoomTransition.setDuration(350);
+            finishZoomTransition.setDuration(org.telegram.messenger.zephyr.ZephyrConfig.staticZoom ? 0 : 350);
             finishZoomTransition.setInterpolator(CubicBezierInterpolator.DEFAULT);
             finishZoomTransition.start();
         }

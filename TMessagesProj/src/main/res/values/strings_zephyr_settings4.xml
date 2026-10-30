@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrProfileHeader">Profile</string>
+    <string name="ZephyrShowIdAndDc">Show ID and DC in profile</string>
+    <string name="ZephyrShowIdHide">Hide</string>
+    <string name="ZephyrShowIdOnly">ID</string>
+    <string name="ZephyrShowIdAndDcBoth">ID and DC</string>
+    <string name="ZephyrArchiveHeader">Archive</string>
+    <string name="ZephyrArchiveOnPull">Open archive on pull down</string>
+    <string name="ZephyrDisableUnarchiveSwipe">Disable swipe to unarchive</string>
+    <string name="ZephyrSystemHeader">System</string>
+    <string name="ZephyrTabletMode">Tablet mode</string>
+    <string name="ZephyrTabletAuto">Auto</string>
+    <string name="ZephyrTabletOn">Always on</string>
+    <string name="ZephyrTabletOff">Always off</string>
+    <string name="ZephyrUseSystemEmoji">Use system emoji</string>
+    <string name="ZephyrLookHeader">Look</string>
+    <string name="ZephyrUseSystemFonts">Use system fonts</string>
+    <string name="ZephyrNewSwitchStyle">New switch style</string>
+    <string name="ZephyrDisableDividers">Hide dividers</string>
+    <string name="ZephyrHideActionBarStatus">Hide emoji status in title</string>
+    <string name="ZephyrRestartRequired">Restart the app to apply tablet mode, fonts and emoji changes.</string>
+    <string name="ZephyrEnableLogs">Enable logging</string>
+    <string name="ZephyrEnableLogsInfo">Writes debug logs to a file. Turn on only to report a problem.</string>
+</resources>

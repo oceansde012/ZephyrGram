@@ -403,9 +403,9 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
         boolean result = super.drawChild(canvas, child, drawingTime);
         if (supportsHolidayImage && !titleOverlayShown && !LocaleController.isRTL && (child == titleTextView[0] || child == titleTextView[1] || child == titlesContainer && useContainerForTitles)) {
             Drawable drawable = Theme.getCurrentHolidayDrawable();
-            if (drawable != null) {
+            if (drawable != null || org.telegram.messenger.zephyr.ZephyrConfig.forceSnow) {
                 SimpleTextView titleView = child == titlesContainer ? titleTextView[0] : (SimpleTextView) child;
-                if (titleView != null && titleView.getVisibility() == View.VISIBLE && titleView.getText() instanceof String) {
+                if (drawable != null && titleView != null && titleView.getVisibility() == View.VISIBLE && titleView.getText() instanceof String) {
                     TextPaint textPaint = titleView.getTextPaint();
                     textPaint.getFontMetricsInt(fontMetricsInt);
                     textPaint.getTextBounds((String) titleView.getText(), 0, 1, rect);

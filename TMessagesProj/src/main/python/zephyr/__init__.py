@@ -174,3 +174,4 @@ class BasePlugin:
 
 
 from . import client  # noqa: E402
+from .client import AiError, message_to_dict  # noqa: E402,F401

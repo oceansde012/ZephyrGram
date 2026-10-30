@@ -47,6 +47,7 @@ public class ZephyrPluginDetailsActivity extends UniversalFragment implements Pl
         if (version!=null && (local==null || manager.getUpdate(pluginId)!=null))
             items.add(UItem.asButton(3,s(local==null ? R.string.ZephyrPluginsInstall : R.string.ZephyrPluginsUpdate))
                     .setEnabled(!manager.isBusy() && !repository.isStale()));
+        if (local!=null) items.add(UItem.asButton(4, s(R.string.ZephyrPluginUninstall)).setEnabled(!manager.isBusy()));
         items.add(UItem.asHeader(s(R.string.ZephyrPluginPermissions)));
         List<String> permissions=entry!=null ? entry.permissions : local.permissions;
         items.add(UItem.asShadow(ZephyrPluginsActivity.permissions(permissions)));
@@ -58,6 +59,14 @@ public class ZephyrPluginDetailsActivity extends UniversalFragment implements Pl
         PluginManager.InstalledPlugin local=manager.getInstalled(pluginId);
         if (item.id==1 && local!=null) manager.setEnabled(pluginId,!local.enabled,failure -> ZephyrPluginsActivity.error(this,failure));
         else if (item.id==2 && local!=null && local.enabled) presentFragment(new ZephyrPluginSettingsActivity(pluginId));
+        else if (item.id==4 && local!=null && getParentActivity()!=null) {
+            showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(s(R.string.ZephyrPluginUninstallTitle))
+                    .setMessage(String.format(s(R.string.ZephyrPluginUninstallArchiveText), local.name))
+                    .setPositiveButton(s(R.string.ZephyrPluginUninstall), (d,w) -> manager.uninstall(pluginId, failure -> {
+                        if (failure!=null) ZephyrPluginsActivity.error(this,failure); else finishFragment();
+                    }))
+                    .setNegativeButton(s(R.string.Cancel),null).create());
+        }
         else if (item.id==3) {
             PluginIndex.IndexEntry entry=entry();
             if (entry==null || getParentActivity()==null) return;

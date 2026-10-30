@@ -1266,6 +1266,7 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_VIEW_STATISTICS = 115;
     public final static int OPTION_WELCOME_REVERT = 116;
     public final static int OPTION_SEND_MONEY = 117;
+    public final static int OPTION_ZEPHYR_EDIT_HISTORY = 9101;
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             NotificationCenter.messagesRead,
@@ -1707,6 +1708,11 @@ public class ChatActivity extends BaseFragment implements
 
     private final static int chat_menu_topic_create = 73;
 
+    private final static int zephyr_permissions = 3001;
+    private final static int zephyr_admins = 3002;
+    private final static int zephyr_members = 3003;
+    private final static int zephyr_recent_actions = 3004;
+
     private final static int id_chat_compose_panel = 1000;
 
     RecyclerListView.OnItemLongClickListenerExtended onItemLongClickListener = new RecyclerListView.OnItemLongClickListenerExtended() {
@@ -1942,6 +1948,14 @@ public class ChatActivity extends BaseFragment implements
         @Override
         public boolean hasDoubleTap(View view, int position) {
             if (isQuickRepliesOrWelcomeMessagesMode()) return false;
+            final int zAction = zephyrDoubleTapAction(view);
+            if (zAction != 1) {
+                if (zAction == 0 || !(view instanceof ChatMessageCell)) {
+                    return false;
+                }
+                final MessageObject zMsg = ((ChatMessageCell) view).getPrimaryMessageObject();
+                return zMsg != null && !zMsg.isDateObject && !zMsg.isSending() && !zMsg.isEditing() && !actionBar.isActionModeShowed() && !isInScheduleMode() && !zMsg.isSponsored();
+            }
             String reactionStringSetting = getMediaDataController().getDoubleTapReaction();
             TLRPC.TL_availableReaction reaction = getMediaDataController().getReactionsMap().get(reactionStringSetting);
             if (reaction == null && (reactionStringSetting == null || !reactionStringSetting.startsWith("animated_"))) {
@@ -1979,6 +1993,13 @@ public class ChatActivity extends BaseFragment implements
                     return;
                 }
             } else {
+                return;
+            }
+            final int zAction = zephyrDoubleTapAction(view);
+            if (zAction != 1) {
+                if (zAction != 0 && view instanceof ChatMessageCell) {
+                    zephyrRunDoubleTapAction(zAction, messageObject);
+                }
                 return;
             }
             if (messageObject.isSecret() || !messageObject.canSetReaction() || messageObject.isExpiredStory() || messageObject.type == MessageObject.TYPE_JOINED_CHANNEL) {
@@ -3954,6 +3975,8 @@ public class ChatActivity extends BaseFragment implements
                     } else {
                         getNotificationCenter().postNotificationName(NotificationCenter.openBoostForUsersDialog, dialog_id);
                     }
+                } else if (id >= zephyr_permissions && id <= zephyr_recent_actions) {
+                    openZephyrAdminShortcut(id);
                 } else if (id == report) {
                     ReportBottomSheet.openChat(ChatActivity.this);
                 } else if (id == star) {
@@ -4476,6 +4499,20 @@ public class ChatActivity extends BaseFragment implements
             updateTranslateItemVisibility();
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
+            }
+            if (currentChat != null && !isTopic && chatMode == MODE_DEFAULT && (currentChat.creator || ChatObject.hasAdminRights(currentChat))) {
+                if (ZephyrConfig.permissionsShortcut && ChatObject.canBlockUsers(currentChat)) {
+                    headerItem.lazilyAddSubItem(zephyr_permissions, R.drawable.msg_permissions, LocaleController.getString(R.string.ChannelPermissions));
+                }
+                if (ZephyrConfig.administratorsShortcut) {
+                    headerItem.lazilyAddSubItem(zephyr_admins, R.drawable.msg_admins, LocaleController.getString(R.string.ChannelAdministrators));
+                }
+                if (ZephyrConfig.membersShortcut) {
+                    headerItem.lazilyAddSubItem(zephyr_members, R.drawable.msg_groups, LocaleController.getString(R.string.ChannelMembers));
+                }
+                if (ZephyrConfig.recentActionsShortcut && ChatObject.isChannel(currentChat)) {
+                    headerItem.lazilyAddSubItem(zephyr_recent_actions, R.drawable.msg_log, LocaleController.getString(R.string.EventLog));
+                }
             }
             if (currentUser != null && currentUser.id != UserObject.VERIFY && currentUser.id != UserObject.REPLY_BOT) {
                 addContactItem = headerItem.lazilyAddSubItem(share_contact, R.drawable.msg_addcontact, LocaleController.getString(R.string.AddToContacts));
@@ -7407,7 +7444,7 @@ public class ChatActivity extends BaseFragment implements
                     searchUserMessages(user, null);
                 } else {
                     if (UserObject.getPublicUsername(user) != null) {
-                        chatActivityEnterView.replaceWithText(start, len, "@" + UserObject.getPublicUsername(user) + " ", false);
+                        chatActivityEnterView.replaceWithText(start, len, "@" + UserObject.getPublicUsername(user) + (ZephyrConfig.addCommaAfterMention && start == 0 ? ", " : " "), false);
                     } else {
                         String name = UserObject.getFirstName(user, false);
                         Spannable spannable = new SpannableString(name + " ");
@@ -8655,6 +8692,8 @@ public class ChatActivity extends BaseFragment implements
                                 getNotificationCenter().postNotificationName(NotificationCenter.peerSettingsDidLoad, dialog_id);
                             }
                         }
+                    } else if (zephyrDiscussButton()) {
+                        openZephyrDiscussion();
                     } else {
                         toggleMute(true);
                     }
@@ -20973,6 +21012,14 @@ public class ChatActivity extends BaseFragment implements
         long did = (Long) args[0];
         int loadIndex = did == dialog_id ? 0 : 1;
         int count = (Integer) args[1];
+        if (chatMode == MODE_DEFAULT && mode == MODE_DEFAULT && messArr != null && !messArr.isEmpty()) {
+            // Local message filters: hide matching incoming messages but keep the paging arithmetic (size vs count) intact.
+            ArrayList<MessageObject> zephyrShown = org.telegram.messenger.zephyr.ZephyrMessageFilters.filterIncoming(messArr);
+            if (zephyrShown != messArr) {
+                count -= messArr.size() - zephyrShown.size();
+                messArr = zephyrShown;
+            }
+        }
         int fnid = (Integer) args[4];
         int last_unread_date = (Integer) args[7];
         int load_type = (Integer) args[8];
@@ -22276,7 +22323,11 @@ public class ChatActivity extends BaseFragment implements
                 if (!scheduled) {
                     invalidatePaidMessagesPriceOnIncoming(arr);
                 }
-                processNewMessages(arr);
+                ArrayList<MessageObject> zephyrShown = chatMode == MODE_DEFAULT && !scheduled ? org.telegram.messenger.zephyr.ZephyrMessageFilters.filterIncoming(arr) : arr;
+                if (zephyrShown.isEmpty() && !arr.isEmpty()) {
+                    return;
+                }
+                processNewMessages(zephyrShown);
             } else if (ChatObject.isChannel(currentChat) && !currentChat.megagroup && chatInfo != null && did == -chatInfo.linked_chat_id) {
                 for (int a = 0, N = arr.size(); a < N; a++) {
                     MessageObject messageObject = arr.get(a);
@@ -25210,7 +25261,7 @@ public class ChatActivity extends BaseFragment implements
     private Pattern sponsoredUrlPattern;
     private MessageObject botSponsoredMessage;
     private void addSponsoredMessages(boolean animated) {
-        if (sponsoredMessagesAdded || chatMode != 0 || !ChatObject.isChannel(currentChat) && !UserObject.isBot(currentUser) || !forwardEndReached[0] || getUserConfig().isPremium() && getMessagesController().isSponsoredDisabled() || isReport()) {
+        if (ZephyrConfig.disableAds || sponsoredMessagesAdded || chatMode != 0 || !ChatObject.isChannel(currentChat) && !UserObject.isBot(currentUser) || !forwardEndReached[0] || getUserConfig().isPremium() && getMessagesController().isSponsoredDisabled() || isReport()) {
             return;
         }
         MessagesController.SponsoredMessagesInfo res = getMessagesController().getSponsoredMessages(dialog_id);
@@ -28149,7 +28200,10 @@ public class ChatActivity extends BaseFragment implements
                     bottomOverlayChatText.setTextInfo(LocaleController.getString(R.string.ForumReplyToMessagesInTopic));
                     bottomOverlayChatText.setEnabled(false);
                 } else if (!isThreadChat()) {
-                    if (!getMessagesController().isDialogMuted(dialog_id, getTopicId())) {
+                    if (zephyrDiscussButton()) {
+                        bottomOverlayChatText.setText(LocaleController.getString(R.string.ZephyrDiscussButton), true);
+                        bottomOverlayChatText.setEnabled(true);
+                    } else if (!getMessagesController().isDialogMuted(dialog_id, getTopicId())) {
                         bottomOverlayChatText.setText(LocaleController.getString(R.string.ChannelMuteNoCaps), false);
                         bottomOverlayChatText.setEnabled(true);
                     } else {
@@ -33648,12 +33702,88 @@ public class ChatActivity extends BaseFragment implements
         MediaController.saveFile(path, getParentActivity(), messageObject.isVideo() ? 1 : 0, null, null);
     }
 
+    // --- ZephyrGram: double-tap action (ported from exteraGram doubleTapAction/doubleTapActionOutOwner, GPLv2) ---
+    /** 0 = off, 1 = reaction (stock), 2 = reply, 3 = copy, 4 = forward, 5 = edit, 6 = delete. */
+    private int zephyrDoubleTapAction(View view) {
+        MessageObject m = null;
+        if (view instanceof ChatMessageCell) {
+            m = ((ChatMessageCell) view).getPrimaryMessageObject();
+        } else if (view instanceof ChatActionCell) {
+            m = ((ChatActionCell) view).getMessageObject();
+        }
+        if (m == null) {
+            return 1;
+        }
+        org.telegram.messenger.zephyr.ZephyrConfig.load();
+        return m.isOutOwner() ? org.telegram.messenger.zephyr.ZephyrConfig.doubleTapActionOutOwner : org.telegram.messenger.zephyr.ZephyrConfig.doubleTapAction;
+    }
+
+    private void zephyrRunDoubleTapAction(int action, MessageObject msg) {
+        if (msg == null || msg.messageOwner == null || msg.isDateObject || getParentActivity() == null) {
+            return;
+        }
+        final int option;
+        switch (action) {
+            case 2:
+                option = OPTION_REPLY;
+                break;
+            case 3:
+                if (TextUtils.isEmpty(msg.messageText) && TextUtils.isEmpty(msg.caption)) {
+                    return;
+                }
+                option = OPTION_COPY;
+                break;
+            case 4:
+                if (!msg.canForwardMessage() || msg.messageOwner.noforwards) {
+                    return;
+                }
+                option = OPTION_FORWARD;
+                break;
+            case 5:
+                if (!msg.canEditMessage(currentChat)) {
+                    return;
+                }
+                option = OPTION_EDIT;
+                break;
+            case 6:
+                if (!msg.canDeleteMessage(chatMode == MODE_SCHEDULED, currentChat)) {
+                    return;
+                }
+                option = OPTION_DELETE;
+                break;
+            default:
+                return;
+        }
+        selectedObject = msg;
+        selectedObjectGroup = getValidGroupedMessage(msg);
+        selectedObjectToEditCaption = null;
+        processSelectedOption(option);
+    }
+
     private void processSelectedOption(int option) {
         if (selectedObject == null || getParentActivity() == null) {
             return;
         }
         if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(option)) {
             org.telegram.messenger.zephyr.plugins.PluginMenus.onClick(option, currentAccount, getDialogId(), selectedObject, this);
+            return;
+        }
+        if (ZephyrMessageMenu.isItemId(option)) {
+            final MessageObject zephyrMessage = selectedObject;
+            final MessageObject.GroupedMessages zephyrGroup = selectedObjectGroup;
+            selectedObject = null;
+            selectedObjectGroup = null;
+            selectedObjectToEditCaption = null;
+            closeMenu(true);
+            ZephyrMessageMenu.onClick(option, this, zephyrMessage, zephyrGroup);
+            return;
+        }
+        if (option == OPTION_ZEPHYR_EDIT_HISTORY) {
+            final MessageObject historyObject = selectedObject;
+            if (historyObject.messageOwner != null) {
+                presentFragment(new ZephyrEditHistoryActivity(currentAccount, historyObject.getDialogId(), historyObject.getId(),
+                        historyObject.messageOwner.message, historyObject.messageOwner.date, historyObject.messageOwner.edit_date, historyObject.messageOwner.zephyrDeleted));
+            }
             return;
         }
         boolean preserveDim = false;
@@ -46137,6 +46267,41 @@ public class ChatActivity extends BaseFragment implements
         return -1;
     }
 
+    private void openZephyrAdminShortcut(int id) {
+        if (currentChat == null) {
+            return;
+        }
+        if (id == zephyr_recent_actions) {
+            presentFragment(new ChannelAdminLogActivity(currentChat));
+            return;
+        }
+        final boolean isChannel = ChatObject.isChannel(currentChat) && !currentChat.megagroup;
+        final int type;
+        if (id == zephyr_admins) {
+            type = ChatUsersActivity.TYPE_ADMIN;
+        } else if (id == zephyr_members) {
+            type = ChatUsersActivity.TYPE_USERS;
+        } else {
+            type = !isChannel && !currentChat.gigagroup || ChatObject.isCommunity(currentChat) ? ChatUsersActivity.TYPE_KICKED : ChatUsersActivity.TYPE_BANNED;
+        }
+        Bundle usersArgs = new Bundle();
+        usersArgs.putLong("chat_id", currentChat.id);
+        usersArgs.putInt("type", type);
+        ChatUsersActivity usersFragment = new ChatUsersActivity(usersArgs);
+        usersFragment.setInfo(chatInfo);
+        presentFragment(usersFragment);
+    }
+
+    private boolean zephyrDiscussButton() {
+        return ZephyrConfig.bottomButton == 1 && chatMode == MODE_DEFAULT && ChatObject.isChannelAndNotMegaGroup(currentChat) && chatInfo != null && chatInfo.linked_chat_id != 0;
+    }
+
+    private void openZephyrDiscussion() {
+        Bundle discussArgs = new Bundle();
+        discussArgs.putLong("chat_id", chatInfo.linked_chat_id);
+        presentFragment(new ChatActivity(discussArgs));
+    }
+
     public void fillMessageMenu(
         MessageObject primaryMessage,
 
@@ -46145,6 +46310,12 @@ public class ChatActivity extends BaseFragment implements
         ArrayList<Integer> options
     ) {
         final MessageObject message = selectedObject;
+        if (message != null && message.messageOwner != null && message.getId() > 0 && !message.isSponsored()
+                && (ZephyrConfig.saveEdited && message.messageOwner.edit_date != 0 || message.messageOwner.zephyrDeleted)) {
+            items.add(LocaleController.getString(R.string.ZephyrEditHistory));
+            options.add(OPTION_ZEPHYR_EDIT_HISTORY);
+            icons.add(R.drawable.msg_info);
+        }
         if (message != null) {
             for (org.telegram.messenger.zephyr.plugins.PluginMenus.Item item : org.telegram.messenger.zephyr.plugins.PluginMenus.getItems(
                     org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_MESSAGE_CONTEXT, currentAccount, getDialogId(), message, this)) {
@@ -46799,6 +46970,7 @@ public class ChatActivity extends BaseFragment implements
             options.add(OPTION_WELCOME_REVERT);
             icons.add(R.drawable.outline_revert_24);
         }
+        ZephyrMessageMenu.addItems(this, selectedObject, selectedObjectGroup, icons, items, options);
     }
 
     private boolean showWelcomeMessageRevertOption(MessageObject messageObject) {

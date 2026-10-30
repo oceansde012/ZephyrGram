@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrShareLogs">Share logs</string>
+    <string name="ZephyrLogsInfo">Logging is on by default in ZephyrGram. Tokens, secrets and message text are never written to the logs. To open the debug menu, tap the version number at the bottom of Settings.</string>
+</resources>

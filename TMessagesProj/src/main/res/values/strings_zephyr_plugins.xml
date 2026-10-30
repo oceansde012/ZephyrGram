@@ -84,6 +84,8 @@
     <string name="ZephyrPluginPermInternet">Internet access</string>
     <string name="ZephyrPluginPermInternetInfo">Connect to servers on the internet.</string>
     <string name="ZephyrPluginPermJavaRaw">Full app access</string>
+    <string name="ZephyrPluginPermAiComplete">Send text to your AI server and get replies</string>
+    <string name="ZephyrPluginPermChatRead">Read recent messages and chat info</string>
     <string name="ZephyrPluginPermJavaRawInfo">Run arbitrary code with the same rights as the app. Dangerous.</string>
     <string name="ZephyrPluginPermUnknown">Unknown permission</string>
     <string name="ZephyrPluginSettingsTitle">%1$s settings</string>
@@ -91,4 +93,6 @@
     <string name="ZephyrPluginSettingsNotLoaded">Enable the plugin to change its settings.</string>
     <string name="ZephyrPluginNotFound">Plugin not found</string>
     <string name="ZephyrPluginUnknownError">unknown error</string>
+    <string name="ZephyrPluginUsernameNotFound">Username not found</string>
+    <string name="ZephyrPluginUsernameError">Could not look up the username:</string>
 </resources>

@@ -55,12 +55,13 @@ public class ZephyrSettingsActivity extends BaseFragment {
     private static final int ROW_APPEARANCE = 20;
     private static final int ROW_CHATS = 21;
     private static final int ROW_OTHER_SCREEN = 22;
-    private static final int ROW_MORE_SHADOW = 23;
-    private static final int ROW_RESET = 24;
-    private static final int ROW_CREDITS = 25;
-    private static final int ROW_CREDITS_INFO = 26;
-    private static final int ROW_PLUGINS = 27;
-    private static final int ROW_COUNT = 28;
+    private static final int ROW_AI = 23;
+    private static final int ROW_MORE_SHADOW = 24;
+    private static final int ROW_RESET = 25;
+    private static final int ROW_CREDITS = 26;
+    private static final int ROW_CREDITS_INFO = 27;
+    private static final int ROW_PLUGINS = 28;
+    private static final int ROW_COUNT = 29;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -137,7 +138,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
 
     private static boolean isLinkRow(int position) {
         return position == ROW_PLUGINS || position == ROW_CHECK_UPDATE || position == ROW_GENERAL || position == ROW_APPEARANCE
-                || position == ROW_CHATS || position == ROW_OTHER_SCREEN || position == ROW_RESET
+                || position == ROW_CHATS || position == ROW_OTHER_SCREEN || position == ROW_AI || position == ROW_RESET
                 || position == ROW_CREDITS;
     }
 
@@ -161,6 +162,9 @@ public class ZephyrSettingsActivity extends BaseFragment {
             return;
         } else if (position == ROW_OTHER_SCREEN) {
             presentFragment(new ZephyrOtherSettingsActivity());
+            return;
+        } else if (position == ROW_AI) {
+            presentFragment(new ZephyrAssistantActivity());
             return;
         } else if (position == ROW_RESET) {
             ZephyrBaseSettingsActivity.confirmReset(this, null);
@@ -322,12 +326,14 @@ public class ZephyrSettingsActivity extends BaseFragment {
                         titleRes = R.string.ZephyrSettingsChats;
                     } else if (position == ROW_OTHER_SCREEN) {
                         titleRes = R.string.ZephyrSettingsOther;
+                    } else if (position == ROW_AI) {
+                        titleRes = R.string.ZephyrAi;
                     } else if (position == ROW_RESET) {
                         titleRes = R.string.ZephyrResetSettings;
                     } else {
                         titleRes = R.string.ZephyrCredits;
                     }
-                    settingsCell.setText(LocaleController.getString(titleRes), position != ROW_OTHER_SCREEN && position != ROW_RESET && position != ROW_CREDITS);
+                    settingsCell.setText(LocaleController.getString(titleRes), position != ROW_AI && position != ROW_RESET && position != ROW_CREDITS);
                 }
             } else if (type == TYPE_INFO) {
                 ((TextInfoPrivacyCell) holder.itemView).setText(
@@ -335,6 +341,8 @@ public class ZephyrSettingsActivity extends BaseFragment {
                                 ? LocaleController.getString(R.string.ZephyrUpdatesInfo)
                                 : position == ROW_CREDITS_INFO
                                 ? LocaleController.getString(R.string.ZephyrCreditsText)
+                                : position == ROW_OTHER_SHADOW
+                                ? LocaleController.getString(R.string.ZephyrLocalPremiumInfo)
                                 : LocaleController.getString(R.string.ZephyrGhostModeInfo)
                 );
             }
@@ -349,10 +357,10 @@ public class ZephyrSettingsActivity extends BaseFragment {
                     || position == ROW_MORE_HEADER) {
                 return TYPE_HEADER;
             }
-            if (position == ROW_GHOST_INFO || position == ROW_UPDATES_INFO || position == ROW_CREDITS_INFO) {
+            if (position == ROW_GHOST_INFO || position == ROW_UPDATES_INFO || position == ROW_CREDITS_INFO || position == ROW_OTHER_SHADOW) {
                 return TYPE_INFO;
             }
-            if (position == ROW_MESSAGES_SHADOW || position == ROW_OTHER_SHADOW || position == ROW_MORE_SHADOW) {
+            if (position == ROW_MESSAGES_SHADOW || position == ROW_MORE_SHADOW) {
                 return TYPE_SHADOW;
             }
             if (isLinkRow(position)) {

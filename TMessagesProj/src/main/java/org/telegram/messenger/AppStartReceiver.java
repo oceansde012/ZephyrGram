@@ -15,10 +15,16 @@ import android.content.Intent;
 public class AppStartReceiver extends BroadcastReceiver {
 
     public void onReceive(Context context, Intent intent) {
-        if (intent != null && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+        if (intent == null || intent.getAction() == null) {
+            return;
+        }
+        String action = intent.getAction();
+        final boolean boot = Intent.ACTION_BOOT_COMPLETED.equals(action);
+        // ZephyrGram: also restart the connection service after an app update and when the service asks for it
+        if (boot || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action) || "org.telegram.start".equals(action)) {
             AndroidUtilities.runOnUIThread(() -> {
                 SharedConfig.loadConfig();
-                if (SharedConfig.passcodeHash.length() > 0) {
+                if (boot && SharedConfig.passcodeHash.length() > 0) {
                     SharedConfig.appLocked = true;
                     SharedConfig.saveConfig();
                 }

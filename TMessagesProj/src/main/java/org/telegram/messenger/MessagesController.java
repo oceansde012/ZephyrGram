@@ -928,7 +928,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isPremiumUser(TLRPC.User currentUser) {
-        return currentUser != null && currentUser.premium && !isSupportUser(currentUser);
+        return currentUser != null && (currentUser.premium || ZephyrConfig.localPremium && currentUser.id == getUserConfig().getClientUserId()) && !isSupportUser(currentUser);
     }
 
     public boolean didPressTranscribeButtonEnough() {
@@ -21754,6 +21754,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
+        if (ZephyrConfig.disableAds) {
+            return null;
+        }
         SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);
         if (info != null && (info.loading || Math.abs(SystemClock.elapsedRealtime() - info.loadTime) <= 5 * 60 * 1000)) {
             return info;
@@ -22641,7 +22644,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
 
         }
-        if (promoDialog != null && isLeftPromoChannel) {
+        if (promoDialog != null && isLeftPromoChannel && !(ZephyrConfig.disableAds && promoDialogType != PROMO_TYPE_PSA)) {
             allDialogs.add(0, promoDialog);
             addDialogToItsFolder(-2, promoDialog);
         }

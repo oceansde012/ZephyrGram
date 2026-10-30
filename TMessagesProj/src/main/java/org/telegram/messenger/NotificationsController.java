@@ -1134,6 +1134,9 @@ public class NotificationsController extends BaseController implements Notificat
                     }
                     continue;
                 }
+                if (org.telegram.messenger.zephyr.ZephyrMessageFilters.shouldHide(messageObject)) {
+                    continue; // local message filter: no notification
+                }
                 if (messageObject.isStoryPush) {
                     long date = messageObject.messageOwner == null ? System.currentTimeMillis() : messageObject.messageOwner.date * 1000L;
                     long dialogId = messageObject.getDialogId();

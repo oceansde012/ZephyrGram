@@ -91,4 +91,6 @@
     <string name="ZephyrPluginSettingsNotLoaded">Увімкніть плагін, щоб змінювати його налаштування.</string>
     <string name="ZephyrPluginNotFound">Плагін не знайдено</string>
     <string name="ZephyrPluginUnknownError">невідома помилка</string>
+    <string name="ZephyrPluginUsernameNotFound">Такого імені користувача не знайдено</string>
+    <string name="ZephyrPluginUsernameError">Не вдалося знайти імʼя користувача:</string>
 </resources>

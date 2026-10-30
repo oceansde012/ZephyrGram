@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrForwardNoAuthor">Переслать без автора</string>
+    <string name="ZephyrSaveToSaved">Сохранить в Избранное</string>
+    <string name="ZephyrSavedDone">Сохранено</string>
+    <string name="ZephyrCopyPhoto">Копировать фото</string>
+    <string name="ZephyrPhotoCopied">Фото скопировано</string>
+    <string name="ZephyrPhotoNotLoaded">Фото ещё не загружено</string>
+    <string name="ZephyrMessageDetails">Детали сообщения</string>
+    <string name="ZephyrCopy">Копировать</string>
+    <string name="ZephyrDiscussButton">Обсуждение</string>
+    <string name="ZephyrMenuForwardNoAuthor">Меню: переслать без автора</string>
+    <string name="ZephyrMenuSaveToSaved">Меню: сохранить в Избранное</string>
+    <string name="ZephyrMenuCopyPhoto">Меню: копировать фото</string>
+    <string name="ZephyrMenuDetails">Меню: детали сообщения</string>
+    <string name="ZephyrShortcutPermissions">Меню чата: Разрешения</string>
+    <string name="ZephyrShortcutAdmins">Меню чата: Администраторы</string>
+    <string name="ZephyrShortcutMembers">Меню чата: Участники</string>
+    <string name="ZephyrShortcutRecentActions">Меню чата: Последние действия</string>
+    <string name="ZephyrBottomButton">Нижняя кнопка в каналах</string>
+    <string name="ZephyrBottomButtonMute">Выключить / включить звук</string>
+    <string name="ZephyrBottomButtonDiscuss">Обсуждение</string>
+    <string name="ZephyrActionTimestamps">Время в служебных сообщениях</string>
+    <string name="ZephyrCommaAfterMention">Запятая после @упоминания</string>
+    <string name="ZephyrHideCategories">Скрыть категории эмодзи</string>
+    <string name="ZephyrHideCameraTile">Скрыть плитку камеры в меню вложений</string>
+    <string name="ZephyrVideoMessagesCamera">Камера для видеосообщений</string>
+    <string name="ZephyrCameraDefault">По умолчанию</string>
+    <string name="ZephyrCameraFront">Фронтальная</string>
+    <string name="ZephyrCameraRear">Основная</string>
+    <string name="ZephyrCameraLast">Последняя использованная</string>
+    <string name="ZephyrStaticZoom">Статичный зум в камере видеосообщений</string>
+</resources>

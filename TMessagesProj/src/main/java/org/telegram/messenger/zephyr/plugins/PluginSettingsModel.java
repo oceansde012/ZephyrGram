@@ -24,6 +24,10 @@ public final class PluginSettingsModel {
     public static final int TYPE_SELECTOR = 3;
     public static final int TYPE_TEXT = 4;
     public static final int TYPE_DIVIDER = 5;
+    /** Button that opens Telegram's dialog picker; the plugin gets on_pick(dialog_id, title). */
+    public static final int TYPE_DIALOG_PICKER = 6;
+    /** Button that asks for a @username / t.me link, resolves it and gives on_resolved(dialog_id, title). */
+    public static final int TYPE_USERNAME_INPUT = 7;
 
     public static final class Item {
         public int type;
@@ -122,6 +126,16 @@ public final class PluginSettingsModel {
     /** Click on a TYPE_TEXT row. */
     public void click(Item it) {
         PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "click", "null");
+    }
+
+    /** TYPE_DIALOG_PICKER / TYPE_USERNAME_INPUT: a chat was chosen or resolved (call on the UI thread). */
+    public void picked(Item it, long dialogId, String title) {
+        try {
+            String json = new JSONObject().put("id", dialogId).put("title", title == null ? "" : title).toString();
+            PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "pick", json);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
     }
 
     // ---------------------------------------------------------------- raw storage (also used by Python)

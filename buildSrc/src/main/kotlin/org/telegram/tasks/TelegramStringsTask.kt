@@ -83,7 +83,7 @@ abstract class TelegramStringsTask : DefaultTask() {
 
         // The plugin runs on the application now, so the default localization
         // is composed from two values/strings.xml files.
-        val defaultLocalizationFiles = stringsXml.files.toList()
+        val defaultLocalizationFiles = stringsXml.files.toList().sortedBy { it.absolutePath }
 
 
         // Union of all string resources defined in all localizations.
@@ -96,7 +96,7 @@ abstract class TelegramStringsTask : DefaultTask() {
             )
         }
 
-        val localizationInputFiles = localizationFiles.files.toList()
+        val localizationInputFiles = localizationFiles.files.toList().sortedBy { it.absolutePath }
 
         for (file in localizationInputFiles) {
             collectStrings(

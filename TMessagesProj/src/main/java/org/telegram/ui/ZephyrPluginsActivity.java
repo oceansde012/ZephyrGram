@@ -52,6 +52,8 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
             else if ("ui.menu".equals(permission)) id = R.string.ZephyrPluginPermUiMenu;
             else if ("internet".equals(permission)) id = R.string.ZephyrPluginPermInternet;
             else if ("java.raw".equals(permission)) id = R.string.ZephyrPluginPermJavaRaw;
+            else if ("ai.complete".equals(permission)) id = R.string.ZephyrPluginPermAiComplete;
+            else if ("chat.read".equals(permission)) id = R.string.ZephyrPluginPermChatRead;
             labels.add(s(id));
         }
         String text = android.text.TextUtils.join("\n", labels);

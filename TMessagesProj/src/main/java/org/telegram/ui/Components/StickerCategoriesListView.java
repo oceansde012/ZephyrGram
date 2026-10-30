@@ -279,7 +279,7 @@ public class StickerCategoriesListView extends RecyclerListView {
     private boolean categoriesShouldShow = true;
     public void updateCategoriesShown(boolean show, boolean animated) {
         categoriesShouldShow = show;
-        if (categories == null) {
+        if (categories == null || org.telegram.messenger.zephyr.ZephyrConfig.hideCategories) {
             show = false;
         }
 

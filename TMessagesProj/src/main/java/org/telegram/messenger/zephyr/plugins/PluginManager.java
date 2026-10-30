@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
+import org.telegram.messenger.FileLog;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,8 @@ public final class PluginManager {
     private volatile boolean busy;
     private volatile boolean safeMode;
     private volatile boolean startupComplete;
+    private volatile long startElapsed;
+    private static final long EARLY_CRASH_WINDOW_MS = 30000;
 
     public interface Listener { void onPluginsChanged(); }
     /** Always delivered on Android's main thread; null error means success. */
@@ -79,6 +82,8 @@ public final class PluginManager {
     public synchronized void initialize() {
         if (initialized) return;
         initialized = true;
+        startElapsed = android.os.SystemClock.elapsedRealtime();
+        installCrashHandler();
         PluginRuntime.INSTANCE.setFailureListener((id, reason) -> worker.execute(() -> disableSync(id, "errors", reason)));
         PluginRepository.INSTANCE.addListener(() -> {
             if (!PluginRepository.INSTANCE.isLoading() && PluginRepository.INSTANCE.getIndex() != null) {
@@ -90,18 +95,27 @@ public final class PluginManager {
             try {
                 PluginRepository.INSTANCE.loadCacheSync();
                 SharedPreferences preferences = prefs();
-                int early = preferences.getBoolean("boot_pending", false) ? preferences.getInt("early_crashes", 0) + 1 : 0;
+                // Only an uncaught exception recorded by the chained handler (or a native crash that left the load marker)
+                // counts; a normal app close within the first 30s does not.
+                boolean crashedEarly = preferences.getBoolean("early_crash_flag", false) || preferences.getString("loading_id", null) != null;
+                int early = crashedEarly ? preferences.getInt("early_crashes", 0) + 1 : 0;
                 safeMode = early >= 3 || preferences.getBoolean("safe_mode", false);
                 String interrupted = preferences.getString("loading_id", null);
                 Set<String> ids = new HashSet<>(preferences.getStringSet("installed_ids", Collections.emptySet()));
                 boolean anyEnabled = false;
                 for (String id : ids) if (preferences.getBoolean(id + ".enabled", false)) anyEnabled = true;
                 SharedPreferences.Editor edit = preferences.edit().putInt("early_crashes", early)
-                        .putBoolean("boot_pending", anyEnabled).putBoolean("safe_mode", safeMode).remove("loading_id");
+                        .remove("early_crash_flag").putBoolean("safe_mode", safeMode).remove("loading_id");
                 if (interrupted != null && PluginManifest.isValidId(interrupted)) {
-                    int crashes = preferences.getInt(interrupted + ".load_crashes", 0) + 1;
-                    edit.putInt(interrupted + ".load_crashes", crashes);
-                    if (crashes >= 2) edit.putBoolean(interrupted + ".enabled", false).putString(interrupted + ".status", "crash");
+                    int loadingVersion = preferences.getInt("loading_vc", 0);
+                    if (loadingVersion > 0 && loadingVersion != preferences.getInt(interrupted + ".version_code", 0)) {
+                        // The crash happened while loading an update candidate: the installed version is innocent.
+                        edit.putInt(interrupted + ".bad_vc", loadingVersion);
+                    } else {
+                        int crashes = preferences.getInt(interrupted + ".load_crashes", 0) + 1;
+                        edit.putInt(interrupted + ".load_crashes", crashes);
+                        if (crashes >= 2) edit.putBoolean(interrupted + ".enabled", false).putString(interrupted + ".status", "crash");
+                    }
                 }
                 if (!edit.commit()) throw new IOException("Cannot persist plugin startup state");
                 for (String id : ids) {
@@ -122,6 +136,7 @@ public final class PluginManager {
                         else if (safeMode) disableSync(id, "safe_mode", null);
                         else if (enabled) enableSync(id);
                     } catch (Exception e) {
+                        FileLog.e("PluginManager: startup load failed for " + id, e);
                         preferences.edit().putBoolean(id + ".enabled", false).putString(id + ".status", "errors")
                                 .putString(id + ".error", PluginRepository.message(e)).commit();
                         PluginManifest display = new PluginManifest();
@@ -135,13 +150,57 @@ public final class PluginManager {
                 }
                 reconcile();
                 PluginRuntime.INSTANCE.dispatchAppEvent("START");
-            } catch (Exception ignored) { safeMode = true; }
+            } catch (Exception ignored) { safeMode = true; FileLog.e("PluginManager: startup failed, safe mode", ignored); }
             finally { busy = false; startupComplete = true; changed(); }
-            AndroidUtilities.runOnUIThread(() -> worker.execute(() -> prefs().edit().putBoolean("boot_pending", false)
-                    .putInt("early_crashes", 0).commit()), 30000);
+            AndroidUtilities.runOnUIThread(() -> worker.execute(() -> prefs().edit().remove("early_crash_flag")
+                    .putInt("early_crashes", 0).commit()), EARLY_CRASH_WINDOW_MS);
         });
         PluginRepository.INSTANCE.loadCache();
         if (isAutoUpdateEnabled()) PluginRepository.INSTANCE.refresh(null);
+    }
+
+    private void installCrashHandler() {
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            try {
+                boolean anyEnabled = false;
+                for (InstalledPlugin p : installed.values()) if (p.enabled) { anyEnabled = true; break; }
+                if (anyEnabled && android.os.SystemClock.elapsedRealtime() - startElapsed < EARLY_CRASH_WINDOW_MS) {
+                    prefs().edit().putBoolean("early_crash_flag", true).commit();
+                    FileLog.e("PluginManager: early crash with plugins enabled: " + error.getClass().getName());
+                }
+            } catch (Throwable ignored) { }
+            if (previous != null) previous.uncaughtException(thread, error);
+        });
+    }
+
+    /** Disables and unloads the plugin, deletes its settings, and moves its files into archive/ (never hard-deleted). */
+    public void uninstall(String id, Callback callback) {
+        initialize();
+        execute(() -> uninstallSync(id), callback);
+    }
+
+    private void uninstallSync(String id) throws Exception {
+        if (!PluginManifest.isValidId(id)) throw new IOException("Invalid plugin id");
+        if (!installed.containsKey(id)) throw new IOException("Plugin is not installed");
+        PluginRuntime.INSTANCE.unload(id);
+        File base = new File(PluginRepository.root(), "archive/" + id + "/uninstalled-" + System.currentTimeMillis());
+        PluginRepository.mkdir(base);
+        File dir = new File(PluginRepository.root(), "plugins/" + id);
+        if (dir.exists() && !dir.renameTo(new File(base, "plugin"))) throw new IOException("Cannot archive plugin files");
+        File data = PluginRuntime.getDataDirectory(id);
+        if (data.exists() && !data.renameTo(new File(base, "data"))) throw new IOException("Cannot archive plugin data");
+        SharedPreferences preferences = prefs();
+        Set<String> ids = new HashSet<>(preferences.getStringSet("installed_ids", Collections.emptySet()));
+        ids.remove(id);
+        SharedPreferences.Editor edit = preferences.edit().putStringSet("installed_ids", ids);
+        for (String suffix : new String[]{"sha256", "enabled", "developer", "name", "version", "version_code", "status", "error", "load_crashes", "bad_vc"}) {
+            edit.remove(id + "." + suffix);
+        }
+        if (id.equals(preferences.getString("loading_id", null))) edit.remove("loading_id");
+        if (!edit.commit()) throw new IOException("Cannot save plugin state");
+        ApplicationLoader.applicationContext.getSharedPreferences("zephyr_plugin_" + id, Context.MODE_PRIVATE).edit().clear().commit();
+        installed.remove(id);
     }
 
     public PluginIndex.VersionEntry getUpdate(String id) {
@@ -149,7 +208,8 @@ public final class PluginManager {
         PluginIndex index = PluginRepository.INSTANCE.getIndex();
         PluginIndex.IndexEntry entry = index == null ? null : index.find(id);
         PluginIndex.VersionEntry version = entry == null ? null : entry.bestCompatible(BuildConfig.ZEPHYR_VERSION, API_VERSION);
-        return current != null && version != null && version.versionCode > current.versionCode ? version : null;
+        return current != null && version != null && version.versionCode > current.versionCode
+                && version.versionCode != prefs().getInt(id + ".bad_vc", -1) ? version : null;
     }
 
     public void install(String id, boolean approvePermissions, Callback callback) {
@@ -186,7 +246,7 @@ public final class PluginManager {
         worker.execute(() -> {
             busy = true; changed();
             String failure = null;
-            try { operation.run(); } catch (Exception e) { failure = PluginRepository.message(e); }
+            try { operation.run(); } catch (Exception e) { failure = PluginRepository.message(e); FileLog.e("PluginManager: operation failed", e); }
             finally { busy = false; changed(); }
             final String result = failure;
             if (callback != null) AndroidUtilities.runOnUIThread(() -> callback.onComplete(result));
@@ -202,6 +262,7 @@ public final class PluginManager {
         if (version == null) throw new IOException("No compatible plugin version is available");
         InstalledPlugin previous = installed.get(id);
         if (previous != null && version.versionCode <= previous.versionCode) throw new IOException("Plugin is already up to date");
+        if (version.versionCode == prefs().getInt(id + ".bad_vc", -1)) throw new IOException("This plugin version crashed the app while loading");
         installBytes(repository.download(id, version), id, version, false, approvePermissions);
     }
 
@@ -224,7 +285,7 @@ public final class PluginManager {
         boolean promoted = false;
         try {
             if (enable) {
-                markLoading(manifest.id);
+                markLoading(manifest.id, manifest.versionCode);
                 PluginRuntime.INSTANCE.unload(manifest.id);
                 PluginRuntime.INSTANCE.load(manifest.id, candidate);
             }
@@ -246,7 +307,9 @@ public final class PluginManager {
                     .remove("loading_id").commit()) throw new IOException("Cannot save plugin state");
             installed.put(manifest.id, new InstalledPlugin(manifest, active, enable, developer, enable ? "enabled" : "user", null));
         } catch (Exception e) {
+            FileLog.e("PluginManager: install/update failed for " + manifest.id, e);
             PluginRuntime.INSTANCE.unload(manifest.id);
+            if (!promoted) candidate.delete();
             if (promoted && active.exists()) {
                 File failed = new File(active.getParentFile(), "failed-" + System.nanoTime() + ".plugin");
                 if (!active.renameTo(failed)) throw new IOException("Update failed; cannot preserve failed source", e);
@@ -273,7 +336,7 @@ public final class PluginManager {
         if (!PluginRepository.sha256(PluginRepository.read(record.file, PluginManifest.MAX_SOURCE_BYTES)).equals(prefs().getString(id + ".sha256", ""))) {
             throw new IOException("Installed plugin checksum mismatch");
         }
-        markLoading(id);
+        markLoading(id, record.versionCode);
         try {
             PluginRuntime.INSTANCE.load(id, record.file);
             if (!prefs().edit().putBoolean(id + ".enabled", true).putString(id + ".status", "enabled")
@@ -281,11 +344,11 @@ public final class PluginManager {
                     .remove(id + ".error").remove("loading_id").commit()) throw new IOException("Cannot save plugin state");
             safeMode = false;
             installed.put(id, new InstalledPlugin(record.manifest, record.file, true, record.developer, "enabled", null));
-        } catch (Exception e) { disableSync(id, "errors", PluginRepository.message(e)); throw e; }
+        } catch (Exception e) { FileLog.e("PluginManager: enable failed for " + id, e); disableSync(id, "errors", PluginRepository.message(e)); throw e; }
     }
 
-    private void markLoading(String id) throws IOException {
-        if (!prefs().edit().putString("loading_id", id).commit()) throw new IOException("Cannot persist plugin load marker");
+    private void markLoading(String id, int versionCode) throws IOException {
+        if (!prefs().edit().putString("loading_id", id).putInt("loading_vc", versionCode).commit()) throw new IOException("Cannot persist plugin load marker");
     }
     private void disableSync(String id, String status, String error) {
         PluginRuntime.INSTANCE.unload(id);
@@ -310,7 +373,7 @@ public final class PluginManager {
         for (InstalledPlugin record : getInstalled()) {
             if (record.developer || getUpdate(record.id) == null) continue;
             try { installSync(record.id, false); }
-            catch (Exception e) { errors.add(record.name + ": " + PluginRepository.message(e)); }
+            catch (Exception e) { FileLog.e("PluginManager: batch operation failed for " + record.name, e); errors.add(record.name + ": " + PluginRepository.message(e)); }
         }
         changed();
         return errors.isEmpty() ? null : android.text.TextUtils.join("\n", errors);

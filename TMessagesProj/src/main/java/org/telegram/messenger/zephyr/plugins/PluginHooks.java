@@ -456,8 +456,11 @@ public final class PluginHooks {
                     err[0] = r.error != null ? r.error : (r.response == null ? cancelledError() : null);
                     return;
                 }
-                resp[0] = r.response;
-                err[0] = r.error;
+                // MODIFY without response/error would silently drop the server answer; keep the original then.
+                if (r.response != null || r.error != null) {
+                    resp[0] = r.response;
+                    err[0] = r.error;
+                }
                 if (r.strategy == MODIFY_FINAL) return;
             }
         } catch (Throwable t) {
@@ -492,8 +495,12 @@ public final class PluginHooks {
     /** Call only after MessagesController accepted the filtered updates. */
     public static void onAcceptedUpdateArray(int account, ArrayList<TLRPC.Update> updates) {
         if (!hasUpdateHooks || updates == null) return;
-        for (TLRPC.Update update : updates) {
-            if (update != null && firstSeen(acceptedUpdates, update, account)) dispatchMessageEvents(account, update);
+        try {
+            for (TLRPC.Update update : updates) {
+                if (update != null && firstSeen(acceptedUpdates, update, account)) dispatchMessageEvents(account, update);
+            }
+        } catch (Throwable t) {
+            FileLog.e(t); // never let plugin plumbing break update processing
         }
     }
 
@@ -516,7 +523,10 @@ public final class PluginHooks {
                     FileLog.e("Plugin container cancellation ignored to preserve Telegram update counters");
                     continue;
                 }
-                if (r.updates != null) cur = r.updates;
+                if (r.updates != null) {
+                    if (sameCounters(updates, r.updates)) cur = r.updates;
+                    else FileLog.e("Plugin container replacement ignored: class or pts/seq counters differ");
+                }
                 if (r.strategy == MODIFY_FINAL) break;
             }
             if (cur != updates) firstSeen(seenContainers, cur, account);
@@ -525,6 +535,12 @@ public final class PluginHooks {
             FileLog.e(t);
             return updates;
         }
+    }
+
+    /** A replaced container must keep Telegram's sequencing fields, otherwise gap detection would break. */
+    private static boolean sameCounters(TLRPC.Updates a, TLRPC.Updates b) {
+        return a.getClass() == b.getClass() && a.seq == b.seq && a.seq_start == b.seq_start
+                && a.pts == b.pts && a.pts_count == b.pts_count && a.date == b.date && a.id == b.id;
     }
 
     /**
@@ -540,13 +556,21 @@ public final class PluginHooks {
                 TLRPC.Update orig = updates.get(i);
                 TLRPC.Update cur = orig;
                 if (anyUpdateHooks && orig != null) {
+                    UpdateOutcome previous = null;
+                    boolean run = false;
                     synchronized (transformedUpdates) {
                         Map<Integer, UpdateOutcome> byAccount = transformedUpdates.computeIfAbsent(orig, key -> new HashMap<>());
-                        UpdateOutcome previous = byAccount.get(account);
-                        if (previous != null) cur = previous.value(orig);
-                        else {
+                        previous = byAccount.get(account);
+                        if (previous == null) {
                             // Mark before calling Python so reentrant processing cannot recurse forever.
                             byAccount.put(account, new UpdateOutcome(orig, orig));
+                            run = true;
+                        }
+                    }
+                    if (previous != null) {
+                        cur = previous.value(orig);
+                    } else if (run) {
+                        try {
                             String[] names = namesOf(orig.getClass());
                             Hook[] hooks = updateHooks.match(names[0], names[1]);
                             for (Hook h : hooks) {
@@ -556,7 +580,13 @@ public final class PluginHooks {
                                 if (r.update != null) cur = r.update;
                                 if (r.strategy == MODIFY_FINAL) break;
                             }
-                            byAccount.put(account, new UpdateOutcome(orig, cur));
+                        } catch (Throwable t) {
+                            FileLog.e(t);
+                            cur = orig;
+                        }
+                        synchronized (transformedUpdates) {
+                            Map<Integer, UpdateOutcome> byAccount = transformedUpdates.get(orig);
+                            if (byAccount != null) byAccount.put(account, new UpdateOutcome(orig, cur));
                         }
                     }
                 }
@@ -573,6 +603,23 @@ public final class PluginHooks {
             return updates;
         }
         return out != null ? out : updates;
+    }
+
+    // Message events are informational (no result), so they never run Python on the network/update thread.
+    private static final java.util.concurrent.ExecutorService eventQueue = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "ZephyrPluginEvents");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private static void postEvent(Runnable r) {
+        try {
+            eventQueue.execute(() -> {
+                try { r.run(); } catch (Throwable t) { FileLog.e(t); }
+            });
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
     }
 
     private static void dispatchMessageEvents(int account, TLRPC.Update u) {
@@ -599,18 +646,22 @@ public final class PluginHooks {
             list = deletedMsgList;
             kind = MSG_DELETED;
             if (list.length == 0) return;
-            ArrayList<Integer> ids = ((TL_update.TL_updateDeleteMessages) u).messages;
-            for (SimpleHook h : list) {
-                PluginRuntime.callMessagesDeleted(h.pluginId, account, 0L, ids);
-            }
+            final ArrayList<Integer> ids = new ArrayList<>(((TL_update.TL_updateDeleteMessages) u).messages);
+            final SimpleHook[] targets = list;
+            postEvent(() -> {
+                for (SimpleHook h : targets) PluginRuntime.callMessagesDeleted(h.pluginId, account, 0L, ids);
+            });
             return;
         } else if (u instanceof TL_update.TL_updateDeleteChannelMessages) {
             list = deletedMsgList;
             if (list.length == 0) return;
-            TL_update.TL_updateDeleteChannelMessages d = (TL_update.TL_updateDeleteChannelMessages) u;
-            for (SimpleHook h : list) {
-                PluginRuntime.callMessagesDeleted(h.pluginId, account, -d.channel_id, d.messages);
-            }
+            final TL_update.TL_updateDeleteChannelMessages d = (TL_update.TL_updateDeleteChannelMessages) u;
+            final ArrayList<Integer> ids = new ArrayList<>(d.messages);
+            final long dialogId = -d.channel_id;
+            final SimpleHook[] targets = list;
+            postEvent(() -> {
+                for (SimpleHook h : targets) PluginRuntime.callMessagesDeleted(h.pluginId, account, dialogId, ids);
+            });
             return;
         } else {
             return;
@@ -624,16 +675,23 @@ public final class PluginHooks {
             FileLog.e(t);
             return;
         }
-        for (SimpleHook h : list) {
-            PluginRuntime.callMessageEvent(h.pluginId, kind, account, mo);
-        }
+        final SimpleHook[] targets = list;
+        final int eventKind = kind;
+        final MessageObject message = mo;
+        postEvent(() -> {
+            for (SimpleHook h : targets) PluginRuntime.callMessageEvent(h.pluginId, eventKind, account, message);
+        });
     }
 
     // ---------------------------------------------------------------- send
 
+    private static final Map<Object, Boolean> processedParams = Collections.synchronizedMap(new WeakHashMap<>());
+
     /** @return params to send (possibly modified / replaced) or null if a plugin cancelled sending. */
     public static SendMessagesHelper.SendMessageParams onSendMessage(int account, SendMessagesHelper.SendMessageParams params) {
         if (!hasSendHooks || params == null || consumeSkip(params)) return params;
+        // Retries and SendMessagesHelper's own re-entry (e.g. paid-message confirmation) must not re-apply hooks.
+        if (params.retryMessageObject != null || processedParams.containsKey(params)) return params;
         try {
             SendMessagesHelper.SendMessageParams cur = params;
             for (SimpleHook h : sendList) {
@@ -643,6 +701,8 @@ public final class PluginHooks {
                 if (r.params != null) cur = r.params;
                 if (r.strategy == MODIFY_FINAL) break;
             }
+            processedParams.put(params, Boolean.TRUE);
+            processedParams.put(cur, Boolean.TRUE);
             return cur;
         } catch (Throwable t) {
             FileLog.e(t);
@@ -655,10 +715,11 @@ public final class PluginHooks {
         if (!hasNewMessageHooks || message == null) return;
         if (!firstSeen(acceptedMessages, message, account * 4 + MSG_NEW)) return;
         try {
-            MessageObject mo = new MessageObject(account, message, false, false);
-            for (SimpleHook h : newMsgList) {
-                PluginRuntime.callMessageEvent(h.pluginId, MSG_NEW, account, mo);
-            }
+            final MessageObject mo = new MessageObject(account, message, false, false);
+            final SimpleHook[] targets = newMsgList;
+            postEvent(() -> {
+                for (SimpleHook h : targets) PluginRuntime.callMessageEvent(h.pluginId, MSG_NEW, account, mo);
+            });
         } catch (Throwable t) {
             FileLog.e(t);
         }

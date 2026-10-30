@@ -1507,9 +1507,27 @@ public class FilterTabsView extends FrameLayout {
             final float add = additionalTabWidth / 2f;
 
             final int y = height / 2 - dp(14);
-            selectorDrawable.setBounds((int) (indicatorX - dp(TAB_INTERNAL_PADDING) - add), y, (int) (indicatorX + indicatorWidth + dp(TAB_INTERNAL_PADDING) + add), y + dp(28));
-            selectorDrawable.setAlpha(31);
-            selectorDrawable.draw(canvas);
+            // ZephyrGram: folder tab indicator style (ported from exteraGram tabStyle, GPLv2).
+            final int zStyle = org.telegram.messenger.zephyr.ZephyrConfig.tabStyle;
+            final int zLeft = (int) (indicatorX - dp(TAB_INTERNAL_PADDING) - add);
+            final int zRight = (int) (indicatorX + indicatorWidth + dp(TAB_INTERNAL_PADDING) + add);
+            if (zStyle != 3) {
+                int zTop = y, zBottom = y + dp(28), zAlpha = 31;
+                float zRad = dpf2(14);
+                if (zStyle == 1) {
+                    zRad = dpf2(8);
+                } else if (zStyle == 2) {
+                    zTop = y + dp(28) - dp(3);
+                    zRad = dpf2(1.5f);
+                    zAlpha = 255;
+                } else if (zStyle == 4) {
+                    zAlpha = 80;
+                }
+                selectorDrawable.setCornerRadius(zRad);
+                selectorDrawable.setBounds(zLeft, zTop, zRight, zBottom);
+                selectorDrawable.setAlpha(zAlpha);
+                selectorDrawable.draw(canvas);
+            }
             canvas.restore();
         }
     }

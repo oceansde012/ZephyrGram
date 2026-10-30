@@ -288,12 +288,7 @@ public class ConnectionsManager extends BaseController {
     }
 
     public boolean isPushConnectionEnabled() {
-        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        if (preferences.contains("pushConnection")) {
-            return preferences.getBoolean("pushConnection", true);
-        } else {
-            return MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("backgroundConnection", false);
-        }
+        return org.telegram.messenger.zephyr.ZephyrPush.isConnectionEnabled();
     }
 
     public long getCurrentTimeMillis() {

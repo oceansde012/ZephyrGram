@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAi">AI-асистент</string>
+    <string name="ZephyrAiNewChat">Новий чат</string>
+    <string name="ZephyrAiClearConfirm">Видалити цю розмову з пристрою?</string>
+    <string name="ZephyrAiInputHint">Запитайте асистента…</string>
+    <string name="ZephyrAiEmpty">Запитайте будь-що. Повідомлення надсилаються на ваш AI-сервер.</string>
+    <string name="ZephyrAiStop">Зупинити</string>
+    <string name="ZephyrAiSend">Надіслати</string>
+    <string name="ZephyrAiCopy">Копіювати</string>
+    <string name="ZephyrAiCopied">Скопійовано</string>
+    <string name="ZephyrAiAsk">Запитати AI</string>
+    <string name="ZephyrAiThinking">…</string>
+    <string name="ZephyrAiErrNotConfigured">AI-сервер не налаштовано. Вкажіть адресу сервера та токен доступу в налаштуваннях.</string>
+    <string name="ZephyrAiErrUnauthorized">Доступ заборонено (401). Токен відсутній, хибний або відкликаний — запросіть доступ через бота.</string>
+    <string name="ZephyrAiErrRate">Забагато запитів (429). Зачекайте трохи й повторіть.</string>
+    <string name="ZephyrAiErrStarting">Сервер запускається. Повторіть за кілька секунд.</string>
+    <string name="ZephyrAiErrNetwork">Помилка мережі: %1$s</string>
+    <string name="ZephyrAiErrServer">Помилка сервера: %1$s</string>
+    <string name="ZephyrAiOpenSettings">Відкрити налаштування</string>
+    <string name="ZephyrAiRequestAccess">Запросити доступ через бота</string>
+    <string name="ZephyrAiServerUrl">Адреса сервера</string>
+    <string name="ZephyrAiToken">Токен доступу</string>
+    <string name="ZephyrAiModel">Модель</string>
+    <string name="ZephyrAiModelDefault">За замовчуванням сервера</string>
+    <string name="ZephyrAiModelLoading">Завантаження моделей…</string>
+    <string name="ZephyrAiModelNone">Сервер не повернув жодної моделі.</string>
+    <string name="ZephyrAiSystemPrompt">Системний промпт</string>
+    <string name="ZephyrAiTemperature">Температура (%)</string>
+    <string name="ZephyrAiBotUsername">Юзернейм бота доступу</string>
+    <string name="ZephyrAiNotSet">Не задано</string>
+    <string name="ZephyrAiTestConnection">Перевірити з\'єднання</string>
+    <string name="ZephyrAiTestOk">З\'єднано. Доступно моделей: %1$d</string>
+    <string name="ZephyrAiBotNotSet">Спершу вкажіть юзернейм бота доступу (запитайте у власника сервера).</string>
+    <string name="ZephyrAiSettingsInfo">Токен зберігається приватно на цьому пристрої й надсилається лише на ваш сервер. Щоб його отримати, натисніть «Запросити доступ через бота»: власник схвалить, а бот надішле токен.</string>
+    <string name="ZephyrAiSettingsHeader">Сервер</string>
+</resources>

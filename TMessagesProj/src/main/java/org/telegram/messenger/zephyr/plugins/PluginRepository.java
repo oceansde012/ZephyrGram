@@ -7,6 +7,7 @@ import android.util.Base64;
 import org.json.JSONObject;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -35,6 +36,7 @@ public final class PluginRepository {
     public static final byte[][] PUBLIC_KEYS = new byte[][]{
         new byte[]{(byte) 0xc1, (byte) 0x5e, (byte) 0x61, (byte) 0xaf, (byte) 0x54, (byte) 0xfc, (byte) 0x1a, (byte) 0xd8, (byte) 0xc8, (byte) 0x7b, (byte) 0x96, (byte) 0x9c, (byte) 0xc0, (byte) 0x80, (byte) 0xdb, (byte) 0x21, (byte) 0x09, (byte) 0xf7, (byte) 0xb7, (byte) 0x9b, (byte) 0xba, (byte) 0x73, (byte) 0x5b, (byte) 0x2f, (byte) 0x50, (byte) 0xba, (byte) 0xfb, (byte) 0xd7, (byte) 0x5b, (byte) 0x2e, (byte) 0x1f, (byte) 0xc3}
     };
+    private static final String FALLBACK_BASE = "https://cdn.jsdelivr.net/gh/" + REPO + "@index/";
     private static final int MAX_INDEX_BYTES = 2 * 1024 * 1024;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> new Thread(r, "PluginRepository"));
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -79,7 +81,7 @@ public final class PluginRepository {
             loading = true;
             changed();
             try { refreshSync(); }
-            catch (Exception e) { failure = message(e); error = failure; }
+            catch (Exception e) { failure = message(e); error = failure; FileLog.e("PluginRepository: refresh failed", e); }
             finally { loading = false; changed(); }
             final String result = failure;
             if (callback != null) AndroidUtilities.runOnUIThread(() -> callback.onComplete(index, result));
@@ -90,9 +92,21 @@ public final class PluginRepository {
     public synchronized PluginIndex refreshSync() throws Exception {
         loadCacheLocked();
         if (PUBLIC_KEYS.length == 0) throw new IOException("Plugin store signing key is not configured");
-        byte[] raw = fetch(BASE + "index.json", MAX_INDEX_BYTES);
-        byte[] sig = fetch(BASE + "index.json.sig", 1024);
-        PluginIndex next = verifySignedIndex(raw, sig, PUBLIC_KEYS);
+        byte[] raw, sig;
+        PluginIndex next;
+        try {
+            raw = fetch(BASE + "index.json", MAX_INDEX_BYTES);
+            sig = fetch(BASE + "index.json.sig", 1024);
+            next = verifySignedIndex(raw, sig, PUBLIC_KEYS);
+        } catch (Exception primary) {
+            FileLog.w("PluginRepository: primary index fetch failed, trying fallback: " + primary.getClass().getName());
+            // Fallback mirror; the signature is verified exactly the same way, so the CDN is untrusted transport only.
+            try {
+                raw = fetch(FALLBACK_BASE + "index.json", MAX_INDEX_BYTES);
+                sig = fetch(FALLBACK_BASE + "index.json.sig", 1024);
+                next = verifySignedIndex(raw, sig, PUBLIC_KEYS);
+            } catch (Exception fallback) { throw primary; }
+        }
         long now = System.currentTimeMillis();
         if (next.isExpired(now)) throw new IOException("Plugin index has expired");
         String hash = sha256(raw);
@@ -112,6 +126,11 @@ public final class PluginRepository {
                 .putString("cache_file", name).commit()) throw new IOException("Cannot persist trusted index sequence");
         index = next;
         error = null;
+        // Keep only the snapshot that is now trusted; every refresh would otherwise leave a new file behind.
+        try {
+            File[] old = cache.listFiles();
+            if (old != null) for (File f : old) if (!f.getName().equals(name)) f.delete();
+        } catch (Throwable ignored) { }
         return next;
     }
 
@@ -131,7 +150,7 @@ public final class PluginRepository {
                 throw new IOException("Saved plugin index does not match trusted sequence");
             }
             index = cached;
-        } catch (Exception e) { error = message(e); }
+        } catch (Exception e) { error = message(e); FileLog.e("PluginRepository: cached index rejected", e); }
     }
 
     /** Signature is checked before parsing. Public for independent trust-chain tests. */
@@ -191,7 +210,7 @@ public final class PluginRepository {
 
     private static byte[] fetch(String value, int limit) throws IOException {
         URL url = new URL(value);
-        if (!"https".equals(url.getProtocol()) || !"raw.githubusercontent.com".equals(url.getHost())
+        if (!"https".equals(url.getProtocol()) || !("raw.githubusercontent.com".equals(url.getHost()) || "cdn.jsdelivr.net".equals(url.getHost()))
                 || url.getUserInfo() != null || url.getPort() != -1) throw new IOException("Unexpected download host");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {

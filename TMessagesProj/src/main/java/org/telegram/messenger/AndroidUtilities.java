@@ -261,7 +261,7 @@ public class AndroidUtilities {
 
     public static Typeface bold() {
         if (mediumTypeface == null) {
-            if (SharedConfig.useSystemBoldFont && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if ((SharedConfig.useSystemBoldFont || org.telegram.messenger.zephyr.ZephyrConfig.useSystemFonts) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 mediumTypeface = Typeface.create(null, 500, false);
             } else {
                 mediumTypeface = getTypeface(TYPEFACE_ROBOTO_MEDIUM);
@@ -2955,6 +2955,15 @@ public class AndroidUtilities {
     }
 
     public static boolean isTabletForce() {
+        if (ApplicationLoader.applicationContext != null) {
+            // ZephyrGram (exteraGram-derived tabletMode, GPLv2): 0 = auto, 1 = force tablet, 2 = force phone
+            org.telegram.messenger.zephyr.ZephyrConfig.load();
+            if (org.telegram.messenger.zephyr.ZephyrConfig.tabletMode == 1) {
+                return true;
+            } else if (org.telegram.messenger.zephyr.ZephyrConfig.tabletMode == 2) {
+                return false;
+            }
+        }
         return ApplicationLoader.applicationContext != null && ApplicationLoader.applicationContext.getResources().getBoolean(R.bool.isTablet);
     }
 

@@ -12,3 +12,4 @@ def require(plugin, permission):
         Runtime.requirePermission(plugin.id, permission)
     except Exception as exc:
         raise PermissionError(str(exc)) from exc
+ChatApi = jclass("org.telegram.messenger.zephyr.plugins.PluginChatApi")

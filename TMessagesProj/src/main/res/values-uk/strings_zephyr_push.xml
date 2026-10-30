@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrPushTitle">Фонове з’єднання</string>
+    <string name="ZephyrPushOn">Увімкнено</string>
+    <string name="ZephyrPushOff">Вимкнено</string>
+    <string name="ZephyrPushEnable">Тримати з’єднання у фоні</string>
+    <string name="ZephyrPushStatus">Стан</string>
+    <string name="ZephyrPushStatusOff">Вимкнено</string>
+    <string name="ZephyrPushStatusStopped">Службу не запущено (торкніться, щоб запустити)</string>
+    <string name="ZephyrPushStatusConnecting">Працює, з’єднання…</string>
+    <string name="ZephyrPushStatusConnected">Працює, з’єднано</string>
+    <string name="ZephyrPushInfo">ZephyrGram не може використовувати push від Google (FCM). Щоб доставляти повідомлення при закритому застосунку, він тримає відкрите з’єднання з Telegram через службу переднього плану. Поки вона працює, показується невелике беззвучне сповіщення. Вимкнені чати та налаштування сповіщень працюють як зазвичай.</string>
+    <string name="ZephyrPushReliability">Надійність</string>
+    <string name="ZephyrPushBattery">Оптимізація батареї</string>
+    <string name="ZephyrPushBatteryUnrestricted">Без обмежень</string>
+    <string name="ZephyrPushBatteryOptimized">Оптимізовано (можуть вимкнути)</string>
+    <string name="ZephyrPushAutostart">Автозапуск і фонова робота</string>
+    <string name="ZephyrPushNotifPermission">Дозвіл на сповіщення</string>
+    <string name="ZephyrPushNotifPermissionOff">Не надано</string>
+    <string name="ZephyrPushHideNotification">Налаштування сповіщення служби</string>
+    <string name="ZephyrPushVendorGuide">Інструкція для вашого телефону (dontkillmyapp.com)</string>
+    <string name="ZephyrPushReliabilityInfo">Дозвольте використання батареї без обмежень, щоб Android не зупиняв з’єднання. Це трохи збільшує витрату заряду. У налаштуваннях сповіщення служби можна знизити важливість, щоб сховати значок у рядку стану.</string>
+    <string name="ZephyrPushVendorHint">Пристрої %1$s часто вимикають фонові застосунки. Також увімкніть Автозапуск, виберіть режим батареї «Без обмежень» і закріпіть ZephyrGram у списку недавніх застосунків.</string>
+    <string name="ZephyrPushChannel">Фонове з’єднання</string>
+    <string name="ZephyrPushChannelInfo">Беззвучне сповіщення, поки ZephyrGram тримає з’єднання для отримання повідомлень</string>
+    <string name="ZephyrPushNotifTitle">ZephyrGram</string>
+    <string name="ZephyrPushNotifText">Отримання повідомлень у фоні</string>
+    <string name="ZephyrPushPromptTitle">Надійні сповіщення</string>
+    <string name="ZephyrPushPromptText">У ZephyrGram немає push від Google, тому він тримає власне з’єднання для доставки повідомлень. Дозвольте роботу без обмежень батареї, щоб Android його не зупиняв.</string>
+    <string name="ZephyrPushPromptAllow">Дозволити</string>
+    <string name="ZephyrPushPromptLater">Пізніше</string>
+</resources>

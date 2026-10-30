@@ -26,19 +26,19 @@ class TelegramBuildAppPlugin : Plugin<Project> {
             ) {
                 stringsXml.from(
                     telegramModule.fileTree("src/main/res/values") {
-                        include("strings.xml")
+                        include("strings.xml", "strings_*.xml")
                     },
                     project.fileTree("src/main/res/values") {
-                        include("strings.xml")
+                        include("strings.xml", "strings_*.xml")
                     }
                 )
 
                 localizationFiles.from(
                     telegramModule.fileTree("src/main/res") {
-                        include("values-*/strings.xml")
+                        include("values-*/strings.xml", "values-*/strings_*.xml")
                     },
                     project.fileTree("src/main/res") {
-                        include("values-*/strings.xml")
+                        include("values-*/strings.xml", "values-*/strings_*.xml")
                     }
                 )
 

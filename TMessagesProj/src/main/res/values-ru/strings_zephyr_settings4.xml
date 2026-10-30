@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrProfileHeader">Профиль</string>
+    <string name="ZephyrShowIdAndDc">Показывать ID и DC в профиле</string>
+    <string name="ZephyrShowIdHide">Скрыть</string>
+    <string name="ZephyrShowIdOnly">ID</string>
+    <string name="ZephyrShowIdAndDcBoth">ID и DC</string>
+    <string name="ZephyrArchiveHeader">Архив</string>
+    <string name="ZephyrArchiveOnPull">Открывать архив протягиванием вниз</string>
+    <string name="ZephyrDisableUnarchiveSwipe">Отключить свайп для разархивации</string>
+    <string name="ZephyrSystemHeader">Система</string>
+    <string name="ZephyrTabletMode">Режим планшета</string>
+    <string name="ZephyrTabletAuto">Авто</string>
+    <string name="ZephyrTabletOn">Всегда включён</string>
+    <string name="ZephyrTabletOff">Всегда выключен</string>
+    <string name="ZephyrUseSystemEmoji">Системные эмодзи</string>
+    <string name="ZephyrLookHeader">Внешний вид</string>
+    <string name="ZephyrUseSystemFonts">Системные шрифты</string>
+    <string name="ZephyrNewSwitchStyle">Новый стиль переключателей</string>
+    <string name="ZephyrDisableDividers">Скрыть разделители</string>
+    <string name="ZephyrHideActionBarStatus">Скрыть эмодзи-статус в заголовке</string>
+    <string name="ZephyrRestartRequired">Перезапустите приложение, чтобы применить режим планшета, шрифты и эмодзи.</string>
+    <string name="ZephyrEnableLogs">Включить журнал</string>
+    <string name="ZephyrEnableLogsInfo">Записывает отладочные логи в файл. Включайте только чтобы сообщить о проблеме.</string>
+</resources>

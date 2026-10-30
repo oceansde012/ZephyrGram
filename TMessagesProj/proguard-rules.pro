@@ -59,3 +59,19 @@
 # Use -keep to explicitly keep any other classes shrinking would remove
 #-dontoptimize
 #-dontobfuscate
+
+# ---- ZephyrGram Python plugins (Chaquopy) ----
+# Python code reaches Java by name (jclass / attribute access), so nothing it can touch may be renamed or removed.
+-keep class com.chaquo.python.** { *; }
+-dontwarn com.chaquo.python.**
+-keepattributes InnerClasses,EnclosingMethod,Signature,Exceptions
+# Plugin context objects (fragment / Context) and the screens plugins commonly inspect.
+-keep class org.telegram.ui.ActionBar.** { *; }
+-keep class org.telegram.ui.ChatActivity { *; }
+-keep class org.telegram.ui.ChatActivity$* { *; }
+-keep class org.telegram.ui.DialogsActivity { *; }
+-keep class org.telegram.ui.ProfileActivity { *; }
+-keep class org.telegram.ui.LaunchActivity { *; }
+-keep class org.telegram.ui.Components.BulletinFactory { *; }
+-keep class org.telegram.ui.Components.Bulletin { *; }
+-keep class org.telegram.messenger.utils.** { *; }

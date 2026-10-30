@@ -69,16 +69,18 @@ public final class PluginRuntime implements PluginHost {
     }
 
     private PyObject startPython() {
-        if (host == null) {
-            if (!isSupported()) throw new IllegalStateException("Plugins need a 64-bit Android process");
-            synchronized (PluginSmoke.class) {
+        PyObject current = host;
+        if (current != null) return current;
+        if (!isSupported()) throw new IllegalStateException("Plugins need a 64-bit Android process");
+        synchronized (PluginSmoke.class) {
+            if (host == null) {
                 if (!Python.isStarted()) {
                     Python.start(new AndroidPlatform(ApplicationLoader.applicationContext));
                 }
+                host = Python.getInstance().getModule("zephyr_host");
             }
-            host = Python.getInstance().getModule("zephyr_host");
+            return host;
         }
-        return host;
     }
 
     @Override
@@ -116,6 +118,7 @@ public final class PluginRuntime implements PluginHost {
                 startPython().callAttr("load_plugin", id, file.getAbsolutePath(), data.getAbsolutePath());
             } catch (Throwable t) {
                 log(id, "Load failed: " + t);
+                FileLog.e("Plugin " + id + ": load failed " + t.getClass().getName(), t);
                 unload(id);
                 throw new Exception("Cannot load " + id + ": " + t.getMessage(), t);
             } finally {
@@ -134,6 +137,7 @@ public final class PluginRuntime implements PluginHost {
                     host.callAttr("unload_plugin", id);
                 } catch (Throwable t) {
                     log(id, "Unload failed: " + t);
+                    FileLog.e("Plugin " + id + ": unload failed " + t.getClass().getName(), t);
                 } finally {
                     PluginHooks.setCurrentPlugin(previous);
                 }
@@ -178,14 +182,22 @@ public final class PluginRuntime implements PluginHost {
                 return null;
             } finally {
                 long elapsed = SystemClock.elapsedRealtime() - started;
-                if (elapsed > 200) log(id, "Slow callback " + method + ": " + elapsed + " ms");
+                if (elapsed > 200) {
+                    log(id, "Slow callback " + method + ": " + elapsed + " ms");
+                    FileLog.w("Plugin " + id + ": slow callback " + method + " " + elapsed + " ms");
+                }
                 PluginHooks.setCurrentPlugin(previous);
+                // Python cannot be interrupted, so a hook that stalls the network/update thread is counted
+                // like an error and eventually disables the plugin.
+                if (elapsed > 3000 && method.endsWith("_hook")) reportError(id, "Hook " + method + " blocked for " + elapsed + " ms");
             }
         }
     }
 
     public void reportError(String id, String message) {
         log(id, message);
+        // Error text comes from exceptions (class + message), never from chat content.
+        FileLog.e("Plugin " + id + ": hook/callback error: " + (message != null && message.length() > 600 ? message.substring(0, 600) : message));
         PluginManifest generation = loaded.get(id);
         if (generation == null) return;
         ArrayDeque<Long> window = errors.computeIfAbsent(id, ignored -> new ArrayDeque<>());
@@ -197,15 +209,15 @@ public final class PluginRuntime implements PluginHost {
             disable = window.size() >= 5;
         }
         if (disable) {
-          synchronized (pythonLock) {
-            if (!loaded.remove(id, generation)) return;
-            // Stop dispatching immediately; the manager persists the disabled state off this thread.
-            PluginHooks.removePlugin(id);
-            PluginMenus.removePlugin(id);
+            // Never wait for pythonLock on the caller thread (it may be the network/update thread
+            // while another plugin is loading); do the whole teardown in the background.
             background.execute(() -> {
                 synchronized (pythonLock) {
                     // An explicit re-enable/update may have loaded a fresh generation already.
-                    if (loaded.containsKey(id)) return;
+                    if (!loaded.remove(id, generation)) return;
+                    PluginHooks.removePlugin(id);
+                    PluginMenus.removePlugin(id);
+                    errors.remove(id);
                     if (host != null) {
                         try { host.callAttr("unload_plugin", id); } catch (Throwable t) { FileLog.e(t); }
                     }
@@ -213,7 +225,6 @@ public final class PluginRuntime implements PluginHost {
                 FailureListener listener = failureListener;
                 if (listener != null) listener.onPluginFailed(id, "Disabled after repeated plugin errors");
             });
-          }
         }
     }
 
@@ -222,7 +233,14 @@ public final class PluginRuntime implements PluginHost {
         try {
             File dir = getDataDirectory(id);
             if (!dir.isDirectory() && !dir.mkdirs()) return;
-            try (FileOutputStream out = new FileOutputStream(new File(dir, "log.txt"), true)) {
+            File logFile = new File(dir, "log.txt");
+            if (logFile.length() > 256 * 1024) {
+                File old = new File(dir, "log.old.txt");
+                old.delete();
+                logFile.renameTo(old);
+            }
+            if (message != null && message.length() > 4000) message = message.substring(0, 4000);
+            try (FileOutputStream out = new FileOutputStream(logFile, true)) {
                 out.write((System.currentTimeMillis() + " " + message + "\n").getBytes(StandardCharsets.UTF_8));
             }
         } catch (Throwable t) {

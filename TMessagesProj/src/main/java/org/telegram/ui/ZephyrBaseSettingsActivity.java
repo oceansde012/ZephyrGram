@@ -45,6 +45,14 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         items.add(item);
     }
 
+    /** Percent-style slider stored as an int in ZephyrConfig. */
+    protected void addSlider(ArrayList<UItem> items, String key, int titleRes, int min, int max) {
+        items.add(UItem.asHeader(LocaleController.getString(titleRes)));
+        items.add(UItem.asIntSlideView(1, min, Math.max(min, Math.min(max, ZephyrConfig.getInt(key))), max,
+                val -> val + "%",
+                val -> ZephyrConfig.setInt(key, val)));
+    }
+
     protected void addChoice(ArrayList<UItem> items, Choice choice) {
         int value = Math.max(0, Math.min(choice.options.length - 1, ZephyrConfig.getInt(choice.key)));
         UItem item = UItem.asButton(choice.key.hashCode(), LocaleController.getString(choice.titleRes), choice.options[value]);

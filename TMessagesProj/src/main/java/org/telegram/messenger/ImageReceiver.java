@@ -429,6 +429,13 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             parentObject = object;
         }
         setUseRoundForThumbDrawable(true);
+        // ZephyrGram (avatar corners, ported from exteraGram, GPLv2): mark this receiver as an avatar and re-apply the radius.
+        if (!zephyrAvatar) {
+            zephyrAvatar = true;
+            if (zephyrRawRadius != null && org.telegram.messenger.zephyr.ZephyrConfig.avatarCorners < 100) {
+                setRoundRadius(zephyrRawRadius.clone());
+            }
+        }
         BitmapDrawable strippedBitmap = null;
         boolean hasStripped = false;
         ImageLocation videoLocation = null;
@@ -2543,7 +2550,22 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         setRoundRadius(new int[]{tl, tr, br, bl});
     }
 
+    private boolean zephyrAvatar;
+    private int[] zephyrRawRadius;
+
     public void setRoundRadius(int[] value) {
+        if (zephyrRawRadius == null) {
+            zephyrRawRadius = new int[4];
+        }
+        System.arraycopy(value, 0, zephyrRawRadius, 0, 4);
+        final int zCorners = org.telegram.messenger.zephyr.ZephyrConfig.avatarCorners;
+        if (zephyrAvatar && zCorners < 100) {
+            int[] mapped = new int[4];
+            for (int i = 0; i < 4; i++) {
+                mapped[i] = value[i] > 0 ? Math.max(1, value[i] * Math.max(0, zCorners) / 100) : 0;
+            }
+            value = mapped;
+        }
         boolean changed = false;
         int firstValue = value[0];
         isRoundRect = true;

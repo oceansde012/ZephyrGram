@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrEditHistory">Історія редагувань</string>
+    <string name="ZephyrEditHistoryCurrent">Поточна версія</string>
+    <string name="ZephyrEditHistoryOriginal">Оригінал</string>
+    <string name="ZephyrEditHistoryVersion">Версія %1$d</string>
+    <string name="ZephyrEditHistoryEmpty">Для цього повідомлення редагувань не записано. Переконайтеся, що увімкнено збереження змінених повідомлень.</string>
+    <string name="ZephyrEditHistoryDeleted">Видалено на сервері: %1$s (збережено локально)</string>
+    <string name="ZephyrEditHistoryCopy">Копіювати текст</string>
+    <string name="ZephyrEditHistoryEmptyText">(без тексту)</string>
+    <string name="ZephyrHistoryStorageHeader">Збережена історія</string>
+    <string name="ZephyrHistoryStats">Видалених повідомлень: %1$d\nВерсій редагувань: %2$d\nРозмір: %3$s</string>
+    <string name="ZephyrHistoryLoading">Підрахунок…</string>
+    <string name="ZephyrHistoryClear">Очистити збережену історію</string>
+    <string name="ZephyrHistoryClearConfirm">Усі локально збережені видалені повідомлення та версії редагувань буде видалено. Цю дію не можна скасувати.</string>
+    <string name="ZephyrHistoryCleared">Збережену історію очищено</string>
+</resources>

@@ -460,6 +460,78 @@ public class ZephyrSavedMessages {
         return result != null ? result : new ArrayList<>();
     }
 
+    /** Time (unix seconds) when the message was captured as server-deleted, 0 if it is not saved. Not for the UI thread. */
+    public int getDeletedAt(int account, long dialogId, int messageId) {
+        Integer result = runSync(() -> {
+            SQLiteDatabase database = getDb();
+            if (database == null) {
+                return 0;
+            }
+            Cursor cursor = null;
+            try {
+                cursor = database.rawQuery("SELECT deleted_at FROM deleted_messages WHERE account = ? AND dialog_id = ? AND message_id = ?",
+                        new String[]{String.valueOf(account), String.valueOf(dialogId), String.valueOf(messageId)});
+                if (cursor.moveToNext()) {
+                    return cursor.getInt(0);
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
+            }
+            return 0;
+        });
+        return result != null ? result : 0;
+    }
+
+    /** {deleted messages count, edit revisions count, database file size in bytes}. Not for the UI thread. */
+    public long[] getStats() {
+        long[] result = runSync(() -> {
+            long[] stats = new long[3];
+            SQLiteDatabase database = getDb();
+            if (database == null) {
+                return stats;
+            }
+            Cursor cursor = null;
+            try {
+                cursor = database.rawQuery("SELECT (SELECT COUNT(*) FROM deleted_messages), (SELECT COUNT(*) FROM edits)", null);
+                if (cursor.moveToNext()) {
+                    stats[0] = cursor.getLong(0);
+                    stats[1] = cursor.getLong(1);
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
+            }
+            stats[2] = new File(ApplicationLoader.getFilesDirFixed(), DB_NAME).length();
+            return stats;
+        });
+        return result != null ? result : new long[3];
+    }
+
+    /** Removes every saved deleted message and edit revision. Not for the UI thread. */
+    public void clearAll() {
+        runSync(() -> {
+            SQLiteDatabase database = getDb();
+            if (database == null) {
+                return Boolean.FALSE;
+            }
+            try {
+                database.delete("deleted_messages", null, null);
+                database.delete("edits", null, null);
+                database.execSQL("VACUUM");
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+            return Boolean.TRUE;
+        });
+    }
+
     // ------------------------------------------------------------------------------------------
     // internals
     // ------------------------------------------------------------------------------------------

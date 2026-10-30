@@ -2214,6 +2214,19 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
 
     private ColoredImageSpan upgradeIconSpan;
 
+    /** Simple join/leave/pin/rename service messages that get a time suffix when ZephyrConfig.showActionTimestamps is on. */
+    private static boolean isZephyrTimestampAction(TLRPC.MessageAction action) {
+        return action instanceof TLRPC.TL_messageActionChatAddUser
+                || action instanceof TLRPC.TL_messageActionChatJoinedByLink
+                || action instanceof TLRPC.TL_messageActionChatJoinedByRequest
+                || action instanceof TLRPC.TL_messageActionChatDeleteUser
+                || action instanceof TLRPC.TL_messageActionPinMessage
+                || action instanceof TLRPC.TL_messageActionChatEditTitle
+                || action instanceof TLRPC.TL_messageActionChatEditPhoto
+                || action instanceof TLRPC.TL_messageActionChannelCreate
+                || action instanceof TLRPC.TL_messageActionChatCreate;
+    }
+
     private void buildLayout() {
         giftRectEmpty = false;
 
@@ -2279,6 +2292,10 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
                 ((SpannableStringBuilder) text).insert(0, "i ");
                 ((SpannableStringBuilder) text).setSpan(new ColoredImageSpan(iconResId), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
+        }
+        if (org.telegram.messenger.zephyr.ZephyrConfig.showActionTimestamps && text != null && messageObject != null && messageObject.messageOwner != null
+                && messageObject.messageOwner.date != 0 && isZephyrTimestampAction(messageObject.messageOwner.action)) {
+            text = new SpannableStringBuilder(text).append(" \u00b7 ").append(LocaleController.getInstance().getFormatterDay().format(messageObject.messageOwner.date * 1000L));
         }
         createLayout(text, previousWidth);
         if (birthdayLayout != null) {
