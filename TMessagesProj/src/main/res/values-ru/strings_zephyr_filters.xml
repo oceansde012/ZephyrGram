@@ -5,7 +5,7 @@
     <string name="ZephyrFiltersInfo">Фильтры работают только на этом устройстве. Подходящие входящие сообщения скрываются в открытом чате и не вызывают уведомлений. На сервере ничего не меняется, счётчики непрочитанного и превью чатов не затрагиваются.</string>
     <string name="ZephyrFiltersHeader">Фильтры</string>
     <string name="ZephyrFiltersAdd">Добавить фильтр</string>
-    <string name="ZephyrFiltersTest">Проверить текст</string>
+    <string name="ZephyrFiltersTest">Проверить фильтры на примере текста</string>
     <string name="ZephyrFiltersEmpty">Фильтров пока нет</string>
     <string name="ZephyrFilterNew">Новый фильтр</string>
     <string name="ZephyrFilterName">Название (необязательно)</string>

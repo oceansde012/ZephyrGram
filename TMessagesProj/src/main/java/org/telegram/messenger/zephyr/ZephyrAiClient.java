@@ -36,6 +36,8 @@ public class ZephyrAiClient {
     public static final int ERR_SERVER = 6;
     /** Admin API missing on the server (404). */
     public static final int ERR_ADMIN_UNAVAILABLE = 7;
+    /** Server unreachable/waking up: HTML or empty page instead of JSON, 502/503/504 from the proxy. Message = HTTP status. */
+    public static final int ERR_SERVER_DOWN = 8;
 
     public interface StreamListener {
         void onDelta(String text);
@@ -89,14 +91,102 @@ public class ZephyrAiClient {
 
     /** base + "/v1" + path, tolerating a base that already ends with /v1. */
     private static String endpoint(String path) {
-        String base = ZephyrConfig.getAiServerUrl().trim();
-        while (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
+        return ZephyrAiSetupParser.normalizeServerUrl(ZephyrConfig.getAiServerUrl()) + "/v1" + path;
+    }
+
+    private static boolean serverUrlUsable() {
+        return !ZephyrAiSetupParser.normalizeServerUrl(ZephyrConfig.getAiServerUrl()).isEmpty();
+    }
+
+    private static final int[] RETRY_PAUSE_MS = {3000, 6000};
+
+    private static boolean transientStatus(int s) {
+        return s == 502 || s == 503 || s == 504 || (s >= 520 && s <= 524);
+    }
+
+    private static boolean isHtml(HttpURLConnection c) {
+        String ct = c.getContentType();
+        return ct != null && ct.toLowerCase(java.util.Locale.ROOT).contains("text/html");
+    }
+
+    private interface Opener {
+        /** Opens a NEW connection and writes the request body (if any). */
+        HttpURLConnection open() throws IOException;
+    }
+
+    /**
+     * Opens, sends and reads the status line; retries (2x, with pauses) on 502/503/504, HTML pages and connect timeouts, which is
+     * what a sleeping/deploying Render service answers. Returns the connection of the last attempt; the caller checks the status.
+     */
+    private static HttpURLConnection openWithRetry(Call call, Opener opener) throws IOException {
+        for (int attempt = 0; ; attempt++) {
+            HttpURLConnection c = null;
+            boolean canRetry = attempt < RETRY_PAUSE_MS.length && (call == null || !call.cancelled);
+            try {
+                c = opener.open();
+                if (call != null) {
+                    call.connection = c;
+                }
+                int status = c.getResponseCode();
+                boolean bad = transientStatus(status) || (status / 100 == 2 && isHtml(c));
+                if (!bad || !canRetry) {
+                    return c;
+                }
+            } catch (java.net.SocketTimeoutException e) {
+                if (!canRetry) {
+                    throw e;
+                }
+            }
+            if (c != null) {
+                try {
+                    c.disconnect();
+                } catch (Throwable ignore) {
+                }
+            }
+            try {
+                Thread.sleep(RETRY_PAUSE_MS[attempt]);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted");
+            }
+            if (call != null && call.cancelled) {
+                throw new IOException("cancelled");
+            }
         }
-        if (!base.startsWith("http://") && !base.startsWith("https://")) {
-            base = "https://" + base;
+    }
+
+    /** Short, locale-neutral description for the UI: never a raw exception text. */
+    private static String netMessage(Throwable e) {
+        if (e instanceof java.net.SocketTimeoutException) {
+            return "timeout";
         }
-        return base + (base.endsWith("/v1") ? "" : "/v1") + path;
+        if (e instanceof java.net.UnknownHostException) {
+            return "unknown host";
+        }
+        if (e instanceof javax.net.ssl.SSLException) {
+            return "TLS";
+        }
+        if (e instanceof java.net.ConnectException) {
+            return "connection refused";
+        }
+        return "no connection";
+    }
+
+    private static JSONObject parseJsonBody(String raw, int status) throws ApiException {
+        String t = raw == null ? "" : raw.trim();
+        if (t.isEmpty() || t.charAt(0) == '<') {
+            throw new ApiException(ERR_SERVER_DOWN, String.valueOf(status));
+        }
+        try {
+            return new JSONObject(t);
+        } catch (Throwable e) {
+            throw new ApiException(ERR_SERVER_DOWN, String.valueOf(status));
+        }
+    }
+
+    private static String clip(String m) {
+        m = m == null ? "" : m.replace('\n', ' ').trim();
+        return m.length() > 160 ? m.substring(0, 160) + "\u2026" : m;
     }
 
     /** Logs only the operation, error class and numeric codes: never the token, admin secret, prompt or reply text. */
@@ -111,9 +201,9 @@ public class ZephyrAiClient {
     private static HttpURLConnection open(String method, String path, String token) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(endpoint(path)).openConnection();
         c.setRequestMethod(method);
-        c.setConnectTimeout(20000);
+        c.setConnectTimeout(45000);
         c.setReadTimeout(120000);
-        c.setRequestProperty("Authorization", "Bearer " + token);
+        c.setRequestProperty("Authorization", "Bearer " + ZephyrAiSetupParser.sanitizeSecret(token));
         c.setRequestProperty("Accept", method.equals("GET") ? "application/json" : "text/event-stream");
         c.setRequestProperty("User-Agent", "ZephyrGram");
         return c;
@@ -134,28 +224,38 @@ public class ZephyrAiClient {
 
     private static ApiException httpError(HttpURLConnection c, int status) {
         String msg = "";
+        boolean notJson = false;
         try {
-            JSONObject o = new JSONObject(readAll(c.getErrorStream()));
-            JSONObject e = o.optJSONObject("error");
-            msg = e != null ? e.optString("message", "") : "";
+            String raw = readAll(c.getErrorStream()).trim();
+            if (raw.isEmpty() || raw.charAt(0) == '<') {
+                notJson = true;
+            } else {
+                JSONObject o = new JSONObject(raw);
+                JSONObject e = o.optJSONObject("error");
+                msg = e != null ? e.optString("message", "") : "";
+            }
         } catch (Throwable ignore) {
+            notJson = true;
         }
         int code;
         if (status == 401 || status == 403) {
             code = ERR_UNAUTHORIZED;
         } else if (status == 429) {
             code = ERR_RATE_LIMIT;
+        } else if (notJson && (transientStatus(status) || status == 404 || status == 500)) {
+            code = ERR_SERVER_DOWN;
+            msg = String.valueOf(status);
         } else if (status == 503) {
             code = ERR_STARTING;
         } else {
             code = ERR_SERVER;
         }
         FileLog.w("ZephyrAI HTTP status=" + status);
-        return new ApiException(code, msg.isEmpty() ? ("HTTP " + status) : msg);
+        return new ApiException(code, msg.isEmpty() ? ("HTTP " + status) : clip(msg));
     }
 
     private static boolean notConfigured() {
-        return ZephyrConfig.getAiServerUrl().isEmpty() || ZephyrConfig.getAiToken().isEmpty();
+        return !serverUrlUsable() || ZephyrAiSetupParser.sanitizeSecret(ZephyrConfig.getAiToken()).isEmpty();
     }
 
     public static Call listModels(ModelsListener listener) {
@@ -167,13 +267,12 @@ public class ZephyrAiClient {
         EXECUTOR.execute(() -> {
             HttpURLConnection c = null;
             try {
-                c = open("GET", "/models", ZephyrConfig.getAiToken());
-                call.connection = c;
+                c = openWithRetry(call, () -> open("GET", "/models", ZephyrConfig.getAiToken()));
                 int status = c.getResponseCode();
                 if (status != 200) {
                     throw httpError(c, status);
                 }
-                JSONArray data = new JSONObject(readAll(c.getInputStream())).optJSONArray("data");
+                JSONArray data = parseJsonBody(readAll(c.getInputStream()), status).optJSONArray("data");
                 final ArrayList<String> ids = new ArrayList<>();
                 if (data != null) {
                     for (int i = 0; i < data.length(); i++) {
@@ -195,7 +294,7 @@ public class ZephyrAiClient {
             } catch (Throwable e) {
                 if (!call.cancelled) {
                     logFailure("listModels", e);
-                    final String m = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    final String m = netMessage(e);
                     MAIN.post(() -> listener.onError(ERR_NETWORK, m));
                 }
             } finally {
@@ -228,17 +327,22 @@ public class ZephyrAiClient {
                 body.put("temperature", temperature);
                 byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
 
-                c = open("POST", "/chat/completions", ZephyrConfig.getAiToken());
-                call.connection = c;
-                c.setDoOutput(true);
-                c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                c.setFixedLengthStreamingMode(bytes.length);
-                try (OutputStream os = c.getOutputStream()) {
-                    os.write(bytes);
-                }
+                c = openWithRetry(call, () -> {
+                    HttpURLConnection cc = open("POST", "/chat/completions", ZephyrConfig.getAiToken());
+                    cc.setDoOutput(true);
+                    cc.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                    cc.setFixedLengthStreamingMode(bytes.length);
+                    try (OutputStream os = cc.getOutputStream()) {
+                        os.write(bytes);
+                    }
+                    return cc;
+                });
                 int status = c.getResponseCode();
                 if (status != 200) {
                     throw httpError(c, status);
+                }
+                if (isHtml(c)) {
+                    throw new ApiException(ERR_SERVER_DOWN, String.valueOf(status));
                 }
                 BufferedReader reader = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8));
                 String line;
@@ -292,7 +396,7 @@ public class ZephyrAiClient {
             } catch (Throwable e) {
                 if (!call.cancelled) {
                     logFailure("chat", e);
-                    final String m = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    final String m = netMessage(e);
                     MAIN.post(() -> listener.onError(ERR_NETWORK, m));
                 }
             } finally {
@@ -323,7 +427,7 @@ public class ZephyrAiClient {
      */
     public static String completeBlocking(JSONArray messages, String model, double temperature, int timeoutSec) throws AiException {
         if (notConfigured()) {
-            throw new AiException(ERR_NOT_CONFIGURED, "AI is not configured (server URL / token) in ZephyrGram settings");
+            throw new AiException(ERR_NOT_CONFIGURED, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrAiErrNotConfigured));
         }
         if (model == null || model.isEmpty()) {
             model = ZephyrConfig.getAiModel();
@@ -341,22 +445,31 @@ public class ZephyrAiClient {
             body.put("stream", false);
             body.put("temperature", temperature);
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-            c = open("POST", "/chat/completions", ZephyrConfig.getAiToken());
-            c.setRequestProperty("Accept", "application/json");
-            c.setConnectTimeout(Math.min(20000, timeoutSec * 1000));
-            c.setReadTimeout(timeoutSec * 1000);
-            c.setDoOutput(true);
-            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            c.setFixedLengthStreamingMode(bytes.length);
-            try (OutputStream os = c.getOutputStream()) {
-                os.write(bytes);
-            }
+            final int tmo = timeoutSec;
+            c = openWithRetry(null, () -> {
+                HttpURLConnection cc = open("POST", "/chat/completions", ZephyrConfig.getAiToken());
+                cc.setRequestProperty("Accept", "application/json");
+                cc.setConnectTimeout(Math.min(45000, tmo * 1000));
+                cc.setReadTimeout(tmo * 1000);
+                cc.setDoOutput(true);
+                cc.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                cc.setFixedLengthStreamingMode(bytes.length);
+                try (OutputStream os = cc.getOutputStream()) {
+                    os.write(bytes);
+                }
+                return cc;
+            });
             int status = c.getResponseCode();
             if (status != 200) {
                 ApiException e = httpError(c, status);
                 throw new AiException(e.code, e.getMessage());
             }
-            JSONObject o = new JSONObject(readAll(c.getInputStream()));
+            JSONObject o;
+            try {
+                o = parseJsonBody(readAll(c.getInputStream()), status);
+            } catch (ApiException pe) {
+                throw new AiException(pe.code, pe.getMessage());
+            }
             JSONObject err = o.optJSONObject("error");
             if (err != null) {
                 throw new AiException(ERR_SERVER, err.optString("message", "error"));
@@ -369,7 +482,7 @@ public class ZephyrAiClient {
                 content = "";
             }
             if (content.isEmpty()) {
-                throw new AiException(ERR_SERVER, "Empty response from AI server");
+                throw new AiException(ERR_SERVER, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrUxAiEmptyResponse));
             }
             return content;
         } catch (AiException e) {
@@ -377,10 +490,10 @@ public class ZephyrAiClient {
             throw e;
         } catch (java.net.SocketTimeoutException e) {
             FileLog.w("ZephyrAI completeBlocking: timeout");
-            throw new AiException(ERR_NETWORK, "AI request timed out");
+            throw new AiException(ERR_NETWORK, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrUxAiTimeout));
         } catch (Throwable e) {
             logFailure("completeBlocking", e);
-            throw new AiException(ERR_NETWORK, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            throw new AiException(ERR_NETWORK, netMessage(e));
         } finally {
             if (c != null) {
                 try {
@@ -418,17 +531,7 @@ public class ZephyrAiClient {
 
     /** Server root without trailing slash and without /v1. */
     private static String adminEndpoint(String path) {
-        String base = ZephyrConfig.getAiServerUrl().trim();
-        while (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        if (!base.startsWith("http://") && !base.startsWith("https://")) {
-            base = "https://" + base;
-        }
-        if (base.endsWith("/v1")) {
-            base = base.substring(0, base.length() - 3);
-        }
-        return base + path;
+        return ZephyrAiSetupParser.normalizeServerUrl(ZephyrConfig.getAiServerUrl()) + path;
     }
 
     private static long parseTime(Object v) {
@@ -462,62 +565,91 @@ public class ZephyrAiClient {
     }
 
     private static <T> void adminRequest(String method, String path, JSONObject body, JsonParser<T> parser, AdminListener<T> listener) {
-        final String secret = ZephyrConfig.getAiAdminSecret();
-        if (ZephyrConfig.getAiServerUrl().isEmpty() || secret.isEmpty()) {
+        final String secret = ZephyrAiSetupParser.sanitizeSecret(ZephyrConfig.getAiAdminSecret());
+        if (!serverUrlUsable() || secret.isEmpty()) {
             MAIN.post(() -> listener.onError(ERR_NOT_CONFIGURED, ""));
             return;
         }
         EXECUTOR.execute(() -> {
             HttpURLConnection c = null;
             try {
-                c = (HttpURLConnection) new URL(adminEndpoint(path)).openConnection();
-                c.setRequestMethod(method);
-                c.setConnectTimeout(20000);
-                c.setReadTimeout(60000);
-                c.setRequestProperty("Authorization", "Bearer " + secret);
-                c.setRequestProperty("Accept", "application/json");
-                c.setRequestProperty("User-Agent", "ZephyrGram");
-                if (body != null) {
-                    byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-                    c.setDoOutput(true);
-                    c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                    c.setFixedLengthStreamingMode(bytes.length);
-                    try (OutputStream os = c.getOutputStream()) {
-                        os.write(bytes);
+                final byte[] bytes = body == null ? null : body.toString().getBytes(StandardCharsets.UTF_8);
+                c = openWithRetry(null, () -> {
+                    HttpURLConnection cc = (HttpURLConnection) new URL(adminEndpoint(path)).openConnection();
+                    cc.setRequestMethod(method);
+                    cc.setConnectTimeout(45000);
+                    cc.setReadTimeout(60000);
+                    cc.setRequestProperty("Authorization", "Bearer " + secret);
+                    cc.setRequestProperty("Accept", "application/json");
+                    cc.setRequestProperty("User-Agent", "ZephyrGram");
+                    if (bytes != null) {
+                        cc.setDoOutput(true);
+                        cc.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                        cc.setFixedLengthStreamingMode(bytes.length);
+                        try (OutputStream os = cc.getOutputStream()) {
+                            os.write(bytes);
+                        }
                     }
-                }
+                    return cc;
+                });
                 int status = c.getResponseCode();
                 if (status < 200 || status >= 300) {
                     String msg = "";
                     String errCode = "";
+                    boolean notJson = false;
                     try {
-                        JSONObject o = new JSONObject(readAll(c.getErrorStream()));
-                        Object e = o.opt("error");
-                        if (e instanceof JSONObject) {
-                            msg = ((JSONObject) e).optString("message", "");
-                            errCode = ((JSONObject) e).optString("code", "");
-                        } else if (e != null) {
-                            msg = String.valueOf(e);
-                        }
-                        if (msg.isEmpty()) {
-                            msg = o.optString("message", "");
+                        String raw = readAll(c.getErrorStream()).trim();
+                        if (raw.isEmpty() || raw.charAt(0) == '<') {
+                            notJson = true;
+                        } else {
+                            JSONObject o = new JSONObject(raw);
+                            Object e = o.opt("error");
+                            if (e instanceof JSONObject) {
+                                msg = ((JSONObject) e).optString("message", "");
+                                errCode = ((JSONObject) e).optString("code", "");
+                            } else if (e != null) {
+                                msg = String.valueOf(e);
+                            }
+                            if (msg.isEmpty()) {
+                                msg = o.optString("message", "");
+                            }
                         }
                     } catch (Throwable ignore) {
+                        notJson = true;
                     }
-                    int code = status == 401 || status == 403 ? ERR_UNAUTHORIZED
-                            : (status == 404 && !errCode.equals("token_not_found")) || status == 405 ? ERR_ADMIN_UNAVAILABLE
-                            : status == 429 ? ERR_RATE_LIMIT
-                            : status == 503 ? ERR_STARTING : ERR_SERVER;
-                    throw new ApiException(code, msg.isEmpty() ? ("HTTP " + status) : msg);
+                    int code;
+                    if (status == 401 || status == 403) {
+                        code = ERR_UNAUTHORIZED;
+                    } else if (status == 429) {
+                        code = ERR_RATE_LIMIT;
+                    } else if (notJson && (transientStatus(status) || status == 404 || status == 500 || status == 405)) {
+                        // HTML / empty body: proxy page of a sleeping or deploying service, or a wrong URL
+                        code = transientStatus(status) ? ERR_SERVER_DOWN : ERR_ADMIN_UNAVAILABLE;
+                        msg = String.valueOf(status);
+                    } else if ((status == 404 && !errCode.equals("token_not_found")) || status == 405) {
+                        code = ERR_ADMIN_UNAVAILABLE;
+                    } else if (status == 503) {
+                        code = ERR_STARTING;
+                    } else {
+                        code = ERR_SERVER;
+                    }
+                    throw new ApiException(code, msg.isEmpty() ? ("HTTP " + status) : clip(msg));
                 }
-                final T result = parser.parse(readAll(c.getInputStream()));
+                String rawOk = readAll(c.getInputStream());
+                if (isHtml(c) || rawOk.trim().startsWith("<")) {
+                    throw new ApiException(ERR_SERVER_DOWN, String.valueOf(status));
+                }
+                final T result = parser.parse(rawOk);
                 MAIN.post(() -> listener.onResult(result));
             } catch (ApiException e) {
                 logApiError("admin " + method, e);
                 MAIN.post(() -> listener.onError(e.code, e.getMessage()));
+            } catch (org.json.JSONException e) {
+                logFailure("admin " + method, e);
+                MAIN.post(() -> listener.onError(ERR_SERVER_DOWN, "?"));
             } catch (Throwable e) {
                 logFailure("admin " + method, e);
-                final String m = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                final String m = netMessage(e);
                 MAIN.post(() -> listener.onError(ERR_NETWORK, m));
             } finally {
                 if (c != null) {
@@ -534,9 +666,9 @@ public class ZephyrAiClient {
     public static void adminCreateToken(String label, String note, int rateLimitPerMin, int dailyLimit, AdminListener<CreatedToken> listener) {
         JSONObject body = new JSONObject();
         try {
-            body.put("label", label);
+            body.put("label", label == null || label.trim().isEmpty() ? "friend" : (label.trim().length() > 100 ? label.trim().substring(0, 100) : label.trim()));
             if (note != null && !note.isEmpty()) {
-                body.put("note", note);
+                body.put("note", note.length() > 500 ? note.substring(0, 500) : note);
             }
             if (rateLimitPerMin > 0) {
                 body.put("rate_limit_per_min", rateLimitPerMin);
@@ -553,7 +685,7 @@ public class ZephyrAiClient {
             t.label = o.optString("label", label);
             t.token = o.optString("token", "");
             if (t.token.isEmpty()) {
-                throw new ApiException(ERR_SERVER, "Server returned no token");
+                throw new ApiException(ERR_SERVER, org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrUxAiNoToken));
             }
             return t;
         }, listener);

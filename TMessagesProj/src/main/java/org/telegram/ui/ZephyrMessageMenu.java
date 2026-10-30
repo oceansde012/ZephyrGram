@@ -170,45 +170,45 @@ public final class ZephyrMessageMenu {
     private static void showDetails(ChatActivity chat, MessageObject message) {
         final TLRPC.Message m = message.messageOwner;
         final StringBuilder sb = new StringBuilder();
-        line(sb, "ID", String.valueOf(m.id));
-        line(sb, "Chat", String.valueOf(message.getDialogId()));
-        line(sb, "From", String.valueOf(message.getFromChatId()));
-        line(sb, "Date", formatDate(m.date));
+        line(sb, LocaleController.getString(R.string.ZephyrUxDetId), String.valueOf(m.id));
+        line(sb, LocaleController.getString(R.string.ZephyrUxDetChat), String.valueOf(message.getDialogId()));
+        line(sb, LocaleController.getString(R.string.ZephyrUxDetFrom), String.valueOf(message.getFromChatId()));
+        line(sb, LocaleController.getString(R.string.ZephyrUxDetDate), formatDate(m.date));
         if (m.edit_date != 0) {
-            line(sb, "Edited", formatDate(m.edit_date));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetEdited), formatDate(m.edit_date));
         }
         if (m.views > 0) {
-            line(sb, "Views", String.valueOf(m.views));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetViews), String.valueOf(m.views));
         }
         if (m.forwards > 0) {
-            line(sb, "Forwards", String.valueOf(m.forwards));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetForwards), String.valueOf(m.forwards));
         }
         if (m.fwd_from != null) {
-            line(sb, "Forwarded date", formatDate(m.fwd_from.date));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetFwdDate), formatDate(m.fwd_from.date));
             if (m.fwd_from.from_id != null) {
-                line(sb, "Forwarded from", String.valueOf(MessageObject.getPeerId(m.fwd_from.from_id)));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetFwdFrom), String.valueOf(MessageObject.getPeerId(m.fwd_from.from_id)));
             }
             if (m.fwd_from.from_name != null) {
-                line(sb, "Forwarded name", m.fwd_from.from_name);
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetFwdName), m.fwd_from.from_name);
             }
         }
         if (message.getReplyMsgId() != 0) {
-            line(sb, "Reply to", String.valueOf(message.getReplyMsgId()));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetReplyTo), String.valueOf(message.getReplyMsgId()));
         }
         if (m.grouped_id != 0) {
-            line(sb, "Album", String.valueOf(m.grouped_id));
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetAlbum), String.valueOf(m.grouped_id));
         }
         if (m.media != null) {
-            line(sb, "Media", m.media.getClass().getSimpleName());
+            line(sb, LocaleController.getString(R.string.ZephyrUxDetMedia), m.media.getClass().getSimpleName());
             final TLRPC.Document document = message.getDocument();
             if (document != null) {
-                line(sb, "Document ID", String.valueOf(document.id));
-                line(sb, "MIME", String.valueOf(document.mime_type));
-                line(sb, "Size", String.valueOf(document.size));
-                line(sb, "DC", String.valueOf(document.dc_id));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetDocId), String.valueOf(document.id));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetMime), String.valueOf(document.mime_type));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetSize), String.valueOf(document.size));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetDc), String.valueOf(document.dc_id));
             } else if (m.media.photo != null) {
-                line(sb, "Photo ID", String.valueOf(m.media.photo.id));
-                line(sb, "DC", String.valueOf(m.media.photo.dc_id));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetPhotoId), String.valueOf(m.media.photo.id));
+                line(sb, LocaleController.getString(R.string.ZephyrUxDetDc), String.valueOf(m.media.photo.dc_id));
             }
         }
         final String text = sb.toString().trim();

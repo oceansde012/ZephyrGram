@@ -3,9 +3,9 @@
     <string name="ZephyrSettingsGeneral">Общие</string>
     <string name="ZephyrSettingsAppearance">Внешний вид</string>
     <string name="ZephyrSettingsChats">Чаты</string>
-    <string name="ZephyrSettingsOther">Прочее</string>
-    <string name="ZephyrSettingsMore">Больше настроек</string>
-    <string name="ZephyrResetSettings">Сбросить настройки</string>
+    <string name="ZephyrSettingsOther">Дополнительно</string>
+    <string name="ZephyrSettingsMore">Разделы настроек</string>
+    <string name="ZephyrResetSettings">Сбросить настройки интерфейса</string>
     <string name="ZephyrResetSettingsInfo">Сбросить настройки разделов «Общие», «Внешний вид» и «Чаты» к значениям по умолчанию? Режим призрака, сохранённые сообщения и обновления не затрагиваются.</string>
     <string name="ZephyrResetSettingsDone">Настройки сброшены</string>
     <string name="ZephyrReset">Сбросить</string>

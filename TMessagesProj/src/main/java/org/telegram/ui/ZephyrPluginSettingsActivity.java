@@ -103,7 +103,7 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment {
     private void askUsername(PluginSettingsModel.Item setting) {
         if (getParentActivity()==null) return;
         EditText input=new EditText(getParentActivity()); input.setSingleLine(true);
-        input.setHint(setting.hint!=null ? setting.hint : "@username, t.me/username");
+        input.setHint(setting.hint!=null ? setting.hint : ZephyrPluginsActivity.s(R.string.ZephyrUxUsernameHint));
         showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(setting.text).setView(input)
                 .setPositiveButton(ZephyrPluginsActivity.s(R.string.OK),(d,w) -> resolve(setting,input.getText().toString()))
                 .setNegativeButton(ZephyrPluginsActivity.s(R.string.Cancel),null).create());

@@ -5,7 +5,7 @@
     <string name="ZephyrFiltersInfo">Filters work only on this device. Matching incoming messages are hidden in the open chat and produce no notification. Nothing changes on the server, and unread counters and chat previews are not affected.</string>
     <string name="ZephyrFiltersHeader">Filters</string>
     <string name="ZephyrFiltersAdd">Add filter</string>
-    <string name="ZephyrFiltersTest">Test a text</string>
+    <string name="ZephyrFiltersTest">Test filters on a sample text</string>
     <string name="ZephyrFiltersEmpty">No filters yet</string>
     <string name="ZephyrFilterNew">New filter</string>
     <string name="ZephyrFilterName">Name (optional)</string>

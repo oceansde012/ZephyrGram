@@ -5,7 +5,7 @@
     <string name="ZephyrFiltersInfo">Фільтри працюють лише на цьому пристрої. Вхідні повідомлення, що збігаються, ховаються у відкритому чаті та не викликають сповіщень. На сервері нічого не змінюється, лічильники непрочитаних і прев\'ю чатів не змінюються.</string>
     <string name="ZephyrFiltersHeader">Фільтри</string>
     <string name="ZephyrFiltersAdd">Додати фільтр</string>
-    <string name="ZephyrFiltersTest">Перевірити текст</string>
+    <string name="ZephyrFiltersTest">Перевірити фільтри на прикладі тексту</string>
     <string name="ZephyrFiltersEmpty">Фільтрів ще немає</string>
     <string name="ZephyrFilterNew">Новий фільтр</string>
     <string name="ZephyrFilterName">Назва (необов\'язково)</string>

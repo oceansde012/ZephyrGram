@@ -20,6 +20,7 @@ public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity
 
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
+        addHeader(items, R.string.ZephyrUxHeaderMainScreen);
         addChoice(items, new Choice("titleText", R.string.ZephyrMainTitle,
                 LocaleController.getString(R.string.ZephyrMainTitleAppName),
                 LocaleController.getString(R.string.ZephyrMainTitleUsername),
@@ -37,6 +38,7 @@ public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity
         addChoice(items, new Choice("fabShape", R.string.ZephyrFabShape,
                 LocaleController.getString(R.string.ZephyrFabCircle),
                 LocaleController.getString(R.string.ZephyrFabSquare)));
+        addHeader(items, R.string.ZephyrUxHeaderEffects);
         addChoice(items, new Choice("holidayMode", R.string.ZephyrHolidayMode,
                 LocaleController.getString(R.string.ZephyrHolidayAuto),
                 LocaleController.getString(R.string.ZephyrHolidayAlways),

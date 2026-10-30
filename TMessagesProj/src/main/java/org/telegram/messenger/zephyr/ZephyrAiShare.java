@@ -22,10 +22,20 @@ public class ZephyrAiShare {
 
     private static final String SCHEME_PREFIX = "zephyrai://setup?";
 
+    public static final int FAIL_INVALID = 0;
+    public static final int FAIL_NOT_FOUND = 1;
+    public static final int FAIL_NOT_USER = 2;
+    public static final int FAIL_NETWORK = 3;
+
     public interface ResolveListener {
         void onResolved(long userId, TLRPC.User user);
 
         void onFailed();
+
+        /** More precise failure (one of FAIL_*); defaults to {@link #onFailed()}. */
+        default void onFailed(int reason) {
+            onFailed();
+        }
     }
 
     public static class Setup {
@@ -40,14 +50,7 @@ public class ZephyrAiShare {
 
     /** Server URL in the form stored by the owner, trimmed. */
     private static String serverUrl() {
-        String u = ZephyrConfig.getAiServerUrl().trim();
-        while (u.endsWith("/")) {
-            u = u.substring(0, u.length() - 1);
-        }
-        if (!u.startsWith("http://") && !u.startsWith("https://")) {
-            u = "https://" + u;
-        }
-        return u;
+        return ZephyrAiSetupParser.normalizeServerUrl(ZephyrConfig.getAiServerUrl());
     }
 
     public static String buildMessage(String token) {
@@ -56,47 +59,46 @@ public class ZephyrAiShare {
         return LocaleController.formatString(R.string.ZephyrShareMessage, url, token, link);
     }
 
-    /** Finds a zephyrai://setup?url=...&token=... line in arbitrary text. Returns null when absent or incomplete. */
+    /**
+     * Finds server URL + token in arbitrary text (zephyrai://setup link, "Server:/Token:" lines or bare values). Returns null
+     * unless both are present; use {@link #parseLoose} to accept a lone token or URL.
+     */
     public static Setup parseSetup(CharSequence text) {
-        if (text == null) {
-            return null;
-        }
-        String s = text.toString();
-        int i = s.indexOf(SCHEME_PREFIX);
-        if (i < 0) {
-            return null;
-        }
-        int end = i;
-        while (end < s.length() && !Character.isWhitespace(s.charAt(end))) {
-            end++;
-        }
-        try {
-            Uri uri = Uri.parse(s.substring(i, end));
-            String url = uri.getQueryParameter("url");
-            String token = uri.getQueryParameter("token");
-            if (url == null || token == null || url.trim().isEmpty() || token.trim().isEmpty()) {
-                return null;
-            }
-            return new Setup(url.trim(), token.trim());
-        } catch (Throwable e) {
-            // Never log the link itself: it carries the access token.
-            FileLog.e("ZephyrAiShare: setup link parse failed " + e.getClass().getSimpleName());
-            return null;
-        }
+        ZephyrAiSetupParser.Result r = ZephyrAiSetupParser.parse(text);
+        return r.complete() ? new Setup(r.url, r.token) : null;
     }
 
-    /** Resolves "@name" / "name" to a user (private chats only). */
-    public static void resolveUsername(int account, String input, ResolveListener listener) {
+    /** Same as parseSetup but url and/or token may be empty. Never null. */
+    public static ZephyrAiSetupParser.Result parseLoose(CharSequence text) {
+        return ZephyrAiSetupParser.parse(text);
+    }
+
+    /** Extracts a Telegram username from "@name", "name", "t.me/name", "https://t.me/name?x" etc. Returns "" when invalid. */
+    public static String cleanUsername(String input) {
         String name = input == null ? "" : input.trim();
-        if (name.startsWith("@")) {
-            name = name.substring(1);
+        int q = name.indexOf('?');
+        if (q >= 0) {
+            name = name.substring(0, q);
+        }
+        while (name.endsWith("/")) {
+            name = name.substring(0, name.length() - 1);
         }
         int slash = name.lastIndexOf('/');
         if (slash >= 0) {
             name = name.substring(slash + 1);
         }
+        if (name.startsWith("@")) {
+            name = name.substring(1);
+        }
+        name = name.trim();
+        return name.matches("[A-Za-z][A-Za-z0-9_]{3,31}") ? name : "";
+    }
+
+    /** Resolves "@name" / "name" / t.me link to a user (private chats only). */
+    public static void resolveUsername(int account, String input, ResolveListener listener) {
+        String name = cleanUsername(input);
         if (name.isEmpty()) {
-            listener.onFailed();
+            listener.onFailed(FAIL_INVALID);
             return;
         }
         TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
@@ -109,10 +111,18 @@ public class ZephyrAiShare {
                 if (res.peer instanceof TLRPC.TL_peerUser) {
                     long id = res.peer.user_id;
                     listener.onResolved(id, MessagesController.getInstance(account).getUser(id));
-                    return;
+                } else {
+                    listener.onFailed(FAIL_NOT_USER);
                 }
+                return;
             }
-            listener.onFailed();
+            if (error != null && error.text != null && error.text.contains("USERNAME_NOT_OCCUPIED")) {
+                listener.onFailed(FAIL_NOT_FOUND);
+            } else if (error != null && error.text != null && error.text.contains("USERNAME_INVALID")) {
+                listener.onFailed(FAIL_INVALID);
+            } else {
+                listener.onFailed(FAIL_NETWORK);
+            }
         }));
     }
 

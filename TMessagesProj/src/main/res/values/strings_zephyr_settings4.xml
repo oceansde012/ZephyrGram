@@ -14,7 +14,7 @@
     <string name="ZephyrTabletOn">Always on</string>
     <string name="ZephyrTabletOff">Always off</string>
     <string name="ZephyrUseSystemEmoji">Use system emoji</string>
-    <string name="ZephyrLookHeader">Look</string>
+    <string name="ZephyrLookHeader">Interface style</string>
     <string name="ZephyrUseSystemFonts">Use system fonts</string>
     <string name="ZephyrNewSwitchStyle">New switch style</string>
     <string name="ZephyrDisableDividers">Hide dividers</string>

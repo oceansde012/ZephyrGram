@@ -14,7 +14,7 @@
     <string name="ZephyrTabletOn">Завжди увімкнено</string>
     <string name="ZephyrTabletOff">Завжди вимкнено</string>
     <string name="ZephyrUseSystemEmoji">Системні емодзі</string>
-    <string name="ZephyrLookHeader">Вигляд</string>
+    <string name="ZephyrLookHeader">Стиль інтерфейсу</string>
     <string name="ZephyrUseSystemFonts">Системні шрифти</string>
     <string name="ZephyrNewSwitchStyle">Новий стиль перемикачів</string>
     <string name="ZephyrDisableDividers">Приховати роздільники</string>

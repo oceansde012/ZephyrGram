@@ -3,9 +3,9 @@
     <string name="ZephyrSettingsGeneral">Загальні</string>
     <string name="ZephyrSettingsAppearance">Вигляд</string>
     <string name="ZephyrSettingsChats">Чати</string>
-    <string name="ZephyrSettingsOther">Інше</string>
-    <string name="ZephyrSettingsMore">Більше налаштувань</string>
-    <string name="ZephyrResetSettings">Скинути налаштування</string>
+    <string name="ZephyrSettingsOther">Додатково</string>
+    <string name="ZephyrSettingsMore">Розділи налаштувань</string>
+    <string name="ZephyrResetSettings">Скинути налаштування інтерфейсу</string>
     <string name="ZephyrResetSettingsInfo">Скинути налаштування розділів «Загальні», «Вигляд» і «Чати» до типових? Режим привида, збережені повідомлення та оновлення не змінюються.</string>
     <string name="ZephyrResetSettingsDone">Налаштування скинуто</string>
     <string name="ZephyrReset">Скинути</string>

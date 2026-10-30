@@ -3,7 +3,7 @@
     <string name="ZephyrPlugins">Plugins</string>
     <string name="ZephyrPluginsSearchHint">Search plugins</string>
     <string name="ZephyrPluginsUpdatesAvailable">Updates available</string>
-    <string name="ZephyrPluginsUpdateAll">Update all</string>
+    <string name="ZephyrPluginsUpdateAll">Update all plugins</string>
     <string name="ZephyrPluginsInstalled">Installed</string>
     <string name="ZephyrPluginsStore">Store</string>
     <string name="ZephyrPluginsInstall">Install</string>
@@ -11,7 +11,7 @@
     <string name="ZephyrPluginsUpdateTo">Update to %1$s</string>
     <string name="ZephyrPluginsInstalling">Installing…</string>
     <string name="ZephyrPluginsUpdating">Updating…</string>
-    <string name="ZephyrPluginsRefresh">Refresh</string>
+    <string name="ZephyrPluginsRefresh">Refresh store list</string>
     <string name="ZephyrPluginsAutoUpdate">Auto-update plugins</string>
     <string name="ZephyrPluginsDeveloperMode">Developer mode</string>
     <string name="ZephyrPluginsInstallFromFile">Install from file</string>

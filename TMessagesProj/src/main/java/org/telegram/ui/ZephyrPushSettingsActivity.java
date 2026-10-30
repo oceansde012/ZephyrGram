@@ -60,6 +60,7 @@ public class ZephyrPushSettingsActivity extends ZephyrBaseSettingsActivity {
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrPushTitle)));
         items.add(UItem.asCheck(ID_ENABLE, LocaleController.getString(R.string.ZephyrPushEnable)).setChecked(ZephyrPush.isServiceEnabled()));
+        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxPushEnableInfo);
         items.add(UItem.asButton(ID_STATUS, LocaleController.getString(R.string.ZephyrPushStatus), statusText()));
         items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrPushInfo)));
 

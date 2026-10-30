@@ -49,17 +49,24 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrHistoryStorageHeader)));
         items.add(UItem.asCheck(ID_SAVE_DELETED, LocaleController.getString(R.string.ZephyrSaveDeleted)).setChecked(ZephyrConfig.saveDeleted));
+        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxSaveDeletedInfo);
         items.add(UItem.asCheck(ID_SAVE_EDITED, LocaleController.getString(R.string.ZephyrSaveEdited)).setChecked(ZephyrConfig.saveEdited));
+        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxSaveEditedInfo);
         items.add(UItem.asButton(ID_HISTORY_STATS, LocaleController.getString(R.string.ZephyrHistoryClear), historyStats == null
                 ? LocaleController.getString(R.string.ZephyrHistoryLoading)
                 : LocaleController.formatString(R.string.ZephyrHistoryStats, historyStats[0], historyStats[1], AndroidUtilities.formatFileSize(historyStats[2])).replace('\n', ' ')));
         items.add(UItem.asShadow(null));
-        items.add(UItem.asButton(ID_FILTERS, LocaleController.getString(R.string.ZephyrMessageFilters)));
+        items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrFiltersHeader)));
+        items.add(UItem.asButton(ID_FILTERS, R.drawable.msg_block, LocaleController.getString(R.string.ZephyrMessageFilters),
+                LocaleController.getString(org.telegram.messenger.zephyr.ZephyrMessageFilters.isEnabled() ? R.string.ZephyrPushOn : R.string.ZephyrPushOff)));
+        items.add(UItem.asShadow(null));
+        items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrUxHeaderDiagnostics)));
         items.add(UItem.asCheck(ID_LOGS, LocaleController.getString(R.string.ZephyrEnableLogs)).setChecked(org.telegram.messenger.BuildVars.LOGS_ENABLED));
         if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
             items.add(UItem.asButton(ID_SHARE_LOGS, LocaleController.getString(R.string.ZephyrShareLogs)));
         }
         items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrLogsInfo)));
+        items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrUxHeaderBackground)));
         items.add(UItem.asButton(ID_PUSH, LocaleController.getString(R.string.ZephyrPushTitle), org.telegram.messenger.zephyr.ZephyrPush.isServiceEnabled() ? LocaleController.getString(R.string.ZephyrPushOn) : LocaleController.getString(R.string.ZephyrPushOff)));
         items.add(UItem.asButton(ID_RESET, LocaleController.getString(R.string.ZephyrResetSettings)));
         items.add(UItem.asButton(ID_CREDITS, LocaleController.getString(R.string.ZephyrCredits)));

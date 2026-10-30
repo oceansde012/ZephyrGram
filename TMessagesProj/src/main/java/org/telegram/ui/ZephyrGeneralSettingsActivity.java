@@ -29,9 +29,10 @@ public class ZephyrGeneralSettingsActivity extends ZephyrBaseSettingsActivity {
 
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        addSwitch(items, "disableNumberRounding", R.string.ZephyrNumberRoundingOff);
+        addHeader(items, R.string.ZephyrUxHeaderDisplay);
+        addSwitch(items, "disableNumberRounding", R.string.ZephyrNumberRoundingOff, R.string.ZephyrUxNumberRoundingInfo);
         addSwitch(items, "formatTimeWithSeconds", R.string.ZephyrTimeWithSeconds);
-        addSwitch(items, "hidePhoneNumber", R.string.ZephyrHidePhoneNumber);
+        addSwitch(items, "hidePhoneNumber", R.string.ZephyrHidePhoneNumber, R.string.ZephyrUxHidePhoneInfo);
         items.add(UItem.asShadow(null));
 
         // Batch 4: profile / archive / system / look (exteraGram-derived, GPLv2)
@@ -43,8 +44,8 @@ public class ZephyrGeneralSettingsActivity extends ZephyrBaseSettingsActivity {
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrArchiveHeader)));
-        addSwitch(items, "archiveOnPull", R.string.ZephyrArchiveOnPull);
-        addSwitch(items, "disableUnarchiveSwipe", R.string.ZephyrDisableUnarchiveSwipe);
+        addSwitch(items, "archiveOnPull", R.string.ZephyrArchiveOnPull, R.string.ZephyrUxArchivePullInfo);
+        addSwitch(items, "disableUnarchiveSwipe", R.string.ZephyrDisableUnarchiveSwipe, R.string.ZephyrUxUnarchiveSwipeInfo);
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrLookHeader)));

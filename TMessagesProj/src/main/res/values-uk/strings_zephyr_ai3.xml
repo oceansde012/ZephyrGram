@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAiOnbHeader">Швидкий старт</string>
+    <string name="ZephyrAiStep1">1. Адреса сервера</string>
+    <string name="ZephyrAiStep2">2. Ваш токен</string>
+    <string name="ZephyrAiStep3Header">3. Поділитися доступом (необов’язково, для власника сервера)</string>
+    <string name="ZephyrAiOnbInfo">Крок 1: вкажіть адресу сервера. Крок 2: вставте токен, який вам дали, або натисніть «Імпорт доступу» й вставте все повідомлення від власника. Крок 3 лише для власника сервера: потрібен адмін-секрет.</string>
+    <string name="ZephyrAiSettingsInfoNoBot">Токен зберігається лише на цьому пристрої й надсилається тільки на ваш сервер. Отримайте його від власника сервера й вставте через «Імпорт доступу».</string>
+    <string name="ZephyrAiOptionsHeader">Параметри асистента</string>
+    <string name="ZephyrAiBotOptional">Бот доступу (необов’язково)</string>
+    <string name="ZephyrAiErrUnauthorizedNoBot">Доступ відхилено (401). Токен відсутній, хибний або відкликаний — вставте токен у «Імпорт доступу».</string>
+    <string name="ZephyrAiErrServerDown">Сервер недоступний або прокидається (код %1$s). Спробуйте за хвилину.</string>
+    <string name="ZephyrAiTokenSaved">Збережено (%1$d символів, закінчується на …%2$s)</string>
+    <string name="ZephyrAiUrlBad">Не вдалося розпізнати адресу. Приклад: https://zephyrgram-ai.onrender.com</string>
+    <string name="ZephyrShareNeedUrl">Спершу вкажіть адресу сервера (крок 1).</string>
+    <string name="ZephyrShareEnterSecret">Ввести секрет</string>
+    <string name="ZephyrShareSecretShort">Адмін-секрет зазвичай має щонайменше 32 символи. Перевірте, чи його вставлено повністю.</string>
+    <string name="ZephyrShareErrAdminMissing">На цьому сервері не знайдено адмін-API. Перевірте адресу сервера або задайте ADMIN_SECRET на сервері й перезапустіть його.</string>
+    <string name="ZephyrShareErrLockout">Забагато хибних спроб. Зачекайте хвилину й повторіть.</string>
+    <string name="ZephyrShareAddFromContacts">Вибрати з контактів</string>
+    <string name="ZephyrShareUserBot">Ботам не можна надати доступ. Виберіть людину.</string>
+    <string name="ZephyrShareUserSelf">Це ви — ділитися доступом із собою не потрібно.</string>
+    <string name="ZephyrShareUserNotUser">Це група або канал. Виберіть людину.</string>
+    <string name="ZephyrShareUserInvalid">Хибне ім’я користувача. Вкажіть @ім’я або посилання t.me.</string>
+    <string name="ZephyrShareResolveNetwork">Не вдалося перевірити ім’я користувача. Перевірте з’єднання й повторіть.</string>
+    <string name="ZephyrShareImportTokenOnly">Токен імпортовано; адресу сервера не змінено.</string>
+    <string name="ZephyrShareImportUrlOnly">Адресу сервера імпортовано. Тепер введіть токен (крок 2).</string>
+    <string name="ZephyrShareSecretLooksToken">Це схоже на токен користувача (zgai_…), а не адмін-секрет. Вставте адмін-секрет із налаштувань сервера.</string>
+</resources>

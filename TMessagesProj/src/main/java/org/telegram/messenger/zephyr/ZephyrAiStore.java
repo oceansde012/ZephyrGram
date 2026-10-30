@@ -85,11 +85,17 @@ public class ZephyrAiStore {
         file().delete();
     }
 
+    /** Used when the user has not set a custom system prompt. */
+    static final String DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant inside the ZephyrGram messenger. Always reply in the language of the user's message (default Ukrainian).";
+
     /** Request payload: optional system prompt + recent non-empty history. */
     public synchronized JSONArray buildRequest() {
         JSONArray a = new JSONArray();
         try {
             String sys = ZephyrConfig.getAiSystemPrompt();
+            if (sys.trim().isEmpty()) {
+                sys = DEFAULT_SYSTEM_PROMPT;
+            }
             if (!sys.isEmpty()) {
                 a.put(new JSONObject().put("role", "system").put("content", sys));
             }

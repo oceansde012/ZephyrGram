@@ -40,9 +40,21 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
     }
 
     protected void addSwitch(ArrayList<UItem> items, String key, int titleRes) {
+        addSwitch(items, key, titleRes, 0);
+    }
+
+    /** Switch with a short explanation under the title (infoRes == 0 means no subtitle). */
+    protected void addSwitch(ArrayList<UItem> items, String key, int titleRes, int infoRes) {
         UItem item = UItem.asCheck(key.hashCode(), LocaleController.getString(titleRes)).setChecked(ZephyrConfig.getBool(key));
+        if (infoRes != 0) {
+            item.subtext = LocaleController.getString(infoRes);
+        }
         item.object = key;
         items.add(item);
+    }
+
+    protected static void addHeader(ArrayList<UItem> items, int titleRes) {
+        items.add(UItem.asHeader(LocaleController.getString(titleRes)));
     }
 
     /** Percent-style slider stored as an int in ZephyrConfig. */

@@ -3,7 +3,7 @@
     <string name="ZephyrPlugins">Плагины</string>
     <string name="ZephyrPluginsSearchHint">Поиск плагинов</string>
     <string name="ZephyrPluginsUpdatesAvailable">Доступны обновления</string>
-    <string name="ZephyrPluginsUpdateAll">Обновить все</string>
+    <string name="ZephyrPluginsUpdateAll">Обновить все плагины</string>
     <string name="ZephyrPluginsInstalled">Установленные</string>
     <string name="ZephyrPluginsStore">Магазин</string>
     <string name="ZephyrPluginsInstall">Установить</string>
@@ -11,7 +11,7 @@
     <string name="ZephyrPluginsUpdateTo">Обновить до %1$s</string>
     <string name="ZephyrPluginsInstalling">Установка…</string>
     <string name="ZephyrPluginsUpdating">Обновление…</string>
-    <string name="ZephyrPluginsRefresh">Обновить список</string>
+    <string name="ZephyrPluginsRefresh">Обновить список магазина</string>
     <string name="ZephyrPluginsAutoUpdate">Автообновление плагинов</string>
     <string name="ZephyrPluginsDeveloperMode">Режим разработчика</string>
     <string name="ZephyrPluginsInstallFromFile">Установить из файла</string>

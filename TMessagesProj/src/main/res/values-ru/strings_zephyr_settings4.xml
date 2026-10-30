@@ -14,7 +14,7 @@
     <string name="ZephyrTabletOn">Всегда включён</string>
     <string name="ZephyrTabletOff">Всегда выключен</string>
     <string name="ZephyrUseSystemEmoji">Системные эмодзи</string>
-    <string name="ZephyrLookHeader">Внешний вид</string>
+    <string name="ZephyrLookHeader">Стиль интерфейса</string>
     <string name="ZephyrUseSystemFonts">Системные шрифты</string>
     <string name="ZephyrNewSwitchStyle">Новый стиль переключателей</string>
     <string name="ZephyrDisableDividers">Скрыть разделители</string>

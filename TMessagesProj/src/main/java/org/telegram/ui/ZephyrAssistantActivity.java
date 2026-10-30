@@ -431,13 +431,23 @@ public class ZephyrAssistantActivity extends BaseFragment {
                 action = () -> presentFragment(new ZephyrAssistantSettingsActivity());
                 break;
             case ZephyrAiClient.ERR_UNAUTHORIZED:
-                text = LocaleController.getString(R.string.ZephyrAiErrUnauthorized);
-                buttonText = LocaleController.getString(R.string.ZephyrAiRequestAccess);
-                action = () -> {
-                    if (!ZephyrAssistantSettingsActivity.openAccessBot(this)) {
-                        presentFragment(new ZephyrAssistantSettingsActivity());
-                    }
-                };
+                if (ZephyrConfig.getAiBotUsername().isEmpty()) {
+                    // No access bot exists: send the user to the token paste dialog instead of a bot that is not there.
+                    text = LocaleController.getString(R.string.ZephyrAiErrUnauthorizedNoBot);
+                    buttonText = LocaleController.getString(R.string.ZephyrShareImport);
+                    action = () -> presentFragment(ZephyrAssistantSettingsActivity.forImport());
+                } else {
+                    text = LocaleController.getString(R.string.ZephyrAiErrUnauthorized);
+                    buttonText = LocaleController.getString(R.string.ZephyrAiRequestAccess);
+                    action = () -> {
+                        if (!ZephyrAssistantSettingsActivity.openAccessBot(this)) {
+                            presentFragment(ZephyrAssistantSettingsActivity.forImport());
+                        }
+                    };
+                }
+                break;
+            case ZephyrAiClient.ERR_SERVER_DOWN:
+                text = LocaleController.formatString(R.string.ZephyrAiErrServerDown, message == null || message.isEmpty() ? "?" : message);
                 break;
             case ZephyrAiClient.ERR_RATE_LIMIT:
                 text = LocaleController.getString(R.string.ZephyrAiErrRate);

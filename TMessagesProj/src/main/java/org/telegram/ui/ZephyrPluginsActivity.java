@@ -76,9 +76,10 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     @Override protected CharSequence getTitle() { return s(R.string.ZephyrPlugins); }
     private boolean matches(String text) { return query.isEmpty() || text.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)); }
     @Override protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        items.add(UItem.asButton(REFRESH, s(R.string.ZephyrPluginsRefresh)).setEnabled(!repository.isLoading()));
-        items.add(UItem.asButton(SEARCH, s(R.string.ZephyrPluginsSearchHint), query));
+        items.add(UItem.asButton(REFRESH, R.drawable.msg_retry, s(R.string.ZephyrPluginsRefresh)).setEnabled(!repository.isLoading()));
+        items.add(UItem.asButton(SEARCH, R.drawable.msg_search, s(R.string.ZephyrPluginsSearchHint), query));
         items.add(UItem.asCheck(AUTO, s(R.string.ZephyrPluginsAutoUpdate)).setChecked(manager.isAutoUpdateEnabled()));
+        items.get(items.size() - 1).subtext = s(R.string.ZephyrUxPluginsAutoUpdateInfo);
         if (manager.isSafeMode()) items.add(UItem.asShadow(s(R.string.ZephyrPluginsSafeMode)));
         items.add(UItem.asHeader(s(R.string.ZephyrPluginsInstalled)));
         boolean found = false;
@@ -96,13 +97,14 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         found = false;
         if (index != null) for (PluginIndex.IndexEntry plugin : index.visiblePlugins()) {
             if (!matches(plugin.name + " " + plugin.id + " " + plugin.description)) continue;
-            UItem item = UItem.asButton(0, plugin.name, plugin.latest);
+            UItem item = UItem.asButton(0, plugin.name, plugin.author != null && !plugin.author.isEmpty() ? String.format(s(R.string.ZephyrPluginsVersionBy), plugin.latest, plugin.author) : plugin.latest);
             item.object = plugin.id; items.add(item); found = true;
         }
         if (!found) items.add(UItem.asShadow(s(repository.isLoading() ? R.string.ZephyrPluginsLoading : index == null ? R.string.ZephyrPluginsOfflineEmpty : R.string.ZephyrPluginsNothingFound)));
         if (index != null && repository.isStale()) items.add(UItem.asShadow(s(R.string.ZephyrPluginsOffline)));
         if (repository.getLastError() != null) items.add(UItem.asShadow(repository.getLastError()));
         items.add(UItem.asCheck(DEVELOPER, s(R.string.ZephyrPluginsDeveloperMode)).setChecked(manager.isDeveloperModeEnabled()));
+        items.get(items.size() - 1).subtext = s(R.string.ZephyrUxPluginsDevInfo);
         if (manager.isDeveloperModeEnabled()) items.add(UItem.asButton(IMPORT, s(R.string.ZephyrPluginsInstallFromFile)));
     }
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
@@ -133,16 +135,16 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         Utilities.globalQueue.postRunnable(() -> {
             try {
                 File directory = new File(ApplicationLoader.applicationContext.getCacheDir(), "zephyr-imports");
-                if (!directory.isDirectory() && !directory.mkdirs()) throw new java.io.IOException("Could not create import directory");
+                if (!directory.isDirectory() && !directory.mkdirs()) throw new java.io.IOException(s(R.string.ZephyrUxPluginErrCreateDir));
                 File file = File.createTempFile("plugin-", ".plugin", directory);
                 ByteArrayOutputStream source = new ByteArrayOutputStream();
                 try (InputStream in = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
                      FileOutputStream out = new FileOutputStream(file)) {
-                    if (in == null) throw new java.io.IOException("Could not read selected file");
+                    if (in == null) throw new java.io.IOException(s(R.string.ZephyrUxPluginErrRead));
                     byte[] buffer = new byte[8192]; int count, total=0;
                     while ((count=in.read(buffer)) != -1) {
                         total+=count;
-                        if (total>PluginManifest.MAX_SOURCE_BYTES) throw new java.io.IOException("Plugin exceeds maximum source size");
+                        if (total>PluginManifest.MAX_SOURCE_BYTES) throw new java.io.IOException(s(R.string.ZephyrUxPluginErrTooBig));
                         out.write(buffer,0,count);
                         source.write(buffer,0,count);
                     }

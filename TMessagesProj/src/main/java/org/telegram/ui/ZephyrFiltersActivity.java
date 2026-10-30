@@ -68,13 +68,13 @@ public class ZephyrFiltersActivity extends UniversalFragment {
         StringBuilder sb = new StringBuilder();
         sb.append(LocaleController.getString(f.enabled ? R.string.ZephyrFilterOn : R.string.ZephyrFilterOff));
         if (!f.pattern.isEmpty()) {
-            sb.append(" · ").append(f.regex ? "regex" : "text");
+            sb.append(" · ").append(LocaleController.getString(f.regex ? R.string.ZephyrUxFilterKindRegex : R.string.ZephyrUxFilterKindText));
         }
         if (f.senderId != 0) {
-            sb.append(" · user ").append(f.senderId);
+            sb.append(" · ").append(LocaleController.formatString(R.string.ZephyrUxFilterSender, String.valueOf(f.senderId)));
         }
         if (f.dialogId != 0) {
-            sb.append(" · chat ").append(f.dialogId);
+            sb.append(" · ").append(LocaleController.formatString(R.string.ZephyrUxFilterChat, String.valueOf(f.dialogId)));
         }
         return sb.toString();
     }

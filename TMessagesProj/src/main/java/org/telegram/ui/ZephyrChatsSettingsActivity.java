@@ -20,9 +20,10 @@ public class ZephyrChatsSettingsActivity extends ZephyrBaseSettingsActivity {
 
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        addSwitch(items, "disableJumpToNextChannel", R.string.ZephyrDisableJumpToNextChannel);
+        addHeader(items, R.string.ZephyrUxHeaderBehavior);
+        addSwitch(items, "disableJumpToNextChannel", R.string.ZephyrDisableJumpToNextChannel, R.string.ZephyrUxJumpChannelInfo);
         addSwitch(items, "hideKeyboardOnScroll", R.string.ZephyrHideKeyboardOnScroll);
-        addSwitch(items, "hideShareButton", R.string.ZephyrHideShareButton);
+        addSwitch(items, "hideShareButton", R.string.ZephyrHideShareButton, R.string.ZephyrUxShareButtonInfo);
         addSwitch(items, "hideStickerTime", R.string.ZephyrHideStickerTime);
         addSwitch(items, "unlimitedRecentStickers", R.string.ZephyrUnlimitedRecentStickers);
         addSwitch(items, "pauseOnMinimize", R.string.ZephyrPauseOnMinimize);
@@ -45,16 +46,19 @@ public class ZephyrChatsSettingsActivity extends ZephyrBaseSettingsActivity {
                 LocaleController.formatString(R.string.ZephyrSecondsShort, 30)));
         // Batch 3: message menu, admin shortcuts, channel button, service messages, round video camera.
         items.add(UItem.asShadow(null));
+        addHeader(items, R.string.ZephyrUxHeaderMessageMenu);
         addSwitch(items, "showForwardNoAuthor", R.string.ZephyrMenuForwardNoAuthor);
         addSwitch(items, "showSaveMessage", R.string.ZephyrMenuSaveToSaved);
         addSwitch(items, "showCopyPhoto", R.string.ZephyrMenuCopyPhoto);
         addSwitch(items, "showMessageDetails", R.string.ZephyrMenuDetails);
         items.add(UItem.asShadow(null));
+        addHeader(items, R.string.ZephyrUxHeaderChatMenu);
         addSwitch(items, "permissionsShortcut", R.string.ZephyrShortcutPermissions);
         addSwitch(items, "administratorsShortcut", R.string.ZephyrShortcutAdmins);
         addSwitch(items, "membersShortcut", R.string.ZephyrShortcutMembers);
         addSwitch(items, "recentActionsShortcut", R.string.ZephyrShortcutRecentActions);
         items.add(UItem.asShadow(null));
+        addHeader(items, R.string.ZephyrUxHeaderChannels);
         addChoice(items, new Choice("bottomButton", R.string.ZephyrBottomButton,
                 LocaleController.getString(R.string.ZephyrBottomButtonMute),
                 LocaleController.getString(R.string.ZephyrBottomButtonDiscuss)));
@@ -63,6 +67,7 @@ public class ZephyrChatsSettingsActivity extends ZephyrBaseSettingsActivity {
         addSwitch(items, "hideCategories", R.string.ZephyrHideCategories);
         addSwitch(items, "hideCameraTile", R.string.ZephyrHideCameraTile);
         items.add(UItem.asShadow(null));
+        addHeader(items, R.string.ZephyrUxHeaderRoundVideo);
         addChoice(items, new Choice("videoMessagesCamera", R.string.ZephyrVideoMessagesCamera,
                 LocaleController.getString(R.string.ZephyrCameraDefault),
                 LocaleController.getString(R.string.ZephyrCameraFront),

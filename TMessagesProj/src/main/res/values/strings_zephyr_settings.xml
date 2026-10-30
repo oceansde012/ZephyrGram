@@ -3,9 +3,9 @@
     <string name="ZephyrSettingsGeneral">General</string>
     <string name="ZephyrSettingsAppearance">Appearance</string>
     <string name="ZephyrSettingsChats">Chats</string>
-    <string name="ZephyrSettingsOther">Other</string>
-    <string name="ZephyrSettingsMore">More settings</string>
-    <string name="ZephyrResetSettings">Reset settings</string>
+    <string name="ZephyrSettingsOther">Advanced</string>
+    <string name="ZephyrSettingsMore">Settings sections</string>
+    <string name="ZephyrResetSettings">Reset interface settings</string>
     <string name="ZephyrResetSettingsInfo">Reset the General, Appearance and Chats settings to their defaults? Ghost mode, saved messages and update settings are kept.</string>
     <string name="ZephyrResetSettingsDone">Settings were reset</string>
     <string name="ZephyrReset">Reset</string>
