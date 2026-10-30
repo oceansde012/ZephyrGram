@@ -11630,4 +11630,18 @@
     <string name="NoPaidMessagesTokenUsed">un1 used your QR code and can message you for free</string>
     <string name="NoPaidMessagesTokenUsedOut">You used the QR code of un1 and can message them for free</string>
     <string name="NoPaidMessagesTokenImported">You can now message **%1$s** for free.</string>
+    <string name="ZephyrSettings">ZephyrGram</string>
+    <string name="ZephyrSettingsInfo">Ghost mode, saved messages, local Premium</string>
+    <string name="ZephyrGhostMode">Ghost mode</string>
+    <string name="ZephyrGhostNoRead">Don\'t send read receipts</string>
+    <string name="ZephyrGhostNoTyping">Don\'t send typing status</string>
+    <string name="ZephyrGhostAlwaysOffline">Always appear offline</string>
+    <string name="ZephyrGhostNoStoryViews">Don\'t mark stories as viewed</string>
+    <string name="ZephyrGhostModeInfo">These options only change what this device sends to Telegram. Other devices and other people\'s apps are not affected.</string>
+    <string name="ZephyrMessages">Messages</string>
+    <string name="ZephyrSaveDeleted">Save deleted messages</string>
+    <string name="ZephyrSaveEdited">Save edit history</string>
+    <string name="ZephyrOther">Other</string>
+    <string name="ZephyrLocalPremium">Local Premium</string>
+    <string name="ZephyrDisableAds">Hide ads and sponsored messages</string>
 </resources>

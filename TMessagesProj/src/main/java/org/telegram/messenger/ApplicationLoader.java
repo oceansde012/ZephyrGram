@@ -245,6 +245,7 @@ public class ApplicationLoader extends Application {
         }
 
         SharedConfig.loadConfig();
+        org.telegram.messenger.zephyr.ZephyrConfig.load();
         SharedPrefsHelper.init(applicationContext);
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
             UserConfig.getInstance(a).loadConfig();
