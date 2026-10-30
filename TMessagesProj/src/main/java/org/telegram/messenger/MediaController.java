@@ -825,7 +825,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 }
             }
             if (fullPaintPath == null) {
-                TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(b, compressFormat, AndroidUtilities.getPhotoSize(highQuality), AndroidUtilities.getPhotoSize(highQuality), highQuality ? 99 : 87, false, 101, 101);
+                TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(b, compressFormat, org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), highQuality ? 99 : 87, false, 101, 101);
                 imagePath = FileLoader.getInstance(UserConfig.selectedAccount).getPathToAttach(size, true).toString();
             } else {
                 Bitmap paintBitmap;

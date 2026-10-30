@@ -13643,7 +13643,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         TLRPC.User user = UserConfig.getInstance(currentAccount).getCurrentUser();
                         String value;
                         if (user != null && user.phone != null && user.phone.length() != 0) {
-                            value = PhoneFormat.getInstance().format("+" + user.phone);
+                            value = org.telegram.messenger.zephyr.ZephyrConfig.hidePhoneNumber ? "\u2022\u2022\u2022 \u2022\u2022 \u2022\u2022\u2022\u2022\u2022" : PhoneFormat.getInstance().format("+" + user.phone);
                         } else {
                             value = LocaleController.getString(R.string.NumberUnknown);
                         }

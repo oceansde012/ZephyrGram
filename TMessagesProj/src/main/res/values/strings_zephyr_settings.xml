@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrSettingsGeneral">General</string>
+    <string name="ZephyrSettingsAppearance">Appearance</string>
+    <string name="ZephyrSettingsChats">Chats</string>
+    <string name="ZephyrSettingsOther">Other</string>
+    <string name="ZephyrSettingsMore">More settings</string>
+    <string name="ZephyrResetSettings">Reset settings</string>
+    <string name="ZephyrResetSettingsInfo">Reset the General, Appearance and Chats settings to their defaults? Ghost mode, saved messages and update settings are kept.</string>
+    <string name="ZephyrResetSettingsDone">Settings were reset</string>
+    <string name="ZephyrReset">Reset</string>
+    <string name="ZephyrCredits">Credits</string>
+    <string name="ZephyrCreditsText">Contains code from exteraGram (exteraSquad), GPLv2.</string>
+    <string name="ZephyrNumberRoundingOff">Disable number rounding</string>
+    <string name="ZephyrTimeWithSeconds">Message time with seconds</string>
+    <string name="ZephyrHidePhoneNumber">Hide phone number</string>
+    <string name="ZephyrMainTitle">Main screen title</string>
+    <string name="ZephyrMainTitleAppName">App name</string>
+    <string name="ZephyrMainTitleUsername">Username</string>
+    <string name="ZephyrMainTitleName">Name</string>
+    <string name="ZephyrCenterTitle">Center title</string>
+    <string name="ZephyrTabCounter">Unread counter on folder tabs</string>
+    <string name="ZephyrRestartToApply">Some changes apply after reopening the screen or restarting the app.</string>
+    <string name="ZephyrDisableJumpToNextChannel">Disable jump to next channel</string>
+    <string name="ZephyrHideKeyboardOnScroll">Hide keyboard on scroll</string>
+    <string name="ZephyrHideShareButton">Hide share button</string>
+    <string name="ZephyrPhotoQuality">Photo quality</string>
+    <string name="ZephyrHideStickerTime">Hide time on stickers</string>
+    <string name="ZephyrUnlimitedRecentStickers">Unlimited recent stickers</string>
+    <string name="ZephyrRewindStep">Player rewind step</string>
+    <string name="ZephyrSecondsShort">%1$d s</string>
+    <string name="ZephyrPauseOnMinimize">Pause video on minimize</string>
+</resources>

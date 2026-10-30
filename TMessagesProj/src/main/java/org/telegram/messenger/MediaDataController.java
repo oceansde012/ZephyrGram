@@ -1020,6 +1020,9 @@ public class MediaDataController extends BaseController {
                 });
             }
             maxCount = getMessagesController().maxRecentStickersCount;
+            if (org.telegram.messenger.zephyr.ZephyrConfig.unlimitedRecentStickers) {
+                maxCount = Math.max(maxCount, 200);
+            }
         }
         if (recentStickers[type].size() > maxCount || remove) {
             TLRPC.Document old = remove ? document : recentStickers[type].remove(recentStickers[type].size() - 1);
@@ -2095,6 +2098,9 @@ public class MediaDataController extends BaseController {
                             maxCount = getMessagesController().maxFaveStickersCount;
                         } else {
                             maxCount = getMessagesController().maxRecentStickersCount;
+                            if (org.telegram.messenger.zephyr.ZephyrConfig.unlimitedRecentStickers) {
+                                maxCount = Math.max(maxCount, 200);
+                            }
                         }
                     }
                     database.beginTransaction();

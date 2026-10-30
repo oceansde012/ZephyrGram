@@ -127,6 +127,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.zephyr.ZephyrConfig;
+import org.telegram.messenger.zephyr.ZephyrGhost;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.XiaomiUtilities;
 import org.telegram.messenger.browser.Browser;
@@ -257,11 +259,13 @@ import org.telegram.ui.Components.SimpleThemeDescription;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.StickersAlert;
 import org.telegram.ui.Components.SwipeGestureSettingsView;
+import org.telegram.ui.Components.Switch;
 import org.telegram.ui.Components.UndoView;
 import org.telegram.ui.Components.ViewPagerFixed;
 import org.telegram.ui.Stories.DialogStoriesCell;
 import org.telegram.ui.Stories.StoriesController;
 import org.telegram.ui.Stories.StoriesListPlaceProvider;
+import org.telegram.ui.Stories.StoryViewer;
 import org.telegram.ui.Stories.UserListPoller;
 import org.telegram.ui.Stories.recorder.HintView2;
 import org.telegram.ui.Stories.recorder.StoryRecorder;
@@ -501,6 +505,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private ViewPage[] viewPages;
     private ActionBarMenuItem passcodeItem;
     private ActionBarMenuItem downloadsItem;
+    private ActionBarMenuItem zephyrGhostItem;
     private DownloadProgressIcon downloadProgressIcon;
     private boolean downloadsItemVisible;
     public ActionBarMenuItem searchItem;
@@ -3267,6 +3272,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             proxyMenuSubItem.setTextAndIcon(getString(R.string.MenuProxyTitle), 0, proxyDrawable);
             proxyMenuSubItem.setContentDescription(getString(R.string.ProxySettings));
 
+            if (initialDialogsType == DIALOGS_TYPE_DEFAULT) {
+                zephyrGhostItem = menu.addItem(-1001, R.drawable.zephyr_ghost_off);
+                zephyrGhostItem.setOnClickListener(v -> toggleZephyrGhostMode());
+                zephyrGhostItem.setOnLongClickListener(v -> {
+                    openZephyrGhostSettings();
+                    return true;
+                });
+                updateZephyrGhostItem(false);
+            }
+
             passcodeItem = menu.addItem(1, R.drawable.outline_header_lock_24);
             passcodeItem.setContentDescription(getString(R.string.AccDescrPasscodeLock));
 
@@ -3516,9 +3531,25 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo_2).mutate();
                 logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());
                 logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);
-                SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));
-                ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ZephyrConfig.load();
+                String zephyrTitle = getString(R.string.AppName);
+                boolean zephyrLogo = true;
+                if (ZephyrConfig.titleText == 1 || ZephyrConfig.titleText == 2) {
+                    TLRPC.User zephyrUser = UserConfig.getInstance(currentAccount).getCurrentUser();
+                    String zephyrName = zephyrUser == null ? null : (ZephyrConfig.titleText == 1 ? UserObject.getPublicUsername(zephyrUser) : UserObject.getUserName(zephyrUser));
+                    if (!TextUtils.isEmpty(zephyrName)) {
+                        zephyrTitle = ZephyrConfig.titleText == 1 ? "@" + zephyrName : zephyrName;
+                        zephyrLogo = false;
+                    }
+                }
+                SpannableStringBuilder ssb = new SpannableStringBuilder(zephyrTitle);
+                if (zephyrLogo) {
+                    ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
                 actionBar.setTitle(ssb, statusDrawable);
+                if (ZephyrConfig.centerTitle) {
+                    actionBar.centerTitle();
+                }
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);
             }
             if (folderId == 0) {
@@ -3668,7 +3699,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 @Override
                 public int getTabCounter(int tabId) {
-                    if (initialDialogsType == DIALOGS_TYPE_FORWARD) {
+                    if (initialDialogsType == DIALOGS_TYPE_FORWARD || !ZephyrConfig.tabCounter) {
                         return 0;
                     }
                     if (tabId == filterTabsView.getDefaultTabId()) {
@@ -5289,6 +5320,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                     }
                                 });
                                 showDialog(stealthModeAlert);
+                            }).makeMultiline(false).addIf(!ZephyrConfig.isGhostEnabled() && !isLive && view instanceof StoryCell && getStoriesController().hasStories(dialogId), R.drawable.zephyr_ghost, getString(R.string.ZephyrStoryViewInvisibly), () -> {
+                                openStoryInvisibly((StoryCell) view);
                             }).makeMultiline(false).addIf(!fromTopPeer && !isArchive(), R.drawable.msg_archive, LocaleController.getString(R.string.ArchivePeerStories), () -> {
                                 toggleArciveForStory(dialogId);
                             }).makeMultiline(false).addIf(!fromTopPeer && isArchive(), R.drawable.msg_unarchive, LocaleController.getString(R.string.UnarchiveStories), () -> {
@@ -7020,6 +7053,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onResume() {
         super.onResume();
+        updateZephyrGhostItem(false);
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
         }
@@ -13724,6 +13758,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return;
         }
 
+        if (folderId == 0 && !onlySelect) {
+            addZephyrGhostOption(io);
+            io.addGap();
+        }
+
         final boolean isCurrentThemeDark;
         if (resourceProvider != null) {
             isCurrentThemeDark = resourceProvider.isDark();
@@ -14121,6 +14160,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         checkUi_itemSpeedVisibility();
         checkUi_itemPasscodeVisibility();
         checkUi_itemSearchVisibility();
+        checkUi_itemZephyrGhostVisibility();
     }
 
     private void checkUi_itemBackButtonVisibility() {
@@ -14142,6 +14182,119 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         final float factor = factor1 * factor2 * factor3;
         FragmentFloatingButton.setAnimatedVisibility(optionsItem, factor);
     }
+
+    // region ZephyrGram ghost mode button
+
+    private void checkUi_itemZephyrGhostVisibility() {
+        if (zephyrGhostItem == null) {
+            return;
+        }
+        final float factor1 = 1f - animatorSearchVisible.getFloatValue();
+        final float factor2 = 1f - getRightSlidingProgress();
+        final float factor3 = 1f - animatorDoneButtonVisible.getFloatValue();
+        final float factor = factor1 * factor2 * factor3;
+        FragmentFloatingButton.setAnimatedVisibility(zephyrGhostItem, factor);
+    }
+
+    private void updateZephyrGhostItem(boolean animated) {
+        if (zephyrGhostItem == null) {
+            return;
+        }
+        ZephyrConfig.load();
+        final boolean on = ZephyrConfig.isGhostEnabled();
+        zephyrGhostItem.setIcon(on ? R.drawable.zephyr_ghost : R.drawable.zephyr_ghost_off, animated);
+        zephyrGhostItem.setContentDescription(getString(on ? R.string.ZephyrGhostButtonOn : R.string.ZephyrGhostButtonOff));
+    }
+
+    /** All-or-nothing master switch: ON enables every ghost option, OFF disables every one. */
+    private void toggleZephyrGhostMode() {
+        ZephyrConfig.load();
+        final boolean enable = !ZephyrConfig.isGhostEnabled();
+        ZephyrConfig.setGhostAll(enable);
+        try {
+            if (zephyrGhostItem != null) {
+                zephyrGhostItem.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            }
+        } catch (Exception ignored) {}
+        updateZephyrGhostItem(true);
+        Bulletin.hideVisible();
+        if (enable) {
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.chats_hide, getString(R.string.ZephyrGhostButtonOn), getString(R.string.ZephyrGhostButtonOnInfo)).show();
+        } else {
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.chats_unhide, getString(R.string.ZephyrGhostButtonOff)).show();
+        }
+    }
+
+    private void openZephyrGhostSettings() {
+        try {
+            if (zephyrGhostItem != null) {
+                zephyrGhostItem.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            }
+        } catch (Exception ignored) {}
+        presentFragment(new ZephyrSettingsActivity());
+    }
+
+    /**
+     * Opens a peer's stories without sending views while ghost mode is off: story view requests are
+     * suppressed by ZephyrGhost until the story viewer closes.
+     */
+    private void openStoryInvisibly(DialogStoriesCell.StoryCell cell) {
+        if (dialogStoriesCell == null || cell == null) {
+            return;
+        }
+        final StoryViewer storyViewer = getOrCreateStoryViewer();
+        ZephyrGhost.storyPeekActive = true;
+        storyViewer.setOnCloseListener(() -> ZephyrGhost.storyPeekActive = false);
+        dialogStoriesCell.openStoryForCell(cell);
+        // Safety net: if the viewer never opened (e.g. stories failed to load), don't leave the flag on.
+        AndroidUtilities.runOnUIThread(() -> {
+            if (ZephyrGhost.storyPeekActive && !storyViewer.isShown()) {
+                ZephyrGhost.storyPeekActive = false;
+            }
+        }, 10000);
+    }
+
+    private void addZephyrGhostOption(ItemOptions io) {
+        final Context context = getContext();
+        if (context == null) {
+            return;
+        }
+        ZephyrConfig.load();
+        final int textColor = getThemedColor(Theme.key_actionBarDefaultTitle);
+        final ActionBarMenuSubItem cell = new ActionBarMenuSubItem(context, false, false, resourceProvider);
+        cell.setPadding(dp(18), 0, dp(18), 0);
+        cell.setTextAndIcon(getString(R.string.ZephyrGhostButton), R.drawable.zephyr_ghost);
+        cell.setColors(textColor, textColor);
+        cell.setSelectorColor(Theme.multAlpha(textColor, .12f));
+
+        final Switch switchView = new Switch(context, resourceProvider);
+        switchView.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
+        switchView.setChecked(ZephyrConfig.isGhostEnabled(), false);
+        switchView.setClickable(false);
+        switchView.setFocusable(false);
+        cell.addView(switchView, LayoutHelper.createFrame(37, 20, Gravity.CENTER_VERTICAL | (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT)));
+        FrameLayout.LayoutParams textLp = (FrameLayout.LayoutParams) cell.getTextView().getLayoutParams();
+        if (LocaleController.isRTL) {
+            textLp.leftMargin = dp(48);
+        } else {
+            textLp.rightMargin = dp(48);
+        }
+        cell.getTextView().setLayoutParams(textLp);
+
+        // Tap toggles in place without closing the menu; long-press opens fine-grained settings.
+        cell.setOnClickListener(v -> {
+            toggleZephyrGhostMode();
+            switchView.setChecked(ZephyrConfig.isGhostEnabled(), true);
+        });
+        cell.setOnLongClickListener(v -> {
+            io.dismiss();
+            openZephyrGhostSettings();
+            return true;
+        });
+        io.addView(cell);
+    }
+
+    // endregion
 
     private void checkUi_itemPasscodeVisibility() {
         final float factor0 = SharedConfig.passcodeHash.isEmpty() ? 0 : 1;

@@ -18827,6 +18827,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         if (lastTitle != null) {
             closeCaptionEnter(true);
         }
+        if (org.telegram.messenger.zephyr.ZephyrConfig.pauseOnMinimize && isVisible && videoPlayer != null && videoPlayer.isPlaying()) {
+            pauseVideoOrWeb();
+        }
         if (videoPlayer != null && playerLooping) {
             videoPlayer.setLooping(allowLoopingOnPause());
         }
@@ -20978,7 +20981,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         boolean forward = x >= width / 3 * 2;
         long current = getCurrentVideoPosition();
         long total = getVideoDuration();
-        return current != C.TIME_UNSET && total > 15 * 1000 && (!forward || total - current > 10000);
+        return current != C.TIME_UNSET && total > 15 * 1000 && (!forward || total - current > org.telegram.messenger.zephyr.ZephyrConfig.seekStepMs());
     }
 
     long totalRewinding;
@@ -20994,9 +20997,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (canDoubleTapSeekVideo(e)) {
                 long old = current;
                 if (x >= width / 3 * 2) {
-                    current += 10000;
+                    current += org.telegram.messenger.zephyr.ZephyrConfig.seekStepMs();
                 } else if (x < width / 3) {
-                    current -= 10000;
+                    current -= org.telegram.messenger.zephyr.ZephyrConfig.seekStepMs();
                 }
                 if (old != current) {
                     boolean apply = true;
@@ -21011,7 +21014,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     if (apply) {
                         videoForwardDrawable.setOneShootAnimation(true);
                         videoForwardDrawable.setLeftSide(x < width / 3);
-                        videoForwardDrawable.addTime(10000);
+                        videoForwardDrawable.addTime(org.telegram.messenger.zephyr.ZephyrConfig.seekStepMs());
                         seekVideoOrWebTo(current);
                         containerView.invalidate();
                         videoPlayerSeekbar.setProgress(current / (float) total, true);

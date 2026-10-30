@@ -395,8 +395,22 @@ public class ConnectionsManager extends BaseController {
         return requestToken;
     }
 
-    private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {
-        if (org.telegram.messenger.zephyr.ZephyrGhost.intercept(object, onComplete)) {
+    private void sendRequestInternal(TLObject originalObject, RequestDelegate originalOnComplete, RequestDelegateTimestamp originalOnCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {
+        if (org.telegram.messenger.zephyr.ZephyrGhost.intercept(originalObject, originalOnComplete)) {
+            return;
+        }
+        final org.telegram.messenger.zephyr.plugins.PluginHooks.RequestCall pluginCall =
+                org.telegram.messenger.zephyr.plugins.PluginHooks.hasRequestHooks
+                ? org.telegram.messenger.zephyr.plugins.PluginHooks.onRequest(currentAccount, originalObject, originalOnComplete, originalOnCompleteTimestamp) : null;
+        if (pluginCall != null && pluginCall.cancel) {
+            pluginCall.deliverCancel();
+            return;
+        }
+        final TLObject object = pluginCall != null ? pluginCall.request : originalObject;
+        final RequestDelegate onComplete = pluginCall != null ? pluginCall.onComplete : originalOnComplete;
+        final RequestDelegateTimestamp onCompleteTimestamp = pluginCall != null ? pluginCall.onCompleteTimestamp : originalOnCompleteTimestamp;
+        // A plugin cannot bypass ghost mode by replacing an unrelated request.
+        if (object != originalObject && org.telegram.messenger.zephyr.ZephyrGhost.intercept(object, onComplete)) {
             return;
         }
         if (BuildVars.LOGS_ENABLED) {

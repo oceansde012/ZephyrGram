@@ -6723,7 +6723,7 @@ public class ChatActivity extends BaseFragment implements
                 if (!foundTopView) {
                     scrolled = super.scrollVerticallyBy(dy, recycler, state);
                 }
-                final boolean allowPullingDownScroll = !isInPollAddOptionMode() && !hasSelectedMessages();
+                final boolean allowPullingDownScroll = !isInPollAddOptionMode() && !hasSelectedMessages() && !ZephyrConfig.disableJumpToNextChannel;
                 if (allowPullingDownScroll && dy > 0 && scrolled == 0 && (ChatObject.isChannel(currentChat) && !currentChat.megagroup || isTopic && !UserObject.isBotForum(currentUser)) && chatMode != MODE_SAVED && chatMode != MODE_WELCOME_MESSAGES && chatMode != MODE_SCHEDULED && chatListView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING && !chatListView.isFastScrollAnimationRunning() && !chatListView.isMultiselect() && !isReport()) {
                     if (pullingDownOffset == 0 && pullingDownDrawable != null) {
                         if (nextChannels != null && !nextChannels.isEmpty()) {
@@ -6854,6 +6854,9 @@ public class ChatActivity extends BaseFragment implements
                         groupEmojiPackHint.hide();
                     }
                     if (searchOtherButton != null && searchOtherButton.getVisibility() == View.VISIBLE && isKeyboardVisible()) {
+                        AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
+                    }
+                    if (ZephyrConfig.hideKeyboardOnScroll && newState == RecyclerView.SCROLL_STATE_DRAGGING && getParentActivity() != null && isKeyboardVisible()) {
                         AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
                     }
                     if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
@@ -33649,6 +33652,10 @@ public class ChatActivity extends BaseFragment implements
         if (selectedObject == null || getParentActivity() == null) {
             return;
         }
+        if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(option)) {
+            org.telegram.messenger.zephyr.plugins.PluginMenus.onClick(option, currentAccount, getDialogId(), selectedObject, this);
+            return;
+        }
         boolean preserveDim = false;
         switch (option) {
             case OPTION_RETRY: {
@@ -46138,6 +46145,15 @@ public class ChatActivity extends BaseFragment implements
         ArrayList<Integer> options
     ) {
         final MessageObject message = selectedObject;
+        if (message != null) {
+            for (org.telegram.messenger.zephyr.plugins.PluginMenus.Item item : org.telegram.messenger.zephyr.plugins.PluginMenus.getItems(
+                    org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_MESSAGE_CONTEXT, currentAccount, getDialogId(), message, this)) {
+                items.add(item.text);
+                options.add(item.id);
+                int icon = item.iconRes(getParentActivity());
+                icons.add(icon != 0 ? icon : R.drawable.msg_info);
+            }
+        }
         final MessageObject.GroupedMessages groupedMessages = selectedObjectGroup;
         final int type = getMessageType(message);
         final boolean isEphemeral = message.isEphemeral();

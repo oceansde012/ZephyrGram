@@ -274,6 +274,7 @@ public class ApplicationLoader extends Application {
             DownloadController.getInstance(a);
         }
         BillingController.getInstance().startConnection();
+        org.telegram.messenger.zephyr.plugins.PluginManager.INSTANCE.initialize();
     }
 
     public ApplicationLoader() {

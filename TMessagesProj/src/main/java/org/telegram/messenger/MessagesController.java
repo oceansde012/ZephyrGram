@@ -17934,7 +17934,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     // must be run from Utilities.stageQueue
-    public void processUpdates(final TLRPC.Updates updates, boolean fromQueue) {
+    public void processUpdates(final TLRPC.Updates incomingUpdates, boolean fromQueue) {
+        final TLRPC.Updates updates = org.telegram.messenger.zephyr.plugins.PluginHooks.onUpdates(currentAccount, incomingUpdates);
+        if (updates == null) return;
         if (updates instanceof TLRPC.TL_updates || updates instanceof TLRPC.TL_updatesCombined) {
             boolean hasMessageIdUpdates = false;
             for (int i = 0; i < updates.updates.size(); i++) {
@@ -18491,7 +18493,15 @@ public class MessagesController extends BaseController implements NotificationCe
         return updated;
     }
 
-    public boolean processUpdateArray(ArrayList<TLRPC.Update> updates, ArrayList<TLRPC.User> usersArr, ArrayList<TLRPC.Chat> chatsArr, boolean fromGetDifference, int date) {
+    public boolean processUpdateArray(ArrayList<TLRPC.Update> incomingUpdates, ArrayList<TLRPC.User> usersArr, ArrayList<TLRPC.Chat> chatsArr, boolean fromGetDifference, int date) {
+        final ArrayList<TLRPC.Update> filtered = org.telegram.messenger.zephyr.plugins.PluginHooks.onUpdateArray(currentAccount, incomingUpdates);
+        if (filtered == null) return true;
+        boolean accepted = processPluginUpdates(filtered, usersArr, chatsArr, fromGetDifference, date);
+        if (accepted) org.telegram.messenger.zephyr.plugins.PluginHooks.onAcceptedUpdateArray(currentAccount, filtered);
+        return accepted;
+    }
+
+    private boolean processPluginUpdates(ArrayList<TLRPC.Update> updates, ArrayList<TLRPC.User> usersArr, ArrayList<TLRPC.Chat> chatsArr, boolean fromGetDifference, int date) {
         if (updates.isEmpty()) {
             if (usersArr != null || chatsArr != null) {
                 AndroidUtilities.runOnUIThread(() -> {

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrGhostButton">Режим привида</string>
+    <string name="ZephyrGhostButtonOn">Режим привида увімкнено</string>
+    <string name="ZephyrGhostButtonOff">Режим привида вимкнено</string>
+    <string name="ZephyrGhostButtonOnInfo">Прочитання, набір тексту, статус «в мережі» та перегляди історій приховано. Утримуйте привида для тонкого налаштування.</string>
+    <string name="ZephyrStoryViewInvisibly">Переглянути непомітно</string>
+</resources>

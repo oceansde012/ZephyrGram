@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrSettingsGeneral">Общие</string>
+    <string name="ZephyrSettingsAppearance">Внешний вид</string>
+    <string name="ZephyrSettingsChats">Чаты</string>
+    <string name="ZephyrSettingsOther">Прочее</string>
+    <string name="ZephyrSettingsMore">Больше настроек</string>
+    <string name="ZephyrResetSettings">Сбросить настройки</string>
+    <string name="ZephyrResetSettingsInfo">Сбросить настройки разделов «Общие», «Внешний вид» и «Чаты» к значениям по умолчанию? Режим призрака, сохранённые сообщения и обновления не затрагиваются.</string>
+    <string name="ZephyrResetSettingsDone">Настройки сброшены</string>
+    <string name="ZephyrReset">Сбросить</string>
+    <string name="ZephyrCredits">Благодарности</string>
+    <string name="ZephyrCreditsText">Содержит код exteraGram (exteraSquad), GPLv2.</string>
+    <string name="ZephyrNumberRoundingOff">Отключить округление чисел</string>
+    <string name="ZephyrTimeWithSeconds">Время сообщения с секундами</string>
+    <string name="ZephyrHidePhoneNumber">Скрыть номер телефона</string>
+    <string name="ZephyrMainTitle">Заголовок главного экрана</string>
+    <string name="ZephyrMainTitleAppName">Название приложения</string>
+    <string name="ZephyrMainTitleUsername">Имя пользователя</string>
+    <string name="ZephyrMainTitleName">Имя</string>
+    <string name="ZephyrCenterTitle">Заголовок по центру</string>
+    <string name="ZephyrTabCounter">Счётчик непрочитанных на вкладках папок</string>
+    <string name="ZephyrRestartToApply">Некоторые изменения применяются после повторного открытия экрана или перезапуска приложения.</string>
+    <string name="ZephyrDisableJumpToNextChannel">Отключить переход к следующему каналу</string>
+    <string name="ZephyrHideKeyboardOnScroll">Скрывать клавиатуру при прокрутке</string>
+    <string name="ZephyrHideShareButton">Скрыть кнопку «Поделиться»</string>
+    <string name="ZephyrPhotoQuality">Качество фото</string>
+    <string name="ZephyrHideStickerTime">Скрыть время на стикерах</string>
+    <string name="ZephyrUnlimitedRecentStickers">Неограниченные недавние стикеры</string>
+    <string name="ZephyrRewindStep">Шаг перемотки плеера</string>
+    <string name="ZephyrSecondsShort">%1$d с</string>
+    <string name="ZephyrPauseOnMinimize">Пауза видео при сворачивании</string>
+</resources>

@@ -4422,7 +4422,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         });
     }
 
-    public void sendMessage(SendMessageParams sendMessageParams) {
+    public void sendMessage(SendMessageParams incomingParams) {
+        final SendMessageParams sendMessageParams = org.telegram.messenger.zephyr.plugins.PluginHooks.onSendMessage(currentAccount, incomingParams);
+        if (sendMessageParams == null) return;
         final SendMessageChatArguments sendMessageChatArguments = sendMessageParams.sendMessageChatArguments != null ?
                 sendMessageParams.sendMessageChatArguments : SendMessageChatArguments.EMPTY;
         String message = sendMessageParams.message;
@@ -9371,9 +9373,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             sizes.add(size);
         }
         if (highQuality) {
-            size = ImageLoader.scaleAndSaveImage(null, bitmap, Bitmap.CompressFormat.JPEG, true, AndroidUtilities.getPhotoSize(highQuality), AndroidUtilities.getPhotoSize(highQuality), 99, false, 101, 101, false);
+            size = ImageLoader.scaleAndSaveImage(null, bitmap, Bitmap.CompressFormat.JPEG, true, org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), 99, false, 101, 101, false);
         } else {
-            size = ImageLoader.scaleAndSaveImage(bitmap, AndroidUtilities.getPhotoSize(highQuality), AndroidUtilities.getPhotoSize(highQuality), true, 80, false, 101, 101);
+            size = ImageLoader.scaleAndSaveImage(bitmap, org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), org.telegram.messenger.zephyr.ZephyrConfig.sendPhotoSize(highQuality), true, 80, false, 101, 101);
         }
         if (size != null) {
             sizes.add(size);

@@ -14,11 +14,20 @@ import org.telegram.tgnet.tl.TL_stories;
 public class ZephyrGhost {
 
     /**
+     * One-off "view stories invisibly" session started from the chat list while ghost mode is off.
+     * Suppresses only story view requests; cleared when the story viewer closes.
+     */
+    public static volatile boolean storyPeekActive = false;
+
+    /**
      * @return true if the request must NOT be sent. The completion block (if any) has already
      * been invoked with a harmless result when the caller relies on it.
      */
     public static boolean intercept(TLObject object, RequestDelegate onComplete) {
         ZephyrConfig.load();
+        if (storyPeekActive && isStoryViewRequest(object)) {
+            return true;
+        }
         if (!ZephyrConfig.isGhostEnabled()) {
             return false;
         }

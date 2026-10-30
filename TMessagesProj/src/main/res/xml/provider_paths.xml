@@ -4,4 +4,6 @@
     <files-path name="logs" path="/logs/"/>
     <files-path name="cache" path="/cache/"/>
     <root-path name="external_files" path="/storage/" />
+    <external-files-path name="zephyr_updates" path="updates/" />
+    <cache-path name="zephyr_updates_cache" path="updates/" />
 </paths>

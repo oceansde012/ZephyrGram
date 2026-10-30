@@ -18515,7 +18515,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             }
             timeString = LocaleController.formatSeenDate(date);
         } else {
-            timeString = LocaleController.getInstance().getFormatterDay().format((long) (messageObject.messageOwner.date) * 1000);
+            timeString = (org.telegram.messenger.zephyr.ZephyrConfig.formatTimeWithSeconds ? LocaleController.getInstance().getFormatterDayWithSeconds() : LocaleController.getInstance().getFormatterDay()).format((long) (messageObject.messageOwner.date) * 1000);
         }
         if (currentMessageObject.messageOwner.video_processing_pending) {
             timeString = formatString(R.string.ScheduledTimeApprox, timeString);
@@ -18693,6 +18693,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     protected boolean checkNeedDrawShareButton(MessageObject messageObject) {
+        if (org.telegram.messenger.zephyr.ZephyrConfig.hideShareButton) return false;
         if (isReportChat) return false;
         if (currentMessageObject.deleted && !currentMessageObject.deletedByThanos) return false;
         if (currentMessageObject.isSponsored()) return false;
@@ -23978,6 +23979,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     }
 
     private void drawTimeInternal(Canvas canvas, float alpha, boolean fromParent, float timeX, StaticLayout timeLayout, float timeWidth, boolean drawSelectionBackground) {
+        if (org.telegram.messenger.zephyr.ZephyrConfig.hideStickerTime && currentMessageObject != null && currentMessageObject.isAnyKindOfSticker()) {
+            return;
+        }
         if ((!drawTime || groupPhotoInvisible) && shouldDrawTimeOnMedia() || timeLayout == null || (currentMessageObject.deleted && currentPosition != null) || currentMessageObject.type == MessageObject.TYPE_PHONE_CALL) {
             return;
         }

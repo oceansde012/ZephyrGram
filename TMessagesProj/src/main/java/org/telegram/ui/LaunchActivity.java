@@ -6845,6 +6845,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     protected void onPause() {
         super.onPause();
+        org.telegram.messenger.zephyr.plugins.PluginRuntime.INSTANCE.dispatchAppEvent("PAUSE");
         isResumed = false;
         pipActivityHandler.onPause();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
@@ -7083,6 +7084,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     protected void onResume() {
         super.onResume();
+        org.telegram.messenger.zephyr.plugins.PluginRuntime.INSTANCE.dispatchAppEvent("RESUME");
         isResumed = true;
         pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
@@ -7151,6 +7153,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             showUpdateActivity(UserConfig.selectedAccount, SharedConfig.pendingAppUpdate, true);
         }
         checkAppUpdate(false, null);
+        org.telegram.messenger.zephyr.ZephyrUpdater.checkOnLaunch(this);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             ApplicationLoader.canDrawOverlays = Settings.canDrawOverlays(this);

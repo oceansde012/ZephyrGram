@@ -49,6 +49,7 @@
 -keep class io.nano.tex.** {*;}
 
 -keep class org.telegram.tgnet.** { *; }
+-keep class org.telegram.messenger.zephyr.** { *; }
 
 # JLatexMath: macro/atom classes are loaded reflectively by Class.forName
 -keep class org.scilab.forge.jlatexmath.** { *; }

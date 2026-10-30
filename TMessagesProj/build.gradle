@@ -2,6 +2,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 apply plugin: 'com.android.library'
 apply plugin: 'org.telegram.build-plugin'
+apply plugin: 'com.chaquo.python'
 apply plugin: 'idea'
 
 idea {
@@ -135,15 +136,16 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion 36
 
-        // API credentials come from the environment (or -P properties); they are never stored in the repo.
-        def tgApiId = (project.findProperty('TG_API_ID') ?: System.getenv('TG_API_ID') ?: '').toString().trim()
-        def tgApiHash = (project.findProperty('TG_API_HASH') ?: System.getenv('TG_API_HASH') ?: '').toString().trim()
-        if (!(tgApiId ==~ /[0-9]+/) || !(tgApiHash ==~ /[0-9a-fA-F]{32}/)) {
-            throw new GradleException('TG_API_ID (digits) and TG_API_HASH (32 hex chars) must be set as environment variables or -P properties. Get your own at https://my.telegram.org')
+        // Credentials may also live in local.properties, which is excluded from Git.
+        def tgApiId = (project.findProperty('TG_API_ID') ?: System.getenv('TG_API_ID') ?: getProps('TG_API_ID') ?: '').toString().trim()
+        def tgApiHash = (project.findProperty('TG_API_HASH') ?: System.getenv('TG_API_HASH') ?: getProps('TG_API_HASH') ?: '').toString().trim()
+        if (!(tgApiId ==~ /[0-9]+/) || !tgApiId.isInteger() || tgApiId.toInteger() <= 0 || !(tgApiHash ==~ /[0-9a-fA-F]{32}/)) {
+            throw new GradleException('TG_API_ID (positive 32-bit integer) and TG_API_HASH (32 hex chars) must be set in local.properties, environment variables or -P properties. On Windows run scripts/configure-windows.ps1. Get your own at https://my.telegram.org')
         }
+        tgApiId = tgApiId.toInteger().toString()
         buildConfigField 'int', 'TG_API_ID', tgApiId
         buildConfigField 'String', 'TG_API_HASH', '"' + tgApiHash + '"'
 
@@ -151,10 +153,15 @@ android {
 
         multiDexEnabled true
 
+        // Chaquopy requires explicit ABIs and only supports these two.
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+
         externalNativeBuild {
             cmake {
                 version '3.22.1'
-                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-24' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
                 targets 'tmessages.49'
             }
         }
@@ -167,6 +174,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PRIVATE_URL") + "\""
             buildConfigField "boolean", "DEBUG_VERSION", "true"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
@@ -180,6 +188,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PRIVATE_URL") + "\""
             buildConfigField "boolean", "DEBUG_VERSION", "true"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
@@ -193,6 +202,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_PUBLIC_URL") + "\""
             buildConfigField "boolean", "DEBUG_VERSION", "true"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
@@ -206,6 +216,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"" + getProps("BETA_HARDCORE_URL") + "\""
             buildConfigField "boolean", "DEBUG_VERSION", "true"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "true"
@@ -219,6 +230,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"\""
             buildConfigField "boolean", "DEBUG_VERSION", "false"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
@@ -232,6 +244,7 @@ android {
             multiDexEnabled true
             ndk.debugSymbolLevel = 'FULL'
             buildConfigField "String", "BUILD_VERSION_STRING", "\"" + APP_VERSION_NAME + "\""
+            buildConfigField "String", "ZEPHYR_VERSION", "\"" + ZEPHYR_VERSION_NAME + "\""
             buildConfigField "String", "BETA_URL", "\"\""
             buildConfigField "boolean", "DEBUG_VERSION", "false"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
@@ -241,6 +254,15 @@ android {
     }
 
     namespace 'org.telegram.messenger'
+}
+
+// Python runtime for ZephyrGram plugins (Chaquopy). Only arm64-v8a and x86_64 ABIs are supported.
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        // Keep Chaquopy default bytecode behavior: compile when Python 3.13 is available,
+        // otherwise package source for compilation on the device. CI installs Python 3.13.
+    }
 }
 
 

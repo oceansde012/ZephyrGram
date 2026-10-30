@@ -58,6 +58,66 @@ Requirements: JDK 17+ and Android SDK packages `platforms;android-36`, `build-to
    scripts/build-android.sh . assembleDebug
    ```
 
+### Windows setup
+
+From PowerShell in the project folder, open the local setup window:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File .\scripts\configure-windows.ps1
+```
+
+The execution-policy option applies only to this PowerShell process; it does not change the machine policy.
+
+Enter your own Telegram API ID and API Hash. The helper finds the Android SDK,
+including an SDK installed by the Claude Windows app, and stores all three values
+in `local.properties`, which is excluded from Git. It preserves other properties
+and keeps previous local settings in the ignored `.gradle/zephyr-setup-backups/`
+folder. Do not share either file or backup. Values are never printed or uploaded.
+
+Check local prerequisites without showing secrets:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\configure-windows.ps1 -CheckOnly
+```
+
+Build a debug APK using the Gradle wrapper JAR (no `gradlew.bat` is required):
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1
+```
+
+Use `-Task help` for configuration diagnostics or `-Offline` to use only cached
+dependencies. Release signing and store-index keys are separate from Telegram API
+credentials and are not needed for a debug APK. API credentials supplied through
+Gradle properties or environment variables take priority over `local.properties`.
+
+### Versioning
+
+ZephyrGram has its own version, separate from Telegram's (`APP_VERSION_NAME` / `APP_VERSION_CODE` stay at upstream values). It is set in `gradle.properties`:
+
+- `ZEPHYR_VERSION_NAME` (plain semver, e.g. `0.1.0`) is exposed to code as `BuildConfig.ZEPHYR_VERSION`. Override it with `-PZEPHYR_VERSION_NAME=X.Y.Z`; CI takes it from the tag.
+- `ZEPHYR_VERSION_CODE` must be increased by hand for every release. The APK versionCode is `ZEPHYR_VERSION_CODE * 100000 + APP_VERSION_CODE * 10 + abi`, so it grows with every ZephyrGram release and every upstream rebase.
+
+### Releasing
+
+`.github/workflows/release.yml` builds a signed arm64-v8a release APK and publishes it as a GitHub Release named `ZephyrGram-X.Y.Z-arm64-v8a.apk`. The in-app updater reads the latest release.
+
+1. Bump `ZEPHYR_VERSION_CODE` (and `ZEPHYR_VERSION_NAME`) in `gradle.properties` and commit.
+2. Push a tag: `git tag v0.1.0 && git push origin v0.1.0`. Tags with a suffix (`v0.2.0-beta1`) become pre-releases. The workflow can also be started by hand with a version.
+
+Required repository secrets (Settings > Secrets and variables > Actions):
+
+| Secret | Value |
+| --- | --- |
+| `ZEPHYR_KEYSTORE_BASE64` | release keystore as base64: `base64 -w0 zephyr.jks` |
+| `ZEPHYR_KEYSTORE_PASSWORD` | keystore password |
+| `ZEPHYR_KEY_ALIAS` | key alias |
+| `ZEPHYR_KEY_PASSWORD` | key password |
+| `TG_API_ID` | Telegram api_id |
+| `TG_API_HASH` | Telegram api_hash |
+
+Keep the keystore safe: an update must be signed with the same key, or Android refuses to install it over the old version.
+
 Troubleshooting:
 
 - **Maven Central rate limit (HTTP 429):** copy `scripts/gradle-central-mirror.gradle` to `~/.gradle/init.d/`. This routes Central through Google's mirror.
