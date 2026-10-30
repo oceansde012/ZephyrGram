@@ -202,6 +202,8 @@ import org.telegram.messenger.utils.ViewOutlineProviderImpl;
 import org.telegram.messenger.utils.tlutils.TLKeyboardHelper;
 import org.telegram.messenger.utils.tlutils.TlUtils;
 import org.telegram.messenger.voip.VoIPService;
+import org.telegram.messenger.zephyr.ZephyrConfig;
+import org.telegram.messenger.zephyr.ZephyrSavedMessages;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -22588,7 +22590,7 @@ public class ChatActivity extends BaseFragment implements
                 scheduleNowDialog.dismiss();
                 scheduleNowDialog = null;
             }
-            processDeletedMessages(markAsDeletedMessages, channelId, sent, !movedToScheduled);
+            processDeletedMessages(zephyrKeepDeletedMessages(markAsDeletedMessages, channelId), channelId, sent, !movedToScheduled);
             if (movedToScheduled && chatMode != ChatActivity.MODE_SCHEDULED) {
                 getMessagesController().forceNoReload(dialog_id, ChatActivity.MODE_SCHEDULED);
                 openScheduledMessages(scheduledMessageId, true);
@@ -26552,6 +26554,49 @@ public class ChatActivity extends BaseFragment implements
             sponsoredMessagesCount++;
         }
         return sponsoredMessagesCount;
+    }
+
+    /**
+     * Messages that the server deleted and ZephyrSavedMessages keeps are not removed from the open chat:
+     * they stay in the list and get the "deleted" marker. Returns the ids that still have to be removed
+     * (the same list instance when nothing is kept).
+     */
+    private ArrayList<Integer> zephyrKeepDeletedMessages(ArrayList<Integer> ids, long channelId) {
+        if (!ZephyrConfig.saveDeleted || ids == null || ids.isEmpty() || chatMode != MODE_DEFAULT) {
+            return ids;
+        }
+        final int loadIndex;
+        if (ChatObject.isChannel(currentChat)) {
+            if (channelId == 0 && mergeDialogId != 0) {
+                loadIndex = 1;
+            } else if (channelId == -dialog_id) {
+                loadIndex = 0;
+            } else {
+                return ids;
+            }
+        } else if (channelId != 0) {
+            return ids;
+        } else {
+            loadIndex = 0;
+        }
+        ArrayList<Integer> toRemove = null;
+        for (int a = 0, N = ids.size(); a < N; a++) {
+            int mid = ids.get(a);
+            MessageObject obj = messagesDict[loadIndex].get(mid);
+            if (obj != null && obj.messageOwner != null && ZephyrSavedMessages.getInstance().isPreserved(currentAccount, -channelId, mid)) {
+                if (toRemove == null) {
+                    toRemove = new ArrayList<>(ids.subList(0, a));
+                }
+                obj.messageOwner.zephyrDeleted = true;
+                obj.forceUpdate = true;
+                if (chatAdapter != null) {
+                    chatAdapter.updateRowWithMessageObject(obj, true, false);
+                }
+            } else if (toRemove != null) {
+                toRemove.add(mid);
+            }
+        }
+        return toRemove != null ? toRemove : ids;
     }
 
     private void processDeletedMessages(ArrayList<Integer> markAsDeletedMessages, long channelId, boolean sent) {

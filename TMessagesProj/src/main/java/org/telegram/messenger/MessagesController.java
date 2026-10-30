@@ -63,6 +63,8 @@ import org.telegram.messenger.voip.GroupCallMessagesController;
 import org.telegram.messenger.voip.VoIPDebugToSend;
 import org.telegram.messenger.voip.VoIPPreNotificationService;
 import org.telegram.messenger.voip.VoIPService;
+import org.telegram.messenger.zephyr.ZephyrConfig;
+import org.telegram.messenger.zephyr.ZephyrSavedMessages;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.RequestDelegate;
@@ -9354,6 +9356,9 @@ public class MessagesController extends BaseController implements NotificationCe
                 } else {
                     markDialogMessageAsDeleted(dialogId, messages);
                 }
+                if (ZephyrConfig.saveDeleted) {
+                    ZephyrSavedMessages.getInstance().onUserDeleted(currentAccount, dialogId, channelId, messages);
+                }
                 getMessagesStorage().markMessagesAsDeleted(dialogId, messages, true, forAll, 0, topicId);
                 getMessagesStorage().updateDialogsWithDeletedMessages(dialogId, channelId, messages, null);
             }
@@ -12119,6 +12124,9 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
         }
+        if (ZephyrConfig.saveDeleted && mode == ChatActivity.MODE_DEFAULT && threadMessageId == 0 && !isTopic && dialogId != 0 && !DialogObject.isEncryptedDialog(dialogId)) {
+            mergeZephyrDeletedMessages(objects, dialogId, max_id, load_type, usersDict, chatsDict);
+        }
         getFileLoader().checkMediaExistance(objects);
         if (MessageObject.canCreateStripedThubms()) {
             for (int i = 0; i < objects.size(); i++) {
@@ -12228,6 +12236,60 @@ public class MessagesController extends BaseController implements NotificationCe
             Timer.done(t3);
             Timer.finish(loaderLogger);
         });
+    }
+
+    /**
+     * Inserts messages that were deleted on the server and saved locally into a freshly loaded page.
+     * Only ids inside the id range covered by the page are used (between its smallest and largest real
+     * id; for LOAD_BACKWARD up to the requested max_id, because every live message below max_id would
+     * have been returned), so the result stays contiguous. The list is newest first. Runs on the
+     * stage thread; never blocks the UI thread.
+     */
+    private void mergeZephyrDeletedMessages(ArrayList<MessageObject> objects, long dialogId, int requestedMaxId, int loadType, LongSparseArray<TLRPC.User> usersDict, LongSparseArray<TLRPC.Chat> chatsDict) {
+        try {
+            int minId = Integer.MAX_VALUE;
+            int maxId = 0;
+            HashSet<Integer> present = new HashSet<>();
+            for (int a = 0, N = objects.size(); a < N; a++) {
+                int id = objects.get(a).getId();
+                present.add(id);
+                if (id > 0) {
+                    minId = Math.min(minId, id);
+                    maxId = Math.max(maxId, id);
+                }
+            }
+            if (maxId == 0) {
+                return;
+            }
+            if (loadType == LOAD_BACKWARD && requestedMaxId > maxId) {
+                maxId = requestedMaxId - 1;
+            }
+            ArrayList<TLRPC.Message> saved = ZephyrSavedMessages.getInstance().getDeleted(currentAccount, dialogId, minId, maxId, 500);
+            for (int a = 0, N = saved.size(); a < N; a++) {
+                TLRPC.Message message = saved.get(a);
+                if (present.contains(message.id)) {
+                    continue;
+                }
+                int index = -1;
+                for (int b = 0, N2 = objects.size(); b < N2; b++) {
+                    int id = objects.get(b).getId();
+                    if (id > 0 && id < message.id) {
+                        index = b;
+                        break;
+                    }
+                }
+                if (index < 0) {
+                    continue;
+                }
+                message.dialog_id = dialogId;
+                message.zephyrDeleted = true;
+                MessageObject messageObject = new MessageObject(currentAccount, message, usersDict, chatsDict, true, false, false);
+                objects.add(index, messageObject);
+                present.add(message.id);
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
     }
 
     public void forceNoReload(long dialogId, int mode) {
@@ -17594,6 +17656,10 @@ public class MessagesController extends BaseController implements NotificationCe
 
     protected void deleteMessagesByPush(long dialogId, ArrayList<Integer> ids, long channelId) {
         getMessagesStorage().getStorageQueue().postRunnable(() -> {
+            if (ZephyrConfig.saveDeleted) {
+                ZephyrSavedMessages.getInstance().markServerDeleted(currentAccount, channelId != 0 ? -channelId : 0, ids);
+                ZephyrSavedMessages.getInstance().captureServerDeleted(currentAccount, getMessagesStorage(), dialogId, ids);
+            }
             AndroidUtilities.runOnUIThread(() -> {
                 getNotificationCenter().postNotificationName(NotificationCenter.messagesDeleted, ids, channelId, false);
                 if (channelId == 0) {
@@ -18857,6 +18923,9 @@ public class MessagesController extends BaseController implements NotificationCe
                     deletedMessages.put(0, arrayList);
                 }
                 arrayList.addAll(update.messages);
+                if (ZephyrConfig.saveDeleted) {
+                    ZephyrSavedMessages.getInstance().markServerDeleted(currentAccount, 0, update.messages);
+                }
             } else if (baseUpdate instanceof TL_update.TL_updateDeleteQuickReplyMessages) {
                 TL_update.TL_updateDeleteQuickReplyMessages update = (TL_update.TL_updateDeleteQuickReplyMessages) baseUpdate;
                 if (deletedQuickReplyMessages == null) {
@@ -19386,6 +19455,9 @@ public class MessagesController extends BaseController implements NotificationCe
                     deletedMessages.put(dialogId, arrayList);
                 }
                 arrayList.addAll(update.messages);
+                if (ZephyrConfig.saveDeleted) {
+                    ZephyrSavedMessages.getInstance().markServerDeleted(currentAccount, dialogId, update.messages);
+                }
             } else if (baseUpdate instanceof TL_update.TL_updateChannel) {
                 if (BuildVars.LOGS_ENABLED) {
                     TL_update.TL_updateChannel update = (TL_update.TL_updateChannel) baseUpdate;
@@ -21269,7 +21341,12 @@ public class MessagesController extends BaseController implements NotificationCe
                 long key = deletedMessages.keyAt(a);
                 ArrayList<Integer> arrayList = deletedMessages.valueAt(a);
                 getMessagesStorage().getStorageQueue().postRunnable(() -> {
-                    ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, true, 0, 0);
+                    if (ZephyrConfig.saveDeleted) {
+                        // storage thread, rows are still in messages_v2
+                        ZephyrSavedMessages.getInstance().captureServerDeleted(currentAccount, getMessagesStorage(), key, arrayList);
+                    }
+                    // when saving deleted messages keep their cached media files on disk (deleteFiles = false)
+                    ArrayList<Long> dialogIds = getMessagesStorage().markMessagesAsDeleted(key, arrayList, false, !ZephyrConfig.saveDeleted, 0, 0);
                     getMessagesStorage().updateDialogsWithDeletedMessages(key, -key, arrayList, dialogIds);
                 });
             }

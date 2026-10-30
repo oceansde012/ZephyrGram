@@ -58788,6 +58788,7 @@ public class TLRPC {
         public boolean voiceTranscriptionForce; //custom
         public long voiceTranscriptionId; //custom
         public boolean premiumEffectWasPlayed; //custom
+        public boolean zephyrDeleted; //custom, runtime only: deleted on the server, kept locally
         public String originalLanguage; //custom
         public String translatedToLanguage; //custom
         public TL_textWithEntities translatedText; //custom
