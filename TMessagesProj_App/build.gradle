@@ -194,4 +194,6 @@ android {
     }
 }
 
-apply plugin: 'com.google.gms.google-services'
+// FCM is bound to the official package name; ZephyrGram uses a different applicationId, so the
+// google-services plugin is not applied (PushListenerController tolerates a failed Firebase init).
+// apply plugin: 'com.google.gms.google-services'
