@@ -1,46 +1,72 @@
-## Telegram messenger for Android
+# ZephyrGram
 
-[Telegram](https://telegram.org) is a messaging app with a focus on speed and security. It’s superfast, simple and free.
-This repo contains the official source code for [Telegram App for Android](https://play.google.com/store/apps/details?id=org.telegram.messenger).
+**ZephyrGram is an unofficial Android client for Telegram.** It is built on the official [Telegram for Android](https://github.com/DrKLO/Telegram) source code (DrKLO/Telegram, imported at commit `3de37c8c`, version 13.1.1 / 7237). It is not affiliated with Telegram.
 
-## Creating your Telegram Application
+Features are inspired by [AyuGram](https://github.com/AyuGram), but they are re-implemented from scratch. AyuGram's Android sources are not used.
 
-We welcome all developers to use our API and source code to create applications on our platform.
-There are several things we require from **all developers** for the moment.
+> **Status: early work.** The features below have never been compiled and have not been tested on a device.
 
-1. [**Obtain your own api_id**](https://core.telegram.org/api/obtaining_api_id) for your application.
-2. Please **do not** use the name Telegram for your app — or make sure your users understand that it is unofficial.
-3. Kindly **do not** use our standard logo (white paper plane in a blue circle) as your app's logo.
-3. Please study our [**security guidelines**](https://core.telegram.org/mtproto/security_guidelines) and take good care of your users' data and privacy.
-4. Please remember to publish **your** code too in order to comply with the licences.
+Package id: `org.zephyrgram.messenger`
 
-### API, Protocol documentation
+## Features (implemented, untested)
 
-Telegram API manuals: https://core.telegram.org/api
+- **Ghost mode**: does not send read receipts, typing status or story views, and keeps the account always offline. Implemented by intercepting requests in `ConnectionsManager.sendRequestInternal`.
+- **Deleted message retention**: messages deleted on the server are saved and stay visible in the open chat, marked with a broom mark.
+- **Edit history recording**: the old text of edited messages is recorded. There is no UI for it yet.
+- **ZephyrGram settings**: a "ZephyrGram" entry in Settings (`org.telegram.ui.ZephyrSettingsActivity`) with toggles. Config lives in `org.telegram.messenger.zephyr.ZephyrConfig`.
 
-MTproto protocol manuals: https://core.telegram.org/mtproto
+Push notifications (FCM) are disabled. A custom package cannot use Telegram's Firebase project.
 
-### Compilation Guide
+## Status / roadmap
 
-**Note**: In order to support [reproducible builds](https://core.telegram.org/reproducible-builds), this repo contains dummy release.keystore,  google-services.json and filled variables inside BuildVars.java. Before publishing your own APKs please make sure to replace all these files with your own.
+Not done yet:
 
-You will require Android Studio 2025.1.4, Android NDK 27.2.12479018 and Android SDK 36.
+- Message filters
+- Local Premium and ad removal toggles (they do not act yet)
+- Edit-history viewer
+- App name and icon rebrand
+- Release signing
 
-1. Clone the Telegram source code with its submodules:
+## Building
+
+No API keys and no prebuilt binaries are in this repository.
+
+You need your own Telegram API credentials from https://my.telegram.org. Pass them as environment variables `TG_API_ID` and `TG_API_HASH`. Never commit them. The build fails without them.
+
+Requirements: JDK 17+ and Android SDK packages `platforms;android-36`, `build-tools;36.0.0`, `ndk;27.2.12479018` and `cmake;3.22.1`. Linux, or any machine with JDK 17+.
+
+1. Fetch the submodules at their pinned commits. libyuv falls back to a GitHub mirror.
+
    ```bash
-   git clone --recursive --shallow-submodules https://github.com/DrKLO/Telegram.git Telegram
+   scripts/init-submodules.sh
    ```
-   In case you forgot the `--recursive` flag, change to the `Telegram` directory and run:
+
+2. Install the Android SDK packages listed above and set `ANDROID_HOME`.
+
+3. Export your credentials.
+
    ```bash
-   git submodule init && git submodule update --init --recursive --depth=1
+   export TG_API_ID=<your api_id>
+   export TG_API_HASH=<your api_hash>
    ```
-2. Copy your release.keystore into TMessagesProj/config
-3. Fill out RELEASE_KEY_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_STORE_PASSWORD in gradle.properties to access your  release.keystore
-4.  Go to https://console.firebase.google.com/, create two android apps with application IDs org.telegram.messenger and org.telegram.messenger.beta, turn on firebase messaging and download google-services.json, which should be copied to the same folder as TMessagesProj.
-5. Open the project in the Studio (note that it should be opened, NOT imported).
-6. Fill out values in TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java – there’s a link for each of the variables showing where and which data to obtain.
-7. You are ready to compile Telegram.
 
-### Localization
+4. Build. Use `assembleRelease` for a release build. Release signing needs your own keystore. Never commit it.
 
-We moved all translations to https://translations.telegram.org/en/android/. Please use it.
+   ```bash
+   scripts/build-android.sh . assembleDebug
+   ```
+
+Troubleshooting:
+
+- **Maven Central rate limit (HTTP 429):** copy `scripts/gradle-central-mirror.gradle` to `~/.gradle/init.d/`. This routes Central through Google's mirror.
+- **Android Studio on a PC:** run `scripts/init-submodules.sh` first, set the environment variables before launching the IDE, then open the folder.
+
+## Upstream references
+
+- Telegram API: https://core.telegram.org/api
+- MTProto protocol: https://core.telegram.org/mtproto
+- Telegram for Android: https://github.com/DrKLO/Telegram
+
+## License
+
+Based on Telegram for Android, which is licensed under GPLv2. See [LICENSE](LICENSE).
