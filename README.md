@@ -15,7 +15,7 @@ Package id: `org.zephyrgram.messenger`
 - **Edit history recording**: the old text of edited messages is recorded. There is no UI for it yet.
 - **ZephyrGram settings**: a "ZephyrGram" entry in Settings (`org.telegram.ui.ZephyrSettingsActivity`) with toggles. Config lives in `org.telegram.messenger.zephyr.ZephyrConfig`.
 
-Telegram's own Google/Firebase API keys and release keystore were removed from this fork (SafetyNet and Maps keys are empty). Only the `TMessagesProj_App` module is supported; the other app modules are left from upstream and are not built.
+Telegram's own Google/Firebase API keys and release keystore were removed from this fork (SafetyNet and Maps keys are empty). The Huawei, HockeyApp, Standalone and Tests app modules were removed; only `TMessagesProj` and `TMessagesProj_App` are built.
 
 Push notifications (FCM) are disabled. A custom package cannot use Telegram's Firebase project.
 
