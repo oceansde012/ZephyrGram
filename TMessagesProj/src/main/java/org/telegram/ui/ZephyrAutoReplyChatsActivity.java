@@ -1,6 +1,7 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -46,6 +47,8 @@ import java.util.List;
 /**
  * Overview of the chats where the "ai_autoreply" plugin is active: add / remove a chat, mode, on/off, master switch.
  * Data lives in the plugin's own preferences (see {@link ZephyrAutoReplyStore}); the running plugin is told to reload.
+ * The list follows the plugin's own writes too (a chat added by "answer everyone", paused after errors, resumed):
+ * a preference listener reloads it while the screen is open.
  */
 public class ZephyrAutoReplyChatsActivity extends BaseFragment implements PluginManager.Listener {
     private static final int T_HEADER = 0, T_CHECK = 1, T_LINK = 2, T_USER = 3, T_INFO = 4, T_SHADOW = 5;
@@ -69,6 +72,13 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
     private RecyclerListView listView;
     private ListAdapter adapter;
     private boolean loading;
+    /** A reload was asked for while one was running: run it again with the newer data when that one ends. */
+    private boolean reloadAgain;
+    private final Runnable reloadRunnable = this::reload;
+    /** Kept in a field: SharedPreferences holds its listeners weakly. Called on the main thread. */
+    private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener = (sp, key) -> {
+        if (ZephyrAutoReplyStore.isListKey(key)) reloadSoon();
+    };
 
     private static String s(int id) {
         return LocaleController.getString(id);
@@ -77,12 +87,21 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
     @Override
     public boolean onFragmentCreate() {
         PluginManager.INSTANCE.addListener(this);
+        try {
+            ZephyrAutoReplyStore.prefs().registerOnSharedPreferenceChangeListener(prefsListener);
+        } catch (Throwable ignore) {
+        }
         return super.onFragmentCreate();
     }
 
     @Override
     public void onFragmentDestroy() {
         PluginManager.INSTANCE.removeListener(this);
+        try {
+            ZephyrAutoReplyStore.prefs().unregisterOnSharedPreferenceChangeListener(prefsListener);
+        } catch (Throwable ignore) {
+        }
+        AndroidUtilities.cancelRunOnUIThread(reloadRunnable);
         super.onFragmentDestroy();
     }
 
@@ -121,12 +140,21 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
 
     @Override
     public void onPluginsChanged() {
-        AndroidUtilities.runOnUIThread(this::reload);
+        reloadSoon();
+    }
+
+    /** Several writes in a row (the plugin's commit, keep_, mode_) give one reload. */
+    private void reloadSoon() {
+        AndroidUtilities.cancelRunOnUIThread(reloadRunnable);
+        AndroidUtilities.runOnUIThread(reloadRunnable, 250);
     }
 
     /** Reads the plugin's storage off the UI thread and resolves avatars from the local cache. */
     private void reload() {
-        if (loading) return;
+        if (loading) {
+            reloadAgain = true;     // the running load may have read the store before the latest write
+            return;
+        }
         loading = true;
         Utilities.globalQueue.postRunnable(() -> {
             final List<ZephyrAutoReplyStore.Entry> entries = ZephyrAutoReplyStore.load();
@@ -157,6 +185,10 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
             AndroidUtilities.runOnUIThread(() -> {
                 loading = false;
                 rebuild(entries, objects);
+                if (reloadAgain) {
+                    reloadAgain = false;
+                    reload();
+                }
             });
         });
     }
@@ -519,9 +551,12 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
                 case T_USER:
                     ZephyrAutoReplyStore.Entry e = row.entry;
                     String status = modeName(e.mode);
-                    if (!e.enabled) status = LocaleController.formatString(R.string.ZephyrArPaused, status);
+                    if (e.autoOff) status = LocaleController.formatString(R.string.ZephyrArAutoOff, status);
+                    else if (!e.enabled) status = LocaleController.formatString(R.string.ZephyrArPaused, status);
                     UserCell uc = (UserCell) holder.itemView;
-                    uc.setData(row.object, e.title, status, 0, row.divider);
+                    // A chat stored without a real title (only its id) shows the cached user/chat name.
+                    boolean noTitle = e.title == null || e.title.isEmpty() || e.title.equals(String.valueOf(e.dialogId)) || e.title.equals(e.key);
+                    uc.setData(row.object, noTitle && row.object != null ? null : e.title, status, 0, row.divider);
                     uc.setChecked(e.enabled, false);
                     break;
                 case T_INFO:

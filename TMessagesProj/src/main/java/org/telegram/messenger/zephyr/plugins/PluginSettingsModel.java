@@ -10,6 +10,7 @@ import org.telegram.messenger.FileLog;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Declarative settings screen of one plugin (built from Python create_settings()) plus access to the
@@ -140,6 +141,23 @@ public final class PluginSettingsModel {
 
     // ---------------------------------------------------------------- raw storage (also used by Python)
 
+    private static final ConcurrentHashMap<String, Object> LOCKS = new ConcurrentHashMap<>();
+
+    /**
+     * One lock per plugin store. Every write here holds it, and so does core code that rewrites a whole value
+     * of a plugin (ZephyrAutoReplyStore: read-modify-write of "chats"), so a plugin write can never land between
+     * that core read and write. Never call into Python while holding it.
+     */
+    public static Object lock(String pluginId) {
+        Object lock = LOCKS.get(pluginId);
+        if (lock == null) {
+            Object fresh = new Object();
+            lock = LOCKS.putIfAbsent(pluginId, fresh);
+            if (lock == null) lock = fresh;
+        }
+        return lock;
+    }
+
     private static SharedPreferences prefs(String pluginId) {
         Context c = ApplicationLoader.applicationContext;
         return c.getSharedPreferences("zephyr_plugin_" + pluginId, Context.MODE_PRIVATE);
@@ -156,15 +174,40 @@ public final class PluginSettingsModel {
 
     public static void putRaw(String pluginId, String key, String json) {
         try {
-            prefs(pluginId).edit().putString(key, json).apply();
+            synchronized (lock(pluginId)) {
+                prefs(pluginId).edit().putString(key, json).apply();
+            }
         } catch (Throwable t) {
             FileLog.e(t);
         }
     }
 
+    /**
+     * Compare-and-set for plugins that share a value with core code (Python: read with getRaw, change, write
+     * back only if nobody wrote meanwhile; on false read again and retry). expected == null means "not stored".
+     * json == null removes the key. The in-memory value is updated at once (apply), like putRaw.
+     */
+    public static boolean putRawIf(String pluginId, String key, String expected, String json) {
+        try {
+            synchronized (lock(pluginId)) {
+                SharedPreferences p = prefs(pluginId);
+                String current = p.getString(key, null);
+                if (current == null ? expected != null : !current.equals(expected)) return false;
+                if (json == null) p.edit().remove(key).apply();
+                else p.edit().putString(key, json).apply();
+                return true;
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+            return false;
+        }
+    }
+
     public static void remove(String pluginId, String key) {
         try {
-            prefs(pluginId).edit().remove(key).apply();
+            synchronized (lock(pluginId)) {
+                prefs(pluginId).edit().remove(key).apply();
+            }
         } catch (Throwable ignore) {
         }
     }
