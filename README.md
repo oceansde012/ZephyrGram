@@ -108,6 +108,8 @@ Gradle properties or environment variables take priority over `local.properties`
 
 ### Versioning
 
+**Upstream tracking:** `.github/workflows/upstream-watch.yml` checks DrKLO/Telegram daily and opens an `upstream` issue when a newer Telegram version or API layer appears (base commit is in `UPSTREAM_BASE`; update it after merging upstream).
+
 ZephyrGram has its own version, separate from Telegram's (`APP_VERSION_NAME` / `APP_VERSION_CODE` stay at upstream values). It is set in `gradle.properties`:
 
 - `ZEPHYR_VERSION_NAME` (plain semver, e.g. `0.1.0`) is exposed to code as `BuildConfig.ZEPHYR_VERSION`. Override it with `-PZEPHYR_VERSION_NAME=X.Y.Z`; CI takes it from the tag.
