@@ -12,9 +12,12 @@ import org.telegram.messenger.zephyr.plugins.PluginManager;
 import org.telegram.messenger.zephyr.plugins.PluginSettingsModel;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -31,6 +34,16 @@ import java.util.Set;
 public final class ZephyrAutoReplyStore {
     public static final String PLUGIN_ID = "ai_autoreply";
     public static final int MODE_AUTO = 0, MODE_DRAFT = 1, MODE_FRIEND = 2;
+    /**
+     * Per-chat setting names: the stored key is name + "_" + sk(chatKey). Numbers: mode 0 auto / 1 draft / 2 friend;
+     * gender (of the OTHER person) 0 auto / 1 man / 2 woman; rlang 0 as in general / 1 auto / 2 Ukrainian /
+     * 3 Russian / 4 the other person's language; react 0 as in general / 1 off / 2 on. Strings: lore (what the
+     * owner knows about the person), learned (notes the bot learned), prompt. Booleans: memory, see_media,
+     * transcribe_voice (consents, off by default).
+     */
+    public static final String K_MODE = "mode", K_GENDER = "gender", K_RLANG = "rlang", K_REACT = "react",
+            K_LORE = "lore", K_LEARNED = "learned", K_PROMPT = "prompt",
+            K_MEMORY = "memory", K_SEE_MEDIA = "see_media", K_VOICE = "transcribe_voice";
     private static final Object LOCK = PluginSettingsModel.lock(PLUGIN_ID);
 
     public static final class Entry {
@@ -43,6 +56,8 @@ public final class ZephyrAutoReplyStore {
         public int mode;
         /** Paused by the plugin after repeated errors; it switches itself back on after 30 minutes. */
         public boolean autoOff;
+        /** gender_&lt;sk&gt;, rlang_&lt;sk&gt;, react_&lt;sk&gt; (see {@link #K_GENDER}). */
+        public int gender, rlang, react;
     }
 
     private ZephyrAutoReplyStore() {
@@ -55,7 +70,8 @@ public final class ZephyrAutoReplyStore {
 
     /** Keys whose change alters the chat list (entries, on/off, mode, master), written by either side. */
     public static boolean isListKey(String key) {
-        return key == null || "chats".equals(key) || "master".equals(key) || key.startsWith("mode_") || key.startsWith("keep_");
+        return key == null || "chats".equals(key) || "master".equals(key) || key.startsWith("mode_") || key.startsWith("keep_")
+                || key.startsWith("gender_") || key.startsWith("rlang_") || key.startsWith("react_");
     }
 
     public static String chatKey(int account, long dialogId) {
@@ -127,6 +143,109 @@ public final class ZephyrAutoReplyStore {
         return def;
     }
 
+    private static boolean readBool(SharedPreferences p, String key, boolean def) {
+        try {
+            String raw = p.getString(key, null);
+            if (raw == null) return def;
+            Object v = new JSONTokener(raw).nextValue();
+            if (v instanceof Boolean) return (Boolean) v;
+            if (v instanceof Number) return ((Number) v).intValue() != 0;
+            if (v instanceof String) return "true".equalsIgnoreCase(((String) v).trim()) || "1".equals(((String) v).trim());
+        } catch (Throwable ignore) {
+        }
+        return def;
+    }
+
+    private static String readString(SharedPreferences p, String key) {
+        try {
+            String raw = p.getString(key, null);
+            if (raw == null) return "";
+            Object v = new JSONTokener(raw).nextValue();
+            if (v == null || v == JSONObject.NULL) return "";
+            return String.valueOf(v);
+        } catch (Throwable ignore) {
+            return "";
+        }
+    }
+
+    /** JSON text of a Python value, as the plugin stores it: numbers and booleans plain, strings quoted. */
+    private static String encode(Object value) {
+        if (value instanceof Boolean || value instanceof Number) return String.valueOf(value);
+        return JSONObject.quote(String.valueOf(value));
+    }
+
+    /** Stored key of a per-chat setting: name + "_" + sk(chatKey). */
+    public static String chatPrefKey(String name, String chatKey) {
+        return name + "_" + sk(chatKey);
+    }
+
+    public static int getChatInt(String chatKey, String name, int def) {
+        return readInt(prefs(), chatPrefKey(name, chatKey), def);
+    }
+
+    public static boolean getChatBool(String chatKey, String name, boolean def) {
+        return readBool(prefs(), chatPrefKey(name, chatKey), def);
+    }
+
+    /** A per-chat text setting ("" when not set). */
+    public static String getChatString(String chatKey, String name) {
+        return readString(prefs(), chatPrefKey(name, chatKey));
+    }
+
+    /** One per-chat setting. value: Integer, Boolean or String; null removes it (the plugin's default). */
+    public static void setChatValue(String chatKey, String name, Object value) {
+        setForChats(Collections.singletonList(chatKey), name, value);
+    }
+
+    /** Several settings of one chat in ONE commit. Map values as in {@link #setChatValue}. */
+    public static void setChatValues(String chatKey, Map<String, Object> values) {
+        if (chatKey == null || values == null || values.isEmpty()) return;
+        synchronized (LOCK) {
+            SharedPreferences.Editor ed = prefs().edit();
+            for (Map.Entry<String, Object> v : values.entrySet()) {
+                String pk = chatPrefKey(v.getKey(), chatKey);
+                if (v.getValue() == null) ed.remove(pk);
+                else ed.putString(pk, encode(v.getValue()));
+            }
+            ed.commit();
+        }
+        done();
+    }
+
+    /** The same setting for many chats in ONE commit (bulk edit). value as in {@link #setChatValue}. */
+    public static void setForChats(Collection<String> chatKeys, String name, Object value) {
+        if (chatKeys == null || chatKeys.isEmpty()) return;
+        synchronized (LOCK) {
+            SharedPreferences.Editor ed = prefs().edit();
+            for (String k : chatKeys) {
+                String pk = chatPrefKey(name, k);
+                if (value == null) ed.remove(pk);
+                else ed.putString(pk, encode(value));
+            }
+            ed.commit();
+        }
+        done();
+    }
+
+    /** A plain boolean setting of the plugin ("reply_all", "skip_links", "short_msgs", "revive", ...). */
+    public static boolean getBool(String name, boolean def) {
+        return readBool(prefs(), name, def);
+    }
+
+    public static void setBool(String name, boolean value) {
+        synchronized (LOCK) {
+            prefs().edit().putString(name, String.valueOf(value)).commit();
+        }
+        done();
+    }
+
+    /** The stored entry of one chat, or null when it is not in the list (any more). */
+    public static Entry find(String key) {
+        if (key == null) return null;
+        for (Entry e : load()) if (key.equals(e.key)) return e;
+        return null;
+    }
+
     public static boolean isMaster() {
         try {
             String raw = prefs().getString("master", null);
@@ -165,7 +284,11 @@ public final class ZephyrAutoReplyStore {
                 e.type = c.optString("type", e.dialogId > 0 ? "user" : "group");
                 e.enabled = c.optBoolean("enabled", false);
                 e.autoOff = !e.enabled && c.has("auto_off_ts") && !c.isNull("auto_off_ts");
-                e.mode = readInt(p, "mode_" + sk(key), MODE_AUTO);
+                String s = sk(key);
+                e.mode = readInt(p, "mode_" + s, MODE_AUTO);
+                e.gender = readInt(p, "gender_" + s, 0);
+                e.rlang = readInt(p, "rlang_" + s, 0);
+                e.react = readInt(p, "react_" + s, 0);
                 out.add(e);
             }
         }
@@ -263,23 +386,35 @@ public final class ZephyrAutoReplyStore {
     }
 
     public static void setEnabled(String key, boolean enabled) {
+        setEnabled(Collections.singletonList(key), enabled);
+    }
+
+    /** On/off for many chats in ONE commit. */
+    public static void setEnabled(Collection<String> keys, boolean enabled) {
+        if (keys == null || keys.isEmpty()) return;
+        boolean changed = false;
         synchronized (LOCK) {
             SharedPreferences p = prefs();
             JSONObject chats = readChats(p);
-            JSONObject c = chats.optJSONObject(key);
-            if (c == null) return;
+            SharedPreferences.Editor ed = p.edit();
             try {
-                c.put("enabled", enabled);
-                if (enabled) c.put("fails", 0);
-                // The owner's own on/off ends an error pause: with auto_off_ts left in place the plugin would
-                // switch a chat paused here back on after 30 minutes.
-                c.remove("auto_off_ts");
-                p.edit().putString("chats", JSONObject.quote(chats.toString())).putString("keep_" + sk(key), String.valueOf(enabled)).commit();
+                for (String key : keys) {
+                    JSONObject c = chats.optJSONObject(key);
+                    if (c == null) continue;
+                    c.put("enabled", enabled);
+                    if (enabled) c.put("fails", 0);
+                    // The owner's own on/off ends an error pause: with auto_off_ts left in place the plugin would
+                    // switch a chat paused here back on after 30 minutes.
+                    c.remove("auto_off_ts");
+                    ed.putString("keep_" + sk(key), String.valueOf(enabled));
+                    changed = true;
+                }
+                if (changed) ed.putString("chats", JSONObject.quote(chats.toString())).commit();
             } catch (Throwable t) {
                 FileLog.e(t);
             }
         }
-        done();
+        if (changed) done();
     }
 
     public static void setMode(String key, int mode) {
@@ -290,15 +425,34 @@ public final class ZephyrAutoReplyStore {
     }
 
     public static void remove(String key) {
+        remove(Collections.singletonList(key));
+    }
+
+    /**
+     * Removes many chats in ONE commit, with their per-chat settings, and puts them on "all_skip" so "answer
+     * everyone" does not add them back (the same keys the plugin's own removal drops).
+     */
+    public static void remove(Collection<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
         synchronized (LOCK) {
             SharedPreferences p = prefs();
             JSONObject chats = readChats(p);
-            chats.remove(key);
-            String s = sk(key);
-            p.edit().putString("chats", JSONObject.quote(chats.toString()))
-                    .putString("all_skip", skipWith(p, key, true))
-                    .remove("mode_" + s).remove("prompt_" + s).remove("keep_" + s).remove("rlang_" + s)
-                    .remove("lore_" + s).remove("learned_" + s).commit();
+            SharedPreferences.Editor ed = p.edit();
+            JSONArray skipIn = readSkip(p);
+            JSONArray skip = new JSONArray();
+            for (int i = 0; i < skipIn.length(); i++) {
+                String k = skipIn.optString(i, null);
+                if (k != null && !keys.contains(k)) skip.put(k);
+            }
+            for (String key : keys) {
+                chats.remove(key);
+                skip.put(key);
+                String s = sk(key);
+                ed.remove("mode_" + s).remove("prompt_" + s).remove("keep_" + s).remove("rlang_" + s)
+                        .remove("react_" + s).remove("lore_" + s).remove("learned_" + s);
+            }
+            ed.putString("chats", JSONObject.quote(chats.toString()))
+                    .putString("all_skip", JSONObject.quote(skip.toString())).commit();
         }
         done();
     }
