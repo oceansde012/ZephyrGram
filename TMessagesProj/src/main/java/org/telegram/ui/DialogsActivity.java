@@ -129,6 +129,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.zephyr.ZephyrConfig;
 import org.telegram.messenger.zephyr.ZephyrGhost;
+import org.telegram.messenger.zephyr.plugins.PluginManager;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.XiaomiUtilities;
 import org.telegram.messenger.browser.Browser;
@@ -13777,6 +13778,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (folderId == 0 && !onlySelect) {
             addZephyrGhostOption(io);
             io.add(R.drawable.msg_bot, getString(R.string.ZephyrAi), () -> presentFragment(new ZephyrAssistantActivity()));
+            addZephyrPluginsOptions(io);
             io.addGap();
         }
 
@@ -14309,6 +14311,74 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return true;
         });
         io.addView(cell);
+    }
+
+    /**
+     * The installed plugins right in the main-screen menu: tap = enable / disable (the switch follows the real result),
+     * long-press = the plugin's settings. The last row opens the full plugin screen.
+     */
+    private void addZephyrPluginsOptions(ItemOptions io) {
+        final Context context = getContext();
+        if (context == null) {
+            return;
+        }
+        final java.util.List<PluginManager.InstalledPlugin> plugins;
+        try {
+            plugins = PluginManager.INSTANCE.getInstalled();
+        } catch (Throwable t) {
+            return;
+        }
+        if (plugins == null || plugins.isEmpty()) {
+            return;
+        }
+        final int textColor = getThemedColor(Theme.key_actionBarDefaultTitle);
+        for (final PluginManager.InstalledPlugin plugin : plugins) {
+            final ActionBarMenuSubItem cell = new ActionBarMenuSubItem(context, false, false, resourceProvider);
+            cell.setPadding(dp(18), 0, dp(18), 0);
+            cell.setTextAndIcon(plugin.name, R.drawable.msg_settings);
+            cell.setColors(textColor, textColor);
+            cell.setSelectorColor(Theme.multAlpha(textColor, .12f));
+
+            final Switch switchView = new Switch(context, resourceProvider);
+            switchView.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
+            switchView.setChecked(plugin.enabled, false);
+            switchView.setClickable(false);
+            switchView.setFocusable(false);
+            cell.addView(switchView, LayoutHelper.createFrame(37, 20, Gravity.CENTER_VERTICAL | (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT)));
+            FrameLayout.LayoutParams textLp = (FrameLayout.LayoutParams) cell.getTextView().getLayoutParams();
+            if (LocaleController.isRTL) {
+                textLp.leftMargin = dp(48);
+            } else {
+                textLp.rightMargin = dp(48);
+            }
+            cell.getTextView().setLayoutParams(textLp);
+
+            final boolean[] wanted = {plugin.enabled};
+            cell.setOnClickListener(v -> {
+                if (PluginManager.INSTANCE.isBusy()) {
+                    return;
+                }
+                wanted[0] = !wanted[0];
+                switchView.setChecked(wanted[0], true);
+                PluginManager.INSTANCE.setEnabled(plugin.id, wanted[0], error -> {
+                    final PluginManager.InstalledPlugin now = PluginManager.INSTANCE.getInstalled(plugin.id);
+                    if (now != null) {
+                        wanted[0] = now.enabled;
+                        switchView.setChecked(now.enabled, true);
+                    }
+                    if (error != null && !error.isEmpty()) {
+                        BulletinFactory.of(DialogsActivity.this).createSimpleBulletin(R.raw.error, error).show();
+                    }
+                });
+            });
+            cell.setOnLongClickListener(v -> {
+                io.dismiss();
+                presentFragment(new ZephyrPluginSettingsActivity(plugin.id));
+                return true;
+            });
+            io.addView(cell);
+        }
+        io.add(R.drawable.msg_customize, getString(R.string.ZephyrPlugins), () -> presentFragment(new ZephyrPluginsActivity()));
     }
 
     // endregion

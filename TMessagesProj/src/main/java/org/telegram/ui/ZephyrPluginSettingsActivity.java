@@ -11,6 +11,8 @@ import org.telegram.messenger.Utilities;
 import org.telegram.messenger.zephyr.plugins.PluginManager;
 import org.telegram.messenger.zephyr.plugins.PluginSettingsModel;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Cells.ZephyrWrapCell;
+import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalFragment;
@@ -37,24 +39,36 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment {
         PluginManager.InstalledPlugin plugin=PluginManager.INSTANCE.getInstalled(pluginId);
         if (plugin==null || !plugin.enabled) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(R.string.ZephyrPluginSettingsNotLoaded))); return; }
         if (model==null || model.items.isEmpty()) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(loading ? R.string.Loading : R.string.ZephyrPluginSettingsEmpty))); return; }
+        if (getParentActivity()==null) return;
         int index=0;
         for (PluginSettingsModel.Item setting : model.items) {
             UItem item;
-            switch (setting.type) {
-                case PluginSettingsModel.TYPE_HEADER: item=UItem.asHeader(setting.text); break;
-                case PluginSettingsModel.TYPE_DIVIDER: item=UItem.asShadow(setting.text); break;
-                case PluginSettingsModel.TYPE_SWITCH: item=UItem.asCheck(++index,setting.text).setChecked(model.getBoolean(setting)); break;
-                case PluginSettingsModel.TYPE_INPUT: item=UItem.asButton(++index,setting.text,model.getString(setting)); break;
-                case PluginSettingsModel.TYPE_SELECTOR:
-                    int value=model.getInt(setting);
-                    item=UItem.asButton(++index,setting.text,setting.options!=null && value>=0 && value<setting.options.length ? setting.options[value] : ""); break;
-                case PluginSettingsModel.TYPE_DIALOG_PICKER:
-                case PluginSettingsModel.TYPE_USERNAME_INPUT:
-                default: item=UItem.asButton(++index,setting.text);
+            if (setting.type==PluginSettingsModel.TYPE_HEADER) item=UItem.asHeader(setting.text);
+            else if (setting.type==PluginSettingsModel.TYPE_DIVIDER) item=UItem.asShadow(setting.text);
+            else {
+                // Own wrapping row: the stock one-line cells cut long titles and values with "...".
+                boolean isSwitch=setting.type==PluginSettingsModel.TYPE_SWITCH;
+                String value="";
+                if (setting.type==PluginSettingsModel.TYPE_INPUT) value=shorten(model.getString(setting));
+                else if (setting.type==PluginSettingsModel.TYPE_SELECTOR) {
+                    int selected=model.getInt(setting);
+                    value=setting.options!=null && selected>=0 && selected<setting.options.length ? setting.options[selected] : "";
+                }
+                ZephyrWrapCell cell=new ZephyrWrapCell(getParentActivity());
+                cell.setData(setting.text,value,isSwitch,isSwitch && model.getBoolean(setting),true);
+                final UItem row=UItem.asCustom(++index,cell,LayoutHelper.WRAP_CONTENT);
+                cell.setOnClickListener(v -> onClick(row,v,-1,0,0));
+                item=row;
             }
             item.object=setting; items.add(item);
             if (setting.subtext!=null && !setting.subtext.isEmpty()) items.add(UItem.asShadow(setting.subtext));
         }
+    }
+    /** A long saved value (a prompt, a lore) would blow the row up: show the beginning, the dialog has the rest. */
+    private static String shorten(String text) {
+        if (text==null) return "";
+        String t=text.trim().replaceAll("\\s*\\n\\s*"," / ");
+        return t.length()>140 ? t.substring(0,140)+"\u2026" : t;
     }
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
         if (model==null || !(item.object instanceof PluginSettingsModel.Item)) return;
