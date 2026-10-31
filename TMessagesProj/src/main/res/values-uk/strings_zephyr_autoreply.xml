@@ -16,6 +16,7 @@
     <string name="ZephyrArModeDraft">Чернетка</string>
     <string name="ZephyrArModeFriend">Друг</string>
     <string name="ZephyrArPaused">%1$s · на паузі</string>
+    <string name="ZephyrArAutoOff">%1$s · пауза через помилки, бот увімкнеться сам</string>
     <string name="ZephyrArOptionMode">Режим: %1$s</string>
     <string name="ZephyrArEnable">Увімкнути для цього чату</string>
     <string name="ZephyrArDisable">Призупинити для цього чату</string>

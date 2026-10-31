@@ -16,6 +16,7 @@
     <string name="ZephyrArModeDraft">Draft</string>
     <string name="ZephyrArModeFriend">Friend</string>
     <string name="ZephyrArPaused">%1$s · paused</string>
+    <string name="ZephyrArAutoOff">%1$s · paused after errors, turns back on by itself</string>
     <string name="ZephyrArOptionMode">Mode: %1$s</string>
     <string name="ZephyrArEnable">Enable for this chat</string>
     <string name="ZephyrArDisable">Pause for this chat</string>

@@ -1,5 +1,7 @@
 package org.telegram.ui;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
@@ -8,6 +10,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.zephyr.plugins.PluginChatApi;
 import org.json.JSONObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.zephyr.ZephyrAutoReplyStore;
 import org.telegram.messenger.zephyr.plugins.PluginManager;
 import org.telegram.messenger.zephyr.plugins.PluginSettingsModel;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -18,21 +22,54 @@ import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalFragment;
 import java.util.ArrayList;
 
-public class ZephyrPluginSettingsActivity extends UniversalFragment {
+public class ZephyrPluginSettingsActivity extends UniversalFragment implements PluginManager.Listener {
     private final String pluginId;
     private PluginSettingsModel model;
     private boolean loading;
+    /** A reload was asked for while one was running: the running one may have read older values, so load again. */
+    private boolean loadAgain;
+    private final Runnable loadRunnable=this::load;
+    /**
+     * Follows writes from elsewhere while the screen is open: the plugin itself (a chat added or paused after
+     * errors), the app's Auto-reply tab. Kept in a field: SharedPreferences holds listeners weakly. Main thread.
+     */
+    private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener=(sp,key) -> {
+        if (key==null || shows(key) || (ZephyrAutoReplyStore.PLUGIN_ID.equals(pluginId) && ZephyrAutoReplyStore.isListKey(key))) reloadSoon();
+    };
     public ZephyrPluginSettingsActivity(String id) { pluginId=id; }
     @Override protected CharSequence getTitle() { return ZephyrPluginsActivity.s(R.string.ZephyrPluginSettings); }
+    @Override public boolean onFragmentCreate() {
+        PluginManager.INSTANCE.addListener(this);
+        try { prefs().registerOnSharedPreferenceChangeListener(prefsListener); } catch (Throwable ignore) { }
+        return super.onFragmentCreate();
+    }
+    @Override public void onFragmentDestroy() {
+        PluginManager.INSTANCE.removeListener(this);
+        try { prefs().unregisterOnSharedPreferenceChangeListener(prefsListener); } catch (Throwable ignore) { }
+        AndroidUtilities.cancelRunOnUIThread(loadRunnable);
+        super.onFragmentDestroy();
+    }
+    @Override public void onPluginsChanged() { reloadSoon(); }
     @Override public void onResume() { super.onResume(); load(); }
+    private SharedPreferences prefs() { return ApplicationLoader.applicationContext.getSharedPreferences("zephyr_plugin_"+pluginId, Context.MODE_PRIVATE); }
+    /** The changed key is a setting shown on this screen. */
+    private boolean shows(String key) {
+        PluginSettingsModel m=model;
+        if (m==null) return false;
+        for (PluginSettingsModel.Item it : m.items) if (key.equals(it.key)) return true;
+        return false;
+    }
     private void load() {
-        if (loading) return;
+        if (loading) { loadAgain=true; return; }
         PluginManager.InstalledPlugin plugin=PluginManager.INSTANCE.getInstalled(pluginId);
         if (plugin==null || !plugin.enabled) { model=null; update(); return; }
         loading=true;
         Utilities.globalQueue.postRunnable(() -> {
             PluginSettingsModel result=PluginSettingsModel.load(pluginId);
-            AndroidUtilities.runOnUIThread(() -> { loading=false; model=result; update(); });
+            AndroidUtilities.runOnUIThread(() -> {
+                loading=false; model=result; update();
+                if (loadAgain) { loadAgain=false; load(); }
+            });
         });
     }
     @Override protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
@@ -74,24 +111,27 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment {
         if (model==null || !(item.object instanceof PluginSettingsModel.Item)) return;
         PluginSettingsModel.Item setting=(PluginSettingsModel.Item)item.object;
         switch (setting.type) {
-            case PluginSettingsModel.TYPE_SWITCH: model.setValue(setting,!model.getBoolean(setting)); update(); break;
+            case PluginSettingsModel.TYPE_SWITCH: model.setValue(setting,!model.getBoolean(setting)); update(); reloadSoon(); break;
             case PluginSettingsModel.TYPE_INPUT:
                 EditText input=new EditText(getParentActivity()); input.setText(model.getString(setting)); input.setSingleLine(!setting.multiline);
                 if (setting.hint!=null) input.setHint(setting.hint);
                 showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(setting.text).setView(input)
-                        .setPositiveButton(ZephyrPluginsActivity.s(R.string.OK),(d,w) -> { model.setValue(setting,input.getText().toString()); update(); })
+                        .setPositiveButton(ZephyrPluginsActivity.s(R.string.OK),(d,w) -> { if (model!=null) { model.setValue(setting,input.getText().toString()); update(); reloadSoon(); } })
                         .setNegativeButton(ZephyrPluginsActivity.s(R.string.Cancel),null).create()); break;
             case PluginSettingsModel.TYPE_SELECTOR:
                 if (setting.options==null) return;
                 showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(setting.text).setItems(setting.options,
-                        (d,which) -> { model.setValue(setting,which); update(); }).create()); break;
+                        (d,which) -> { if (model!=null) { model.setValue(setting,which); update(); reloadSoon(); } }).create()); break;
             case PluginSettingsModel.TYPE_TEXT: model.click(setting); reloadSoon(); break;
             case PluginSettingsModel.TYPE_DIALOG_PICKER: openPicker(setting); break;
             case PluginSettingsModel.TYPE_USERNAME_INPUT: askUsername(setting); break;
         }
     }
-    /** Plugin callbacks may change what create_settings() returns (e.g. remove a row); rebuild the list. */
-    private void reloadSoon() { AndroidUtilities.runOnUIThread(this::load, 150); }
+    /**
+     * Plugin callbacks and changed values may change what create_settings() returns (a removed row, a chat's
+     * "mode · on/off" line, the "on: X of Y" counter, preset hints, the language); rebuild the list. Coalesced.
+     */
+    private void reloadSoon() { AndroidUtilities.cancelRunOnUIThread(loadRunnable); AndroidUtilities.runOnUIThread(loadRunnable, 150); }
     private void openPicker(PluginSettingsModel.Item setting) {
         Bundle args=new Bundle();
         args.putBoolean("onlySelect",true);

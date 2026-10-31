@@ -16,6 +16,7 @@
     <string name="ZephyrArModeDraft">Черновик</string>
     <string name="ZephyrArModeFriend">Друг</string>
     <string name="ZephyrArPaused">%1$s · на паузе</string>
+    <string name="ZephyrArAutoOff">%1$s · пауза из-за ошибок, бот включится сам</string>
     <string name="ZephyrArOptionMode">Режим: %1$s</string>
     <string name="ZephyrArEnable">Включить для этого чата</string>
     <string name="ZephyrArDisable">Приостановить для этого чата</string>

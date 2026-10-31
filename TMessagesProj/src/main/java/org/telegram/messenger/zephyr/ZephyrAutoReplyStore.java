@@ -9,6 +9,7 @@ import org.json.JSONTokener;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.zephyr.plugins.PluginManager;
+import org.telegram.messenger.zephyr.plugins.PluginSettingsModel;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,12 +23,15 @@ import java.util.Set;
  * {"account:dialogId": {enabled, account, dialog_id, title, type, fails, ...}}; per-chat mode is "mode_&lt;sk&gt;"
  * (0 auto, 1 draft, 2 friend), where sk = key with ':' -> '_' and '-' -> 'n'; "master" is a boolean.
  * Writes touch several keys in ONE editor commit, so the plugin never sees a half-written state.
+ * Every read-modify-write holds {@link PluginSettingsModel#lock}, the lock of all plugin-side writes too: a write
+ * of the running plugin cannot land between our read and our write, and the plugin writes "chats" with
+ * PluginSettingsModel.putRawIf, so it never overwrites our change either.
  * See ZephyrGram-Plugins/docs/API.md, "ai_autoreply storage format".
  */
 public final class ZephyrAutoReplyStore {
     public static final String PLUGIN_ID = "ai_autoreply";
     public static final int MODE_AUTO = 0, MODE_DRAFT = 1, MODE_FRIEND = 2;
-    private static final Object LOCK = new Object();
+    private static final Object LOCK = PluginSettingsModel.lock(PLUGIN_ID);
 
     public static final class Entry {
         public String key;
@@ -37,13 +41,21 @@ public final class ZephyrAutoReplyStore {
         public String type;
         public boolean enabled;
         public int mode;
+        /** Paused by the plugin after repeated errors; it switches itself back on after 30 minutes. */
+        public boolean autoOff;
     }
 
     private ZephyrAutoReplyStore() {
     }
 
-    private static SharedPreferences prefs() {
+    /** The plugin's store; screens register an OnSharedPreferenceChangeListener here to follow the plugin's own writes. */
+    public static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences("zephyr_plugin_" + PLUGIN_ID, Context.MODE_PRIVATE);
+    }
+
+    /** Keys whose change alters the chat list (entries, on/off, mode, master), written by either side. */
+    public static boolean isListKey(String key) {
+        return key == null || "chats".equals(key) || "master".equals(key) || key.startsWith("mode_") || key.startsWith("keep_");
     }
 
     public static String chatKey(int account, long dialogId) {
@@ -152,6 +164,7 @@ public final class ZephyrAutoReplyStore {
                 e.title = c.optString("title", key);
                 e.type = c.optString("type", e.dialogId > 0 ? "user" : "group");
                 e.enabled = c.optBoolean("enabled", false);
+                e.autoOff = !e.enabled && c.has("auto_off_ts") && !c.isNull("auto_off_ts");
                 e.mode = readInt(p, "mode_" + sk(key), MODE_AUTO);
                 out.add(e);
             }
@@ -257,10 +270,10 @@ public final class ZephyrAutoReplyStore {
             if (c == null) return;
             try {
                 c.put("enabled", enabled);
-                if (enabled) {
-                    c.put("fails", 0);
-                    c.remove("auto_off_ts");
-                }
+                if (enabled) c.put("fails", 0);
+                // The owner's own on/off ends an error pause: with auto_off_ts left in place the plugin would
+                // switch a chat paused here back on after 30 minutes.
+                c.remove("auto_off_ts");
                 p.edit().putString("chats", JSONObject.quote(chats.toString())).putString("keep_" + sk(key), String.valueOf(enabled)).commit();
             } catch (Throwable t) {
                 FileLog.e(t);
