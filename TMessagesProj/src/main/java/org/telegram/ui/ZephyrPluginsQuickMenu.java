@@ -100,7 +100,12 @@ public final class ZephyrPluginsQuickMenu {
      * can be switched to a per-chat screen later.
      */
     public static void openAutoReplyChatSettings(BaseFragment fragment, int account, long dialogId) {
-        fragment.presentFragment(new ZephyrAutoReplyChatsActivity());
+        // Opens the person's own settings screen; if the chat is not in the list yet it is added first (mode Auto, paused).
+        final String key = ZephyrAutoReplyStore.chatKey(account, dialogId);
+        if (ZephyrAutoReplyStore.find(key) == null) {
+            ZephyrAutoReplyStore.upsert(account, dialogId, String.valueOf(dialogId), "user", false);
+        }
+        fragment.presentFragment(new ZephyrAutoReplyChatSettingsActivity(key));
     }
 
     /** Only private chats with a person (no bots, no secret chats, not Saved Messages) and only with the plugin installed. */
