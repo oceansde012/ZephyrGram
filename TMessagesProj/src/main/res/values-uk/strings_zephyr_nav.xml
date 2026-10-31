@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrNavHistory">Історія та збережені повідомлення</string>
+    <string name="ZephyrNavHistoryState">Видалені: %1$s · змінені: %2$s</string>
+    <string name="ZephyrNavHistoryInfo">Видалені повідомлення та попередні версії змінених зберігаються лише на цьому пристрої.</string>
+    <string name="ZephyrNavUpdates">Оновлення застосунку</string>
+    <string name="ZephyrNavUpdatesState">Версія %1$s · автоперевірка: %2$s</string>
+    <string name="ZephyrNavGhostOn">Увімкнено: %1$d з %2$d</string>
+    <string name="ZephyrNavGhostOff">Вимкнено · прочитання, набір тексту, онлайн, історії</string>
+    <string name="ZephyrNavPluginsState">Встановлено: %1$d · увімкнено: %2$d</string>
+    <string name="ZephyrNavAdvancedInfo">Локальний Premium, реклама, фільтри повідомлень, фонове з\'єднання, журнал</string>
+    <string name="ZephyrNavAllPlugins">Усі плагіни</string>
+    <string name="ZephyrNavNoPlugins">Плагіни не встановлено</string>
+    <string name="ZephyrNavArThisChat">Автовідповідь у цьому чаті</string>
+    <string name="ZephyrNavArChatSettings">Параметри автовідповіді для цього чату</string>
+    <string name="ZephyrNavArOn">Автовідповідь у цьому чаті увімкнено</string>
+    <string name="ZephyrNavArOff">Автовідповідь у цьому чаті призупинено</string>
+    <string name="ZephyrNavArPluginOff">Увімкнено для цього чату, але плагін автовідповідача вимкнено</string>
+    <string name="ZephyrNavArMasterOff">Увімкнено для цього чату, але автовідповідь вимкнено для всіх чатів</string>
+</resources>

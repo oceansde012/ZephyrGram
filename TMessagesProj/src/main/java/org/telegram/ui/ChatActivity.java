@@ -1712,6 +1712,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int zephyr_admins = 3002;
     private final static int zephyr_members = 3003;
     private final static int zephyr_recent_actions = 3004;
+    private final static int zephyr_plugins = 3005;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3977,6 +3978,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id >= zephyr_permissions && id <= zephyr_recent_actions) {
                     openZephyrAdminShortcut(id);
+                } else if (id == zephyr_plugins) {
+                    openZephyrPluginsMenu();
                 } else if (id == report) {
                     ReportBottomSheet.openChat(ChatActivity.this);
                 } else if (id == star) {
@@ -4525,6 +4528,9 @@ public class ChatActivity extends BaseFragment implements
             }
             if (themeDelegate.isThemeChangeAvailable(true)) {
                 headerItem.lazilyAddSubItem(change_colors, R.drawable.msg_background, LocaleController.getString(R.string.SetWallpapers));
+            }
+            if (chatMode == MODE_DEFAULT) {
+                headerItem.lazilyAddSubItem(zephyr_plugins, R.drawable.msg_customize, LocaleController.getString(R.string.ZephyrPlugins));
             }
             if (currentUser != null && currentUser.self && getDialogId() != UserObject.VERIFY) {
                 headerItem.lazilyAddSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
@@ -46265,6 +46271,14 @@ public class ChatActivity extends BaseFragment implements
             }
         }
         return -1;
+    }
+
+    /** "Plugins" in the chat menu: installed plugins with switches; auto-reply rows only in private chats. */
+    private void openZephyrPluginsMenu() {
+        if (headerItem == null || getParentActivity() == null) {
+            return;
+        }
+        ZephyrPluginsQuickMenu.showForChat(ChatActivity.this, headerItem, currentAccount, dialog_id, currentChat == null ? currentUser : null);
     }
 
     private void openZephyrAdminShortcut(int id) {
