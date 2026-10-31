@@ -118,6 +118,7 @@ public final class ZephyrAutoReplyStore {
             }
         }
         java.util.Collections.sort(out, (a, b) -> {
+            if (a.account != b.account) return a.account < b.account ? -1 : 1;
             if (a.enabled != b.enabled) return a.enabled ? -1 : 1;
             return String.valueOf(a.title).compareToIgnoreCase(String.valueOf(b.title));
         });
@@ -169,6 +170,38 @@ public final class ZephyrAutoReplyStore {
             }
         }
         done();
+    }
+
+    /**
+     * Adds many private chats of one account in ONE commit. Chats that are already known keep their state and mode.
+     * ids[i] / titles[i] describe one chat. Returns how many were really added.
+     */
+    public static int addMissing(int account, long[] ids, String[] titles) {
+        int added = 0;
+        synchronized (LOCK) {
+            SharedPreferences p = prefs();
+            JSONObject chats = readChats(p);
+            SharedPreferences.Editor ed = p.edit();
+            try {
+                for (int i = 0; i < ids.length; i++) {
+                    String key = chatKey(account, ids[i]);
+                    if (chats.has(key)) continue;
+                    JSONObject c = new JSONObject();
+                    c.put("enabled", true).put("account", account).put("dialog_id", ids[i])
+                            .put("title", titles[i] == null || titles[i].isEmpty() ? String.valueOf(ids[i]) : titles[i])
+                            .put("type", "user").put("fails", 0);
+                    chats.put(key, c);
+                    ed.putString("keep_" + sk(key), "true");
+                    added++;
+                }
+                if (added > 0) ed.putString("chats", JSONObject.quote(chats.toString())).commit();
+            } catch (Throwable t) {
+                FileLog.e(t);
+                return 0;
+            }
+        }
+        if (added > 0) done();
+        return added;
     }
 
     public static void setEnabled(String key, boolean enabled) {

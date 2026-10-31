@@ -36,4 +36,8 @@ Modes: Auto answers at once, Draft fills the input field, Friend waits for \".ai
     <string name="ZephyrArNoBots">Bots cannot be added</string>
     <string name="ZephyrArAdded">Added: %1$s</string>
     <string name="ZephyrArRemoved">Removed: %1$s</string>
+    <string name="ZephyrArAccountHeader">%1$s · on: %2$d of %3$d</string>
+    <string name="ZephyrArAddAll">All private chats of %1$s (no bots)</string>
+    <string name="ZephyrArAddAllConfirm">Enable auto-reply in all private chats of %1$s? Bots, deleted users and Saved Messages are skipped. Chats already in the list keep their settings.</string>
+    <string name="ZephyrArAddedMany">Chats added: %1$d</string>
 </resources>

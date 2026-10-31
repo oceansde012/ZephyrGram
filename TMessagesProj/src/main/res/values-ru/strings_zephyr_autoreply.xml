@@ -36,4 +36,8 @@
     <string name="ZephyrArNoBots">Ботов добавлять нельзя</string>
     <string name="ZephyrArAdded">Добавлено: %1$s</string>
     <string name="ZephyrArRemoved">Убрано: %1$s</string>
+    <string name="ZephyrArAccountHeader">%1$s · вкл.: %2$d из %3$d</string>
+    <string name="ZephyrArAddAll">Все личные чаты %1$s (без ботов)</string>
+    <string name="ZephyrArAddAllConfirm">Включить автоответ во всех личных чатах %1$s? Боты, удалённые пользователи и «Избранное» пропускаются. Чаты, которые уже в списке, сохраняют свои настройки.</string>
+    <string name="ZephyrArAddedMany">Добавлено чатов: %1$d</string>
 </resources>

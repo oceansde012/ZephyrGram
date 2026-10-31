@@ -18,6 +18,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
 import org.telegram.messenger.zephyr.ZephyrAiShare;
 import org.telegram.messenger.zephyr.ZephyrAutoReplyStore;
 import org.telegram.messenger.zephyr.plugins.PluginChatApi;
@@ -198,11 +200,32 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
                     rows.add(info);
                 }
             } else {
+                // Chats are grouped per account (the store returns them sorted by account).
+                int accounts = 0;
                 for (int i = 0; i < entries.size(); i++) {
+                    if (i == 0 || entries.get(i).account != entries.get(i - 1).account) accounts++;
+                }
+                for (int i = 0; i < entries.size(); i++) {
+                    ZephyrAutoReplyStore.Entry e = entries.get(i);
+                    boolean first = i == 0 || e.account != entries.get(i - 1).account;
+                    boolean last = i == entries.size() - 1 || e.account != entries.get(i + 1).account;
+                    if (first && accounts > 1) {
+                        int count = 0, active = 0;
+                        for (ZephyrAutoReplyStore.Entry x : entries) {
+                            if (x.account == e.account) {
+                                count++;
+                                if (x.enabled) active++;
+                            }
+                        }
+                        if (i > 0) rows.add(new Row(T_SHADOW, 0));
+                        Row h = new Row(T_HEADER, 0);
+                        h.text = LocaleController.formatString(R.string.ZephyrArAccountHeader, accountName(e.account), active, count);
+                        rows.add(h);
+                    }
                     Row r = new Row(T_USER, A_CHAT);
-                    r.entry = entries.get(i);
+                    r.entry = e;
                     r.object = objects != null && i < objects.size() ? objects.get(i) : null;
-                    r.divider = i != entries.size() - 1;
+                    r.divider = !last;
                     rows.add(r);
                 }
                 rows.add(new Row(T_SHADOW, 0));
@@ -252,6 +275,19 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
         }
     }
 
+    private static String accountName(int account) {
+        try {
+            TLRPC.User u = UserConfig.getInstance(account).getCurrentUser();
+            if (u != null) {
+                String name = UserObject.getUserName(u);
+                String un = UserObject.getPublicUsername(u);
+                return un != null && !un.isEmpty() ? name + " (@" + un + ")" : name;
+            }
+        } catch (Throwable ignore) {
+        }
+        return "#" + (account + 1);
+    }
+
     private static String modeName(int mode) {
         return s(mode == ZephyrAutoReplyStore.MODE_DRAFT ? R.string.ZephyrArModeDraft
                 : mode == ZephyrAutoReplyStore.MODE_FRIEND ? R.string.ZephyrArModeFriend : R.string.ZephyrArModeAuto);
@@ -281,11 +317,50 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
 
     private void showAddDialog() {
         if (getParentActivity() == null) return;
-        CharSequence[] items = new CharSequence[]{s(R.string.ZephyrArAddFromChats), s(R.string.ZephyrArAddByUsername)};
+        CharSequence[] items = new CharSequence[]{s(R.string.ZephyrArAddFromChats), s(R.string.ZephyrArAddByUsername),
+                LocaleController.formatString(R.string.ZephyrArAddAll, accountName(currentAccount))};
         showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(s(R.string.ZephyrArAddChat)).setItems(items, (d, which) -> {
             if (which == 0) openPicker();
-            else askUsername();
+            else if (which == 1) askUsername();
+            else confirmAddAll();
         }).create());
+    }
+
+    private void confirmAddAll() {
+        if (getParentActivity() == null) return;
+        showDialog(new AlertDialog.Builder(getParentActivity())
+                .setTitle(s(R.string.ZephyrArAddChat))
+                .setMessage(LocaleController.formatString(R.string.ZephyrArAddAllConfirm, accountName(currentAccount)))
+                .setPositiveButton(s(R.string.OK), (d, w) -> addAllPrivateChats())
+                .setNegativeButton(s(R.string.Cancel), null).create());
+    }
+
+    /** Adds every private chat of the current account from the loaded dialog list, skipping bots, deleted users, Saved Messages and Telegram service chats. */
+    private void addAllPrivateChats() {
+        final int account = currentAccount;
+        Utilities.globalQueue.postRunnable(() -> {
+            ArrayList<Long> ids = new ArrayList<>();
+            ArrayList<String> titles = new ArrayList<>();
+            try {
+                MessagesController mc = MessagesController.getInstance(account);
+                long self = UserConfig.getInstance(account).getClientUserId();
+                for (TLRPC.Dialog d : new ArrayList<>(mc.getAllDialogs())) {
+                    if (d == null || d.id <= 0 || DialogObject.isEncryptedDialog(d.id) || d.id == self || d.id == 777000) continue;
+                    TLRPC.User u = mc.getUser(d.id);
+                    if (u == null || u.bot || u.self || UserObject.isDeleted(u) || UserObject.isReplyUser(u)) continue;
+                    ids.add(d.id);
+                    titles.add(UserObject.getUserName(u));
+                }
+            } catch (Throwable ignore) {
+            }
+            long[] idArr = new long[ids.size()];
+            for (int i = 0; i < idArr.length; i++) idArr[i] = ids.get(i);
+            final int added = ZephyrAutoReplyStore.addMissing(account, idArr, titles.toArray(new String[0]));
+            AndroidUtilities.runOnUIThread(() -> {
+                BulletinFactory.of(this).createSimpleBulletin(R.raw.done, LocaleController.formatString(R.string.ZephyrArAddedMany, added)).show();
+                reload();
+            });
+        });
     }
 
     private void openPicker() {
