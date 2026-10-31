@@ -86,17 +86,24 @@ def invoke(plugin_id, method, arguments):
             return item.on_click(ctx)
         if method == "__create_settings__":
             from zephyr.ui import _Item
-            items = plugin.create_settings() or []
-            plugin._settings = {}
+            page = str(args[0]) if args and args[0] else None
+            items = (plugin.create_settings(page) if page else plugin.create_settings()) or []
+            built = {}
             data = []
             for index, item in enumerate(items):
                 if not isinstance(item, _Item):
                     raise TypeError("create_settings must return zephyr.ui items")
                 key = str(getattr(item, "key", None) or "item_" + str(index))
-                if key in plugin._settings:
+                if key in built:
                     raise ValueError("Duplicate setting key: " + key)
-                plugin._settings[key] = item
+                built[key] = item
                 data.append(item._data(key))
+            if page:
+                # A sub-screen is open above the main one: keep the callbacks of both (main-screen rows are Page
+                # rows only, so merging never hides a callback).
+                plugin._settings.update(built)
+            else:
+                plugin._settings = built
             return json.dumps(data, allow_nan=False)
         if method == "__settings_event__":
             key, event, value = args

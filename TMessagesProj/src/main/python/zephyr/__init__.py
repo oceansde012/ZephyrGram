@@ -169,7 +169,9 @@ class BasePlugin:
     def on_app_event(self, event):
         pass
 
-    def create_settings(self):
+    def create_settings(self, page=None):
+        """Settings screen items. page is None for the main screen, or the key of a ui.Page row that was opened
+        (only passed to plugins that return ui.Page items, see client.SETTINGS_PAGES)."""
         return []
 
 

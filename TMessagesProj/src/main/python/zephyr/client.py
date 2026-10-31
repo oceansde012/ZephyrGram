@@ -5,6 +5,9 @@ import urllib.request
 from . import _state
 from ._bridge import ChatApi, Runtime, require
 
+# True when the app can open ui.Page rows as sub-screens (create_settings(page)); older apps lack this name.
+SETTINGS_PAGES = True
+
 
 def _account(account):
     return Runtime.selectedAccount() if account is None else int(account)

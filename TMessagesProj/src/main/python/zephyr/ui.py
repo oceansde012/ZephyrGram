@@ -61,6 +61,15 @@ class UsernameInput(_Item):
             self.hint = str(hint)
 
 
+class Page(_Item):
+    """Navigation row (settings pages, 0.2.2+): opens a sub-screen that shows create_settings(page=<key>).
+    Only use it when client.SETTINGS_PAGES is true; `icon` is a name from the app's icon set (e.g. "general",
+    "style", "timing", "limits", "commands", "memory", "prompts", "test", "log", "chats")."""
+    type = 8
+    def __init__(self, key, text, subtext=None, icon=None):
+        self.key, self.text, self.subtext, self.icon = str(key), str(text), subtext, icon
+
+
 class Divider(_Item):
     type = 5
     text = ""

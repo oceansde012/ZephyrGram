@@ -295,8 +295,8 @@ public final class PluginRuntime implements PluginHost {
     public static void callMenuClick(String id, String key, int account, long dialogId, MessageObject message, BaseFragment fragment) {
         INSTANCE.invoke(id, "__menu_click__", key, account, dialogId, message, fragment);
     }
-    public String callCreateSettings(String id) {
-        PyObject value = invoke(id, "__create_settings__");
+    public String callCreateSettings(String id, String page) {
+        PyObject value = page == null || page.isEmpty() ? invoke(id, "__create_settings__") : invoke(id, "__create_settings__", page);
         return value == null ? "[]" : value.toString();
     }
     public void callSettingsEvent(String id, String key, String event, String valueJson) {

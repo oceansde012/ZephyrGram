@@ -24,6 +24,9 @@ import java.util.ArrayList;
 
 public class ZephyrPluginSettingsActivity extends UniversalFragment implements PluginManager.Listener {
     private final String pluginId;
+    /** Key of the opened ui.Page row (null = the main screen) and its title. */
+    private final String page;
+    private final String pageTitle;
     private PluginSettingsModel model;
     private boolean loading;
     /** A reload was asked for while one was running: the running one may have read older values, so load again. */
@@ -34,14 +37,17 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
      * errors), the app's Auto-reply tab. Kept in a field: SharedPreferences holds listeners weakly. Main thread.
      */
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener;
-    public ZephyrPluginSettingsActivity(String id) {
+    public ZephyrPluginSettingsActivity(String id) { this(id,null,null); }
+    public ZephyrPluginSettingsActivity(String id, String page, String pageTitle) {
         pluginId=id;
+        this.page=page;
+        this.pageTitle=pageTitle;
         // Built here, after pluginId is assigned (a field initializer cannot read a final field of this class).
         prefsListener=(sp,key) -> {
             if (key==null || shows(key) || (ZephyrAutoReplyStore.PLUGIN_ID.equals(this.pluginId) && ZephyrAutoReplyStore.isListKey(key))) reloadSoon();
         };
     }
-    @Override protected CharSequence getTitle() { return ZephyrPluginsActivity.s(R.string.ZephyrPluginSettings); }
+    @Override protected CharSequence getTitle() { return pageTitle!=null && !pageTitle.isEmpty() ? pageTitle : ZephyrPluginsActivity.s(R.string.ZephyrPluginSettings); }
     @Override public boolean onFragmentCreate() {
         PluginManager.INSTANCE.addListener(this);
         try { prefs().registerOnSharedPreferenceChangeListener(prefsListener); } catch (Throwable ignore) { }
@@ -69,7 +75,7 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         if (plugin==null || !plugin.enabled) { model=null; update(); return; }
         loading=true;
         Utilities.globalQueue.postRunnable(() -> {
-            PluginSettingsModel result=PluginSettingsModel.load(pluginId);
+            PluginSettingsModel result=PluginSettingsModel.load(pluginId,page);
             AndroidUtilities.runOnUIThread(() -> {
                 loading=false; model=result; update();
                 if (loadAgain) { loadAgain=false; load(); }
@@ -86,7 +92,10 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
             UItem item;
             if (setting.type==PluginSettingsModel.TYPE_HEADER) item=UItem.asHeader(setting.text);
             else if (setting.type==PluginSettingsModel.TYPE_DIVIDER) item=UItem.asShadow(setting.text);
-            else {
+            else if (setting.type==PluginSettingsModel.TYPE_PAGE) {
+                // Navigation row (like the category list of exteraGram): icon + title, opens a sub-screen.
+                item=UItem.asButton(++index,pageIcon(setting.icon),setting.text);
+            } else {
                 // Own wrapping row: the stock one-line cells cut long titles and values with "...".
                 boolean isSwitch=setting.type==PluginSettingsModel.TYPE_SWITCH;
                 String value="";
@@ -106,6 +115,23 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
             if (setting.subtext!=null && !setting.subtext.isEmpty()) items.add(UItem.asShadow(setting.subtext));
         }
     }
+    /** Icon names a plugin may use on a ui.Page row. */
+    private static int pageIcon(String name) {
+        if (name==null) return R.drawable.msg_info;
+        switch (name) {
+            case "general": return R.drawable.msg_settings;
+            case "style": return R.drawable.msg_theme;
+            case "chats": return R.drawable.msg_discussion;
+            case "timing": return R.drawable.msg_recent;
+            case "limits": return R.drawable.msg_stats;
+            case "commands": return R.drawable.msg_bot;
+            case "memory": return R.drawable.msg_archive;
+            case "prompts": return R.drawable.msg_edit;
+            case "test": return R.drawable.msg_msgbubble3;
+            case "log": return R.drawable.msg_log;
+            default: return R.drawable.msg_info;
+        }
+    }
     /** A long saved value (a prompt, a lore) would blow the row up: show the beginning, the dialog has the rest. */
     private static String shorten(String text) {
         if (text==null) return "";
@@ -116,6 +142,7 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         if (model==null || !(item.object instanceof PluginSettingsModel.Item)) return;
         PluginSettingsModel.Item setting=(PluginSettingsModel.Item)item.object;
         switch (setting.type) {
+            case PluginSettingsModel.TYPE_PAGE: presentFragment(new ZephyrPluginSettingsActivity(pluginId,setting.key,setting.text)); break;
             case PluginSettingsModel.TYPE_SWITCH: model.setValue(setting,!model.getBoolean(setting)); update(); reloadSoon(); break;
             case PluginSettingsModel.TYPE_INPUT:
                 EditText input=new EditText(getParentActivity()); input.setText(model.getString(setting)); input.setSingleLine(!setting.multiline);

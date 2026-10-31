@@ -29,6 +29,8 @@ public final class PluginSettingsModel {
     public static final int TYPE_DIALOG_PICKER = 6;
     /** Button that asks for a @username / t.me link, resolves it and gives on_resolved(dialog_id, title). */
     public static final int TYPE_USERNAME_INPUT = 7;
+    /** Navigation row: opens a sub-screen built from create_settings(page = key). */
+    public static final int TYPE_PAGE = 8;
 
     public static final class Item {
         public int type;
@@ -55,8 +57,13 @@ public final class PluginSettingsModel {
 
     /** Asks the plugin for its settings. Never returns null; an empty model means "no settings". Call off the UI thread if possible. */
     public static PluginSettingsModel load(String pluginId) {
+        return load(pluginId, null);
+    }
+
+    /** page = key of the TYPE_PAGE row that was opened (null = the main screen). */
+    public static PluginSettingsModel load(String pluginId, String page) {
         PluginSettingsModel m = new PluginSettingsModel(pluginId);
-        String json = PluginRuntime.INSTANCE.callCreateSettings(pluginId);
+        String json = PluginRuntime.INSTANCE.callCreateSettings(pluginId, page);
         if (json == null || json.isEmpty()) return m;
         try {
             JSONArray arr = new JSONArray(json);
