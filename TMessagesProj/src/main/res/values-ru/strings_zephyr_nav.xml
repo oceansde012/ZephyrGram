@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrNavHistory">История и сохранённые сообщения</string>
+    <string name="ZephyrNavHistoryState">Удалённые: %1$s · изменённые: %2$s</string>
+    <string name="ZephyrNavHistoryInfo">Удалённые сообщения и прошлые версии изменённых хранятся только на этом устройстве.</string>
+    <string name="ZephyrNavUpdates">Обновления приложения</string>
+    <string name="ZephyrNavUpdatesState">Версия %1$s · автопроверка: %2$s</string>
+    <string name="ZephyrNavGhostOn">Включён: %1$d из %2$d</string>
+    <string name="ZephyrNavGhostOff">Выключен · прочтение, набор текста, онлайн, истории</string>
+    <string name="ZephyrNavPluginsState">Установлено: %1$d · включено: %2$d</string>
+    <string name="ZephyrNavAdvancedInfo">Локальный Premium, реклама, фильтры сообщений, фоновое соединение, журнал</string>
+    <string name="ZephyrNavAllPlugins">Все плагины</string>
+    <string name="ZephyrNavNoPlugins">Плагины не установлены</string>
+    <string name="ZephyrNavArThisChat">Автоответ в этом чате</string>
+    <string name="ZephyrNavArChatSettings">Параметры автоответа для этого чата</string>
+    <string name="ZephyrNavArOn">Автоответ в этом чате включён</string>
+    <string name="ZephyrNavArOff">Автоответ в этом чате приостановлен</string>
+    <string name="ZephyrNavArPluginOff">Включён для этого чата, но плагин автоответчика выключен</string>
+    <string name="ZephyrNavArMasterOff">Включён для этого чата, но автоответ выключен для всех чатов</string>
+</resources>

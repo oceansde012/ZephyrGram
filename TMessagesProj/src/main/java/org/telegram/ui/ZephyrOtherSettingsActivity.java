@@ -5,13 +5,8 @@
 package org.telegram.ui;
 
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
-import org.telegram.messenger.Utilities;
 import org.telegram.messenger.zephyr.ZephyrConfig;
-import org.telegram.messenger.zephyr.ZephyrSavedMessages;
-import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 
@@ -24,38 +19,14 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
         return LocaleController.getString(R.string.ZephyrSettingsOther);
     }
 
-    private long[] historyStats;
-
-    @Override
-    public android.view.View createView(android.content.Context context) {
-        android.view.View view = super.createView(context);
-        loadHistoryStats();
-        return view;
-    }
-
-    private void loadHistoryStats() {
-        Utilities.globalQueue.postRunnable(() -> {
-            final long[] stats = ZephyrSavedMessages.getInstance().getStats();
-            AndroidUtilities.runOnUIThread(() -> {
-                historyStats = stats;
-                if (listView != null && listView.adapter != null) {
-                    listView.adapter.update(true);
-                }
-            });
-        });
-    }
-
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrHistoryStorageHeader)));
-        items.add(UItem.asCheck(ID_SAVE_DELETED, LocaleController.getString(R.string.ZephyrSaveDeleted)).setChecked(ZephyrConfig.saveDeleted));
-        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxSaveDeletedInfo);
-        items.add(UItem.asCheck(ID_SAVE_EDITED, LocaleController.getString(R.string.ZephyrSaveEdited)).setChecked(ZephyrConfig.saveEdited));
-        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxSaveEditedInfo);
-        items.add(UItem.asButton(ID_HISTORY_STATS, LocaleController.getString(R.string.ZephyrHistoryClear), historyStats == null
-                ? LocaleController.getString(R.string.ZephyrHistoryLoading)
-                : LocaleController.formatString(R.string.ZephyrHistoryStats, historyStats[0], historyStats[1], AndroidUtilities.formatFileSize(historyStats[2])).replace('\n', ' ')));
-        items.add(UItem.asShadow(null));
+        // Local Premium and ads (moved here from the top of the ZephyrGram screen; same ZephyrConfig keys).
+        items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrUxLocalHeader)));
+        items.add(UItem.asCheck(ID_LOCAL_PREMIUM, LocaleController.getString(R.string.ZephyrLocalPremium)).setChecked(ZephyrConfig.localPremium));
+        items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxLocalPremiumInfo);
+        items.add(UItem.asCheck(ID_DISABLE_ADS, LocaleController.getString(R.string.ZephyrDisableAds)).setChecked(ZephyrConfig.disableAds));
+        items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrLocalPremiumInfo)));
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrFiltersHeader)));
         items.add(UItem.asButton(ID_FILTERS, R.drawable.msg_block, LocaleController.getString(R.string.ZephyrMessageFilters),
                 LocaleController.getString(org.telegram.messenger.zephyr.ZephyrMessageFilters.isEnabled() ? R.string.ZephyrPushOn : R.string.ZephyrPushOff)));
@@ -77,9 +48,8 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
     private static final int ID_LOGS = 9101;
     private static final int ID_RESET = 1;
     private static final int ID_CREDITS = 2;
-    private static final int ID_SAVE_DELETED = 3;
-    private static final int ID_SAVE_EDITED = 4;
-    private static final int ID_HISTORY_STATS = 5;
+    private static final int ID_LOCAL_PREMIUM = 3;
+    private static final int ID_DISABLE_ADS = 4;
     private static final int ID_PUSH = 9102;
     private static final int ID_SHARE_LOGS = 9103;
 
@@ -109,32 +79,19 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
             confirmReset(this, null);
         } else if (item.id == ID_CREDITS) {
             showCredits(this);
-        } else if (item.id == ID_SAVE_DELETED || item.id == ID_SAVE_EDITED) {
-            boolean value;
-            if (item.id == ID_SAVE_DELETED) {
-                value = !ZephyrConfig.saveDeleted;
-                ZephyrConfig.setSaveDeleted(value);
+        } else if (item.id == ID_LOCAL_PREMIUM || item.id == ID_DISABLE_ADS) {
+            final boolean value;
+            if (item.id == ID_LOCAL_PREMIUM) {
+                value = !ZephyrConfig.localPremium;
+                ZephyrConfig.setLocalPremium(value);
             } else {
-                value = !ZephyrConfig.saveEdited;
-                ZephyrConfig.setSaveEdited(value);
+                value = !ZephyrConfig.disableAds;
+                ZephyrConfig.setDisableAds(value);
             }
             if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
                 ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
             }
             item.checked = value;
-        } else if (item.id == ID_HISTORY_STATS) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle(LocaleController.getString(R.string.ZephyrHistoryClear));
-            builder.setMessage(LocaleController.getString(R.string.ZephyrHistoryClearConfirm));
-            builder.setPositiveButton(LocaleController.getString(R.string.Delete), (d, w) -> Utilities.globalQueue.postRunnable(() -> {
-                ZephyrSavedMessages.getInstance().clearAll();
-                AndroidUtilities.runOnUIThread(() -> {
-                    BulletinFactory.of(this).createSimpleBulletin(R.raw.done, LocaleController.getString(R.string.ZephyrHistoryCleared)).show();
-                    loadHistoryStats();
-                });
-            }));
-            builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
-            showDialog(builder.create());
         }
     }
 }

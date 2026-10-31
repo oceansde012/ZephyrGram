@@ -13,59 +13,45 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.zephyr.ZephyrConfig;
 import org.telegram.messenger.zephyr.ZephyrUpdater;
+import org.telegram.messenger.zephyr.plugins.PluginManager;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
-import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
-/** ZephyrGram settings: plugins, auto-reply and AI shortcuts, ghost mode, saved messages, local overrides and updates. */
+/**
+ * ZephyrGram settings, top level: a short list of categories. Every row opens its own screen
+ * (plugins, auto-reply, ghost mode, message history, app updates, the settings sections),
+ * the subtitle shows its current state. All settings keep their ZephyrConfig keys.
+ */
 public class ZephyrSettingsActivity extends BaseFragment {
     private static final int TYPE_HEADER = 0;
-    private static final int TYPE_CHECK = 1;
     private static final int TYPE_INFO = 2;
     private static final int TYPE_SHADOW = 3;
     private static final int TYPE_SETTINGS = 4;
 
-    // Most used entries (plugins, auto-reply, AI assistant) come first, then Ghost mode,
-    // so they are on screen without scrolling.
+    // Most used first: plugins, auto-reply, ghost mode, message history; then updates and the settings sections.
     private static final int ROW_PLUGINS = 0;
     private static final int ROW_AUTOREPLY = 1;
-    private static final int ROW_AI = 2;
-    private static final int ROW_TOP_SHADOW = 3;
-    private static final int ROW_GHOST_HEADER = 4;
-    private static final int ROW_GHOST_NO_READ = 5;
-    private static final int ROW_GHOST_NO_TYPING = 6;
-    private static final int ROW_GHOST_ALWAYS_OFFLINE = 7;
-    private static final int ROW_GHOST_NO_STORY_VIEWS = 8;
-    private static final int ROW_GHOST_INFO = 9;
-    private static final int ROW_MESSAGES_HEADER = 10;
-    private static final int ROW_SAVE_DELETED = 11;
-    private static final int ROW_SAVE_EDITED = 12;
-    private static final int ROW_MESSAGES_SHADOW = 13;
-    private static final int ROW_OTHER_HEADER = 14;
-    private static final int ROW_LOCAL_PREMIUM = 15;
-    private static final int ROW_DISABLE_ADS = 16;
-    private static final int ROW_OTHER_SHADOW = 17;
-    private static final int ROW_UPDATES_HEADER = 18;
-    private static final int ROW_AUTO_UPDATE = 19;
-    private static final int ROW_CHECK_UPDATE = 20;
-    private static final int ROW_UPDATES_INFO = 21;
-    private static final int ROW_MORE_HEADER = 22;
-    private static final int ROW_GENERAL = 23;
-    private static final int ROW_APPEARANCE = 24;
-    private static final int ROW_CHATS = 25;
-    private static final int ROW_OTHER_SCREEN = 26;
-    private static final int ROW_MORE_SHADOW = 27;
-    private static final int ROW_RESET = 28;
-    private static final int ROW_CREDITS = 29;
-    private static final int ROW_CREDITS_INFO = 30;
-    private static final int ROW_COUNT = 31;
+    private static final int ROW_GHOST = 2;
+    private static final int ROW_HISTORY = 3;
+    private static final int ROW_UPDATES = 4;
+    private static final int ROW_TOP_SHADOW = 5;
+    private static final int ROW_MORE_HEADER = 6;
+    private static final int ROW_GENERAL = 7;
+    private static final int ROW_APPEARANCE = 8;
+    private static final int ROW_CHATS = 9;
+    private static final int ROW_OTHER_SCREEN = 10;
+    private static final int ROW_MORE_SHADOW = 11;
+    private static final int ROW_RESET = 12;
+    private static final int ROW_CREDITS = 13;
+    private static final int ROW_CREDITS_INFO = 14;
+    private static final int ROW_COUNT = 15;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -103,182 +89,99 @@ public class ZephyrSettingsActivity extends BaseFragment {
         return fragmentView;
     }
 
-    private static boolean isChecked(int position) {
-        switch (position) {
-            case ROW_GHOST_NO_READ:
-                return ZephyrConfig.ghostNoRead;
-            case ROW_GHOST_NO_TYPING:
-                return ZephyrConfig.ghostNoTyping;
-            case ROW_GHOST_ALWAYS_OFFLINE:
-                return ZephyrConfig.ghostAlwaysOffline;
-            case ROW_GHOST_NO_STORY_VIEWS:
-                return ZephyrConfig.ghostNoStoryViews;
-            case ROW_SAVE_DELETED:
-                return ZephyrConfig.saveDeleted;
-            case ROW_SAVE_EDITED:
-                return ZephyrConfig.saveEdited;
-            case ROW_LOCAL_PREMIUM:
-                return ZephyrConfig.localPremium;
-            case ROW_DISABLE_ADS:
-                return ZephyrConfig.disableAds;
-            case ROW_AUTO_UPDATE:
-                return ZephyrConfig.autoUpdateCheck;
-            default:
-                return false;
-        }
-    }
-
-    private static boolean isSwitchRow(int position) {
-        return position == ROW_GHOST_NO_READ
-                || position == ROW_GHOST_NO_TYPING
-                || position == ROW_GHOST_ALWAYS_OFFLINE
-                || position == ROW_GHOST_NO_STORY_VIEWS
-                || position == ROW_SAVE_DELETED
-                || position == ROW_SAVE_EDITED
-                || position == ROW_LOCAL_PREMIUM
-                || position == ROW_DISABLE_ADS
-                || position == ROW_AUTO_UPDATE;
-    }
-
     private static boolean isLinkRow(int position) {
-        return position == ROW_PLUGINS || position == ROW_CHECK_UPDATE || position == ROW_GENERAL || position == ROW_APPEARANCE
-                || position == ROW_CHATS || position == ROW_OTHER_SCREEN || position == ROW_AI || position == ROW_RESET
-                || position == ROW_CREDITS || position == ROW_AUTOREPLY;
+        return position == ROW_PLUGINS || position == ROW_AUTOREPLY || position == ROW_GHOST || position == ROW_HISTORY
+                || position == ROW_UPDATES || position == ROW_GENERAL || position == ROW_APPEARANCE || position == ROW_CHATS
+                || position == ROW_OTHER_SCREEN || position == ROW_RESET || position == ROW_CREDITS;
     }
 
     private void onRowClicked(int position) {
         if (position == ROW_PLUGINS) {
             presentFragment(new ZephyrPluginsActivity());
-            return;
-        }
-        if (position == ROW_CHECK_UPDATE) {
-            ZephyrUpdater.checkManually(this);
-            return;
-        }
-        if (position == ROW_GENERAL) {
-            presentFragment(new ZephyrGeneralSettingsActivity());
-            return;
-        } else if (position == ROW_APPEARANCE) {
-            presentFragment(new ZephyrAppearanceSettingsActivity());
-            return;
-        } else if (position == ROW_CHATS) {
-            presentFragment(new ZephyrChatsSettingsActivity());
-            return;
-        } else if (position == ROW_OTHER_SCREEN) {
-            presentFragment(new ZephyrOtherSettingsActivity());
-            return;
-        } else if (position == ROW_AI) {
-            presentFragment(new ZephyrAssistantActivity());
-            return;
         } else if (position == ROW_AUTOREPLY) {
             presentFragment(new ZephyrAutoReplyChatsActivity());
-            return;
+        } else if (position == ROW_GHOST) {
+            presentFragment(new ZephyrGhostSettingsActivity());
+        } else if (position == ROW_HISTORY) {
+            presentFragment(new ZephyrHistorySettingsActivity());
+        } else if (position == ROW_UPDATES) {
+            presentFragment(new ZephyrUpdatesSettingsActivity());
+        } else if (position == ROW_GENERAL) {
+            presentFragment(new ZephyrGeneralSettingsActivity());
+        } else if (position == ROW_APPEARANCE) {
+            presentFragment(new ZephyrAppearanceSettingsActivity());
+        } else if (position == ROW_CHATS) {
+            presentFragment(new ZephyrChatsSettingsActivity());
+        } else if (position == ROW_OTHER_SCREEN) {
+            presentFragment(new ZephyrOtherSettingsActivity());
         } else if (position == ROW_RESET) {
             ZephyrBaseSettingsActivity.confirmReset(this, null);
-            return;
         } else if (position == ROW_CREDITS) {
             ZephyrBaseSettingsActivity.showCredits(this);
-            return;
-        }
-        if (!isSwitchRow(position)) {
-            return;
-        }
-        boolean value = !isChecked(position);
-        switch (position) {
-            case ROW_GHOST_NO_READ:
-                ZephyrConfig.setGhostNoRead(value);
-                break;
-            case ROW_GHOST_NO_TYPING:
-                ZephyrConfig.setGhostNoTyping(value);
-                break;
-            case ROW_GHOST_ALWAYS_OFFLINE:
-                ZephyrConfig.setGhostAlwaysOffline(value);
-                break;
-            case ROW_GHOST_NO_STORY_VIEWS:
-                ZephyrConfig.setGhostNoStoryViews(value);
-                break;
-            case ROW_SAVE_DELETED:
-                ZephyrConfig.setSaveDeleted(value);
-                break;
-            case ROW_SAVE_EDITED:
-                ZephyrConfig.setSaveEdited(value);
-                break;
-            case ROW_LOCAL_PREMIUM:
-                ZephyrConfig.setLocalPremium(value);
-                break;
-            case ROW_DISABLE_ADS:
-                ZephyrConfig.setDisableAds(value);
-                break;
-            case ROW_AUTO_UPDATE:
-                ZephyrConfig.setAutoUpdateCheck(value);
-                break;
-            default:
-                break;
-        }
-        adapter.notifyItemChanged(position);
-    }
-
-    private static String switchTitle(int position) {
-        switch (position) {
-            case ROW_GHOST_NO_READ:
-                return LocaleController.getString(R.string.ZephyrGhostNoRead);
-            case ROW_GHOST_NO_TYPING:
-                return LocaleController.getString(R.string.ZephyrGhostNoTyping);
-            case ROW_GHOST_ALWAYS_OFFLINE:
-                return LocaleController.getString(R.string.ZephyrGhostAlwaysOffline);
-            case ROW_GHOST_NO_STORY_VIEWS:
-                return LocaleController.getString(R.string.ZephyrGhostNoStoryViews);
-            case ROW_SAVE_DELETED:
-                return LocaleController.getString(R.string.ZephyrSaveDeleted);
-            case ROW_SAVE_EDITED:
-                return LocaleController.getString(R.string.ZephyrSaveEdited);
-            case ROW_LOCAL_PREMIUM:
-                return LocaleController.getString(R.string.ZephyrLocalPremium);
-            case ROW_DISABLE_ADS:
-                return LocaleController.getString(R.string.ZephyrDisableAds);
-            case ROW_AUTO_UPDATE:
-                return LocaleController.getString(R.string.ZephyrAutoUpdateCheck);
-            default:
-                return "";
         }
     }
 
-    /** Short explanation shown under a switch title (0 = none). */
-    private static int switchInfo(int position) {
-        switch (position) {
-            case ROW_SAVE_DELETED:
-                return R.string.ZephyrUxSaveDeletedInfo;
-            case ROW_SAVE_EDITED:
-                return R.string.ZephyrUxSaveEditedInfo;
-            case ROW_LOCAL_PREMIUM:
-                return R.string.ZephyrUxLocalPremiumInfo;
-            default:
-                return 0;
-        }
-    }
-
-    private static int linkInfo(int position) {
+    private static int linkTitle(int position) {
         if (position == ROW_PLUGINS) {
-            return R.string.ZephyrUxPluginsInfo;
+            return R.string.ZephyrPlugins;
+        } else if (position == ROW_AUTOREPLY) {
+            return R.string.ZephyrArTitle;
+        } else if (position == ROW_GHOST) {
+            return R.string.ZephyrGhostMode;
+        } else if (position == ROW_HISTORY) {
+            return R.string.ZephyrNavHistory;
+        } else if (position == ROW_UPDATES) {
+            return R.string.ZephyrNavUpdates;
         } else if (position == ROW_GENERAL) {
-            return R.string.ZephyrUxGeneralInfo;
+            return R.string.ZephyrSettingsGeneral;
         } else if (position == ROW_APPEARANCE) {
-            return R.string.ZephyrUxAppearanceInfo;
+            return R.string.ZephyrSettingsAppearance;
         } else if (position == ROW_CHATS) {
-            return R.string.ZephyrUxChatsInfo;
+            return R.string.ZephyrSettingsChats;
         } else if (position == ROW_OTHER_SCREEN) {
-            return R.string.ZephyrUxAdvancedInfo;
-        } else if (position == ROW_AI) {
-            return R.string.ZephyrUxAiInfo;
+            return R.string.ZephyrSettingsOther;
         } else if (position == ROW_RESET) {
-            return R.string.ZephyrUxResetInfo;
+            return R.string.ZephyrResetSettings;
         }
-        return 0;
+        return R.string.ZephyrCredits;
+    }
+
+    private static String linkSubtitle(int position) {
+        if (position == ROW_PLUGINS) {
+            return pluginsSubtitle();
+        } else if (position == ROW_AUTOREPLY) {
+            return autoReplySubtitle();
+        } else if (position == ROW_GHOST) {
+            return ghostSubtitle();
+        } else if (position == ROW_HISTORY) {
+            return LocaleController.formatString(R.string.ZephyrNavHistoryState, onOff(ZephyrConfig.saveDeleted), onOff(ZephyrConfig.saveEdited));
+        } else if (position == ROW_UPDATES) {
+            return LocaleController.formatString(R.string.ZephyrNavUpdatesState, ZephyrUpdater.currentVersion(), onOff(ZephyrConfig.autoUpdateCheck));
+        } else if (position == ROW_GENERAL) {
+            return LocaleController.getString(R.string.ZephyrUxGeneralInfo);
+        } else if (position == ROW_APPEARANCE) {
+            return LocaleController.getString(R.string.ZephyrUxAppearanceInfo);
+        } else if (position == ROW_CHATS) {
+            return LocaleController.getString(R.string.ZephyrUxChatsInfo);
+        } else if (position == ROW_OTHER_SCREEN) {
+            return LocaleController.getString(R.string.ZephyrNavAdvancedInfo);
+        } else if (position == ROW_RESET) {
+            return LocaleController.getString(R.string.ZephyrUxResetInfo);
+        }
+        return "";
     }
 
     private static int linkIcon(int position) {
         if (position == ROW_PLUGINS) {
             return R.drawable.msg_instant;
+        } else if (position == ROW_AUTOREPLY) {
+            return R.drawable.msg_reply_small;
+        } else if (position == ROW_GHOST) {
+            return R.drawable.zephyr_ghost;
+        } else if (position == ROW_HISTORY) {
+            return R.drawable.msg_recent;
+        } else if (position == ROW_UPDATES) {
+            return R.drawable.msg_download;
         } else if (position == ROW_GENERAL) {
             return R.drawable.msg_settings;
         } else if (position == ROW_APPEARANCE) {
@@ -287,22 +190,51 @@ public class ZephyrSettingsActivity extends BaseFragment {
             return R.drawable.msg_discussion;
         } else if (position == ROW_OTHER_SCREEN) {
             return R.drawable.msg_customize;
-        } else if (position == ROW_AI) {
-            return R.drawable.msg_bot;
-        } else if (position == ROW_AUTOREPLY) {
-            return R.drawable.msg_reply_small;
         } else if (position == ROW_RESET) {
             return R.drawable.msg_reset;
-        } else if (position == ROW_CHECK_UPDATE) {
-            return R.drawable.msg_download;
         }
         return R.drawable.msg_info;
+    }
+
+    /** No divider under the last row of a block. */
+    private static boolean linkDivider(int position) {
+        return position != ROW_UPDATES && position != ROW_OTHER_SCREEN && position != ROW_CREDITS;
+    }
+
+    private static String onOff(boolean value) {
+        return LocaleController.getString(value ? R.string.ZephyrPushOn : R.string.ZephyrPushOff);
+    }
+
+    private static String ghostSubtitle() {
+        int n = 0;
+        if (ZephyrConfig.ghostNoRead) n++;
+        if (ZephyrConfig.ghostNoTyping) n++;
+        if (ZephyrConfig.ghostAlwaysOffline) n++;
+        if (ZephyrConfig.ghostNoStoryViews) n++;
+        return n == 0 ? LocaleController.getString(R.string.ZephyrNavGhostOff)
+                : LocaleController.formatString(R.string.ZephyrNavGhostOn, n, 4);
+    }
+
+    private static String pluginsSubtitle() {
+        try {
+            final java.util.List<PluginManager.InstalledPlugin> plugins = PluginManager.INSTANCE.getInstalled();
+            if (plugins == null || plugins.isEmpty()) {
+                return LocaleController.getString(R.string.ZephyrUxPluginsInfo);
+            }
+            int on = 0;
+            for (PluginManager.InstalledPlugin plugin : plugins) {
+                if (plugin != null && plugin.enabled) on++;
+            }
+            return LocaleController.formatString(R.string.ZephyrNavPluginsState, plugins.size(), on);
+        } catch (Throwable t) {
+            return LocaleController.getString(R.string.ZephyrUxPluginsInfo);
+        }
     }
 
     private static String autoReplySubtitle() {
         try {
             if (!org.telegram.messenger.zephyr.ZephyrAutoReplyStore.isInstalledAndEnabled()) {
-                return LocaleController.getString(org.telegram.messenger.zephyr.plugins.PluginManager.INSTANCE.getInstalled(
+                return LocaleController.getString(PluginManager.INSTANCE.getInstalled(
                         org.telegram.messenger.zephyr.ZephyrAutoReplyStore.PLUGIN_ID) == null
                         ? R.string.ZephyrArHubNoPlugin : R.string.ZephyrArHubPluginOff);
             }
@@ -320,25 +252,10 @@ public class ZephyrSettingsActivity extends BaseFragment {
     @Override
     public void onResume() {
         super.onResume();
+        // A sub-screen may have changed a state shown in the subtitles.
         if (adapter != null) {
-            adapter.notifyItemChanged(ROW_AUTOREPLY);
+            adapter.notifyDataSetChanged();
         }
-    }
-
-    private static String headerTitle(int position) {
-        if (position == ROW_GHOST_HEADER) {
-            return LocaleController.getString(R.string.ZephyrGhostMode);
-        }
-        if (position == ROW_MESSAGES_HEADER) {
-            return LocaleController.getString(R.string.ZephyrUxHistoryHeader);
-        }
-        if (position == ROW_UPDATES_HEADER) {
-            return LocaleController.getString(R.string.ZephyrUpdates);
-        }
-        if (position == ROW_MORE_HEADER) {
-            return LocaleController.getString(R.string.ZephyrSettingsMore);
-        }
-        return LocaleController.getString(R.string.ZephyrUxLocalHeader);
     }
 
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
@@ -355,8 +272,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            int position = holder.getAdapterPosition();
-            return isSwitchRow(position) || isLinkRow(position);
+            return isLinkRow(holder.getAdapterPosition());
         }
 
         @NonNull
@@ -365,8 +281,6 @@ public class ZephyrSettingsActivity extends BaseFragment {
             View view;
             if (viewType == TYPE_HEADER) {
                 view = new HeaderCell(context);
-            } else if (viewType == TYPE_CHECK) {
-                view = new TextCheckCell(context);
             } else if (viewType == TYPE_SHADOW) {
                 view = new ShadowSectionCell(context);
             } else if (viewType == TYPE_SETTINGS) {
@@ -387,96 +301,30 @@ public class ZephyrSettingsActivity extends BaseFragment {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             int type = holder.getItemViewType();
             if (type == TYPE_HEADER) {
-                ((HeaderCell) holder.itemView).setText(headerTitle(position));
-            } else if (type == TYPE_CHECK) {
-                boolean divider = position != ROW_GHOST_NO_STORY_VIEWS
-                        && position != ROW_SAVE_EDITED
-                        && position != ROW_DISABLE_ADS;
-                final int info = switchInfo(position);
-                if (info != 0) {
-                    ((TextCheckCell) holder.itemView).setTextAndValueAndCheck(
-                            switchTitle(position),
-                            LocaleController.getString(info),
-                            isChecked(position),
-                            true,
-                            divider
-                    );
-                } else {
-                    ((TextCheckCell) holder.itemView).setTextAndCheck(
-                            switchTitle(position),
-                            isChecked(position),
-                            divider
-                    );
-                }
+                ((HeaderCell) holder.itemView).setText(LocaleController.getString(R.string.ZephyrSettingsMore));
             } else if (type == TYPE_SETTINGS) {
-                TextDetailSettingsCell settingsCell = (TextDetailSettingsCell) holder.itemView;
-                if (position == ROW_CHECK_UPDATE) {
-                    settingsCell.setTextAndValueAndIcon(
-                            LocaleController.getString(R.string.ZephyrCheckForUpdates),
-                            LocaleController.formatString(R.string.ZephyrUxCurrentVersion, ZephyrUpdater.currentVersion()),
-                            linkIcon(position),
-                            false
-                    );
-                } else {
-                    int titleRes;
-                    if (position == ROW_PLUGINS) {
-                        titleRes = R.string.ZephyrPlugins;
-                    } else if (position == ROW_GENERAL) {
-                        titleRes = R.string.ZephyrSettingsGeneral;
-                    } else if (position == ROW_APPEARANCE) {
-                        titleRes = R.string.ZephyrSettingsAppearance;
-                    } else if (position == ROW_CHATS) {
-                        titleRes = R.string.ZephyrSettingsChats;
-                    } else if (position == ROW_OTHER_SCREEN) {
-                        titleRes = R.string.ZephyrSettingsOther;
-                    } else if (position == ROW_AUTOREPLY) {
-                        titleRes = R.string.ZephyrArTitle;
-                    } else if (position == ROW_AI) {
-                        titleRes = R.string.ZephyrAi;
-                    } else if (position == ROW_RESET) {
-                        titleRes = R.string.ZephyrResetSettings;
-                    } else {
-                        titleRes = R.string.ZephyrCredits;
-                    }
-                    final int info = linkInfo(position);
-                    settingsCell.setTextAndValueAndIcon(
-                            LocaleController.getString(titleRes),
-                            position == ROW_AUTOREPLY ? autoReplySubtitle() : info != 0 ? LocaleController.getString(info) : "",
-                            linkIcon(position),
-                            position != ROW_AI && position != ROW_OTHER_SCREEN && position != ROW_RESET && position != ROW_CREDITS);
-                }
+                ((TextDetailSettingsCell) holder.itemView).setTextAndValueAndIcon(
+                        LocaleController.getString(linkTitle(position)),
+                        linkSubtitle(position),
+                        linkIcon(position),
+                        linkDivider(position));
             } else if (type == TYPE_INFO) {
-                ((TextInfoPrivacyCell) holder.itemView).setText(
-                        position == ROW_UPDATES_INFO
-                                ? LocaleController.getString(R.string.ZephyrUpdatesInfo)
-                                : position == ROW_CREDITS_INFO
-                                ? LocaleController.getString(R.string.ZephyrCreditsText)
-                                : position == ROW_OTHER_SHADOW
-                                ? LocaleController.getString(R.string.ZephyrLocalPremiumInfo)
-                                : LocaleController.getString(R.string.ZephyrGhostModeInfo)
-                );
+                ((TextInfoPrivacyCell) holder.itemView).setText(LocaleController.getString(R.string.ZephyrCreditsText));
             }
         }
 
         @Override
         public int getItemViewType(int position) {
-            if (position == ROW_GHOST_HEADER
-                    || position == ROW_MESSAGES_HEADER
-                    || position == ROW_OTHER_HEADER
-                    || position == ROW_UPDATES_HEADER
-                    || position == ROW_MORE_HEADER) {
+            if (position == ROW_MORE_HEADER) {
                 return TYPE_HEADER;
             }
-            if (position == ROW_GHOST_INFO || position == ROW_UPDATES_INFO || position == ROW_CREDITS_INFO || position == ROW_OTHER_SHADOW) {
+            if (position == ROW_CREDITS_INFO) {
                 return TYPE_INFO;
             }
-            if (position == ROW_TOP_SHADOW || position == ROW_MESSAGES_SHADOW || position == ROW_MORE_SHADOW) {
+            if (position == ROW_TOP_SHADOW || position == ROW_MORE_SHADOW) {
                 return TYPE_SHADOW;
             }
-            if (isLinkRow(position)) {
-                return TYPE_SETTINGS;
-            }
-            return TYPE_CHECK;
+            return TYPE_SETTINGS;
         }
     }
 }
