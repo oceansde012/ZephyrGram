@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAvatarCorners">Avatar corners</string>
+    <string name="ZephyrTabStyle">Folder tab style</string>
+    <string name="ZephyrTabStylePill">Pill (default)</string>
+    <string name="ZephyrTabStyleRounded">Rounded square</string>
+    <string name="ZephyrTabStyleUnderline">Underline</string>
+    <string name="ZephyrTabStyleNone">No indicator</string>
+    <string name="ZephyrTabStyleFilled">Filled pill</string>
+    <string name="ZephyrFabShape">Bottom-right button shape</string>
+    <string name="ZephyrFabCircle">Circle</string>
+    <string name="ZephyrFabSquare">Rounded square</string>
+    <string name="ZephyrHolidayMode">Holiday decorations</string>
+    <string name="ZephyrHolidayAuto">By date</string>
+    <string name="ZephyrHolidayAlways">Always New Year</string>
+    <string name="ZephyrHolidayNever">Never</string>
+    <string name="ZephyrForceSnow">Always show snowfall</string>
+    <string name="ZephyrForceBlur">Force blur effects</string>
+    <string name="ZephyrStickerSize">Sticker size</string>
+    <string name="ZephyrDoubleTapIncoming">Double tap on incoming messages</string>
+    <string name="ZephyrDoubleTapOutgoing">Double tap on outgoing messages</string>
+    <string name="ZephyrDoubleTapOff">Off</string>
+    <string name="ZephyrDoubleTapReaction">Reaction</string>
+    <string name="ZephyrDoubleTapReply">Reply</string>
+    <string name="ZephyrDoubleTapCopy">Copy</string>
+    <string name="ZephyrDoubleTapForward">Forward</string>
+    <string name="ZephyrDoubleTapEdit">Edit</string>
+    <string name="ZephyrDoubleTapDelete">Delete</string>
+</resources>

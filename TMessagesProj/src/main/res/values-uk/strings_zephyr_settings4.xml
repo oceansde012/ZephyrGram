@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrProfileHeader">Профіль</string>
+    <string name="ZephyrShowIdAndDc">Показувати ID та DC у профілі</string>
+    <string name="ZephyrShowIdHide">Приховати</string>
+    <string name="ZephyrShowIdOnly">ID</string>
+    <string name="ZephyrShowIdAndDcBoth">ID та DC</string>
+    <string name="ZephyrArchiveHeader">Архів</string>
+    <string name="ZephyrArchiveOnPull">Відкривати архів потягненням вниз</string>
+    <string name="ZephyrDisableUnarchiveSwipe">Вимкнути свайп для розархівації</string>
+    <string name="ZephyrSystemHeader">Система</string>
+    <string name="ZephyrTabletMode">Режим планшета</string>
+    <string name="ZephyrTabletAuto">Авто</string>
+    <string name="ZephyrTabletOn">Завжди увімкнено</string>
+    <string name="ZephyrTabletOff">Завжди вимкнено</string>
+    <string name="ZephyrUseSystemEmoji">Системні емодзі</string>
+    <string name="ZephyrLookHeader">Стиль інтерфейсу</string>
+    <string name="ZephyrUseSystemFonts">Системні шрифти</string>
+    <string name="ZephyrNewSwitchStyle">Новий стиль перемикачів</string>
+    <string name="ZephyrDisableDividers">Приховати роздільники</string>
+    <string name="ZephyrHideActionBarStatus">Приховати емодзі-статус у заголовку</string>
+    <string name="ZephyrRestartRequired">Перезапустіть застосунок, щоб застосувати режим планшета, шрифти та емодзі.</string>
+    <string name="ZephyrEnableLogs">Увімкнути журнал</string>
+    <string name="ZephyrEnableLogsInfo">Записує налагоджувальні логи у файл. Вмикайте лише щоб повідомити про проблему.</string>
+</resources>

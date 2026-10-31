@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrArTitle">AI-автоответчик</string>
+    <string name="ZephyrArHubNone">Нет активных чатов</string>
+    <string name="ZephyrArHubCount">Активных чатов: %1$d</string>
+    <string name="ZephyrArHubMasterOff">Выключено · чатов: %1$d</string>
+    <string name="ZephyrArHubNoPlugin">Плагин не установлен</string>
+    <string name="ZephyrArHubPluginOff">Плагин выключен</string>
+    <string name="ZephyrArMaster">Автоответчик включён</string>
+    <string name="ZephyrArMasterInfo">Главный переключатель всего бота. Настройки чатов сохраняются.</string>
+    <string name="ZephyrArAddChat">Добавить чат</string>
+    <string name="ZephyrArAddFromChats">Из моих чатов</string>
+    <string name="ZephyrArAddByUsername">По @username</string>
+    <string name="ZephyrArChats">Чаты</string>
+    <string name="ZephyrArModeAuto">Авто</string>
+    <string name="ZephyrArModeDraft">Черновик</string>
+    <string name="ZephyrArModeFriend">Друг</string>
+    <string name="ZephyrArPaused">%1$s · на паузе</string>
+    <string name="ZephyrArAutoOff">%1$s · пауза из-за ошибок, бот включится сам</string>
+    <string name="ZephyrArOptionMode">Режим: %1$s</string>
+    <string name="ZephyrArEnable">Включить для этого чата</string>
+    <string name="ZephyrArDisable">Приостановить для этого чата</string>
+    <string name="ZephyrArRemove">Убрать из автоответчика</string>
+    <string name="ZephyrArEmptyTitle">Чатов пока нет</string>
+    <string name="ZephyrArEmptyInfo">Бот отвечает в вашем стиле только в добавленных чатах.
+Нажмите «Добавить чат» здесь или напишите команду прямо в чате.
+Режимы: Авто отвечает сразу, Черновик заполняет поле ввода, Друг ждёт «.ai» от собеседника.
+
+.ai on - включить в этом чате
+.ai off - выключить в этом чате
+.ai status - показать состояние</string>
+    <string name="ZephyrArPluginSettings">Настройки плагина</string>
+    <string name="ZephyrArInstallInfo">Автоответчик работает через плагин «AI-автоответчик». Установите его, чтобы пользоваться этим экраном.</string>
+    <string name="ZephyrArInstall">Установить плагин</string>
+    <string name="ZephyrArEnablePlugin">Включить плагин</string>
+    <string name="ZephyrArOnlyPrivate">Здесь можно добавить только личные чаты</string>
+    <string name="ZephyrArNoBots">Ботов добавлять нельзя</string>
+    <string name="ZephyrArAdded">Добавлено: %1$s</string>
+    <string name="ZephyrArRemoved">Убрано: %1$s</string>
+    <string name="ZephyrArAccountHeader">%1$s · вкл.: %2$d из %3$d</string>
+    <string name="ZephyrArAddAll">Все личные чаты %1$s (без ботов)</string>
+    <string name="ZephyrArAddAllConfirm">Включить автоответ во всех личных чатах %1$s? Боты, удалённые пользователи и «Избранное» пропускаются. Чаты, которые уже в списке, сохраняют свои настройки.</string>
+    <string name="ZephyrArAddedMany">Добавлено чатов: %1$d</string>
+</resources>

@@ -1,0 +1,3 @@
+# Upstream commit of DrKLO/Telegram that ZephyrGram is based on (see .github/workflows/upstream-watch.yml).
+# Update it whenever upstream changes are merged in.
+commit=3de37c8c

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrArTitle">AI auto-reply</string>
+    <string name="ZephyrArHubNone">No active chats</string>
+    <string name="ZephyrArHubCount">Active chats: %1$d</string>
+    <string name="ZephyrArHubMasterOff">Turned off · chats: %1$d</string>
+    <string name="ZephyrArHubNoPlugin">Plugin is not installed</string>
+    <string name="ZephyrArHubPluginOff">Plugin is disabled</string>
+    <string name="ZephyrArMaster">Auto-reply enabled</string>
+    <string name="ZephyrArMasterInfo">Master switch for the whole bot. Chats keep their own settings.</string>
+    <string name="ZephyrArAddChat">Add chat</string>
+    <string name="ZephyrArAddFromChats">From my chats</string>
+    <string name="ZephyrArAddByUsername">By @username</string>
+    <string name="ZephyrArChats">Chats</string>
+    <string name="ZephyrArModeAuto">Auto</string>
+    <string name="ZephyrArModeDraft">Draft</string>
+    <string name="ZephyrArModeFriend">Friend</string>
+    <string name="ZephyrArPaused">%1$s · paused</string>
+    <string name="ZephyrArAutoOff">%1$s · paused after errors, turns back on by itself</string>
+    <string name="ZephyrArOptionMode">Mode: %1$s</string>
+    <string name="ZephyrArEnable">Enable for this chat</string>
+    <string name="ZephyrArDisable">Pause for this chat</string>
+    <string name="ZephyrArRemove">Remove from auto-reply</string>
+    <string name="ZephyrArEmptyTitle">No chats yet</string>
+    <string name="ZephyrArEmptyInfo">The bot answers in your style, only in chats you add.
+Tap \"Add chat\" here, or type the command right in the chat.
+Modes: Auto answers at once, Draft fills the input field, Friend waits for \".ai\" from the other person.
+
+.ai on - enable in this chat
+.ai off - disable in this chat
+.ai status - show the state</string>
+    <string name="ZephyrArPluginSettings">Plugin settings</string>
+    <string name="ZephyrArInstallInfo">The AI auto-reply works through the \"AI auto-reply\" plugin. Install it to use this screen.</string>
+    <string name="ZephyrArInstall">Install plugin</string>
+    <string name="ZephyrArEnablePlugin">Enable plugin</string>
+    <string name="ZephyrArOnlyPrivate">Only private chats can be added here</string>
+    <string name="ZephyrArNoBots">Bots cannot be added</string>
+    <string name="ZephyrArAdded">Added: %1$s</string>
+    <string name="ZephyrArRemoved">Removed: %1$s</string>
+    <string name="ZephyrArAccountHeader">%1$s · on: %2$d of %3$d</string>
+    <string name="ZephyrArAddAll">All private chats of %1$s (no bots)</string>
+    <string name="ZephyrArAddAllConfirm">Enable auto-reply in all private chats of %1$s? Bots, deleted users and Saved Messages are skipped. Chats already in the list keep their settings.</string>
+    <string name="ZephyrArAddedMany">Chats added: %1$d</string>
+</resources>

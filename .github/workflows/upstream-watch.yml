@@ -1,0 +1,88 @@
+name: Upstream watch
+
+# Checks DrKLO/Telegram (official Telegram for Android) once a day and opens an issue when a newer
+# Telegram version or API layer is out, with the list of upstream commits since our base.
+# Runs on the default branch only (GitHub ignores `schedule` elsewhere); can also be started by hand.
+#
+# What we compare:
+#   - APP_VERSION_NAME / APP_VERSION_CODE in gradle.properties (upstream vs ours)
+#   - TLRPC.LAYER (API layer: a higher layer means new server features the client can use)
+#   - commits in DrKLO/Telegram after the base commit recorded in UPSTREAM_BASE
+# After a rebase/merge from upstream, update UPSTREAM_BASE to the upstream commit that was merged.
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: DrKLO/Telegram
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare with upstream
+        id: cmp
+        run: |
+          set -euo pipefail
+          base=$(grep -E '^commit=' UPSTREAM_BASE | head -1 | cut -d= -f2 | tr -d '[:space:]')
+          raw="https://raw.githubusercontent.com/${UPSTREAM}/master"
+          curl -fsSL "$raw/gradle.properties" -o /tmp/up.properties
+          curl -fsSL "$raw/TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java" -r 0-20000 -o /tmp/up_tlrpc.java
+          prop() { grep -E "^$2=" "$1" | head -1 | cut -d= -f2 | tr -d '[:space:]'; }
+          up_name=$(prop /tmp/up.properties APP_VERSION_NAME)
+          up_code=$(prop /tmp/up.properties APP_VERSION_CODE)
+          my_name=$(prop gradle.properties APP_VERSION_NAME)
+          my_code=$(prop gradle.properties APP_VERSION_CODE)
+          layer() { grep -oE 'int LAYER = [0-9]+' "$1" | head -1 | grep -oE '[0-9]+$'; }
+          up_layer=$(layer /tmp/up_tlrpc.java)
+          my_layer=$(layer TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java)
+          ahead=$(gh api "repos/${UPSTREAM}/compare/${base}...master" --jq '.ahead_by' 2>/dev/null || echo "?")
+          echo "ours: $my_name ($my_code) layer $my_layer | upstream: $up_name ($up_code) layer $up_layer | $ahead commits after $base"
+          {
+            echo "up_name=$up_name"; echo "up_code=$up_code"; echo "my_name=$my_name"; echo "my_code=$my_code"
+            echo "up_layer=$up_layer"; echo "my_layer=$my_layer"; echo "ahead=$ahead"; echo "base=$base"
+          } >> "$GITHUB_OUTPUT"
+          newer=no
+          if [ -n "$up_code" ] && [ "$up_code" -gt "$my_code" ]; then newer=yes; fi
+          if [ -n "$up_layer" ] && [ -n "$my_layer" ] && [ "$up_layer" -gt "$my_layer" ]; then newer=yes; fi
+          echo "newer=$newer" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue when upstream moved
+        if: steps.cmp.outputs.newer == 'yes'
+        run: |
+          set -euo pipefail
+          o='${{ steps.cmp.outputs.up_name }} (${{ steps.cmp.outputs.up_code }}), layer ${{ steps.cmp.outputs.up_layer }}'
+          title="Upstream Telegram $o is out"
+          gh label create upstream --color 0366d6 --description "New official Telegram for Android release" 2>/dev/null || true
+          if gh issue list --label upstream --state all --search "\"$title\" in:title" --json title --jq '.[].title' | grep -Fxq "$title"; then
+            echo "Issue already exists: $title"; exit 0
+          fi
+          base='${{ steps.cmp.outputs.base }}'
+          gh api "repos/${UPSTREAM}/compare/${base}...master" \
+            --jq '.commits[-60:] | reverse | .[] | "- " + (.commit.message | split("\n")[0]) + " (" + .sha[0:8] + ")"' > /tmp/commits.txt 2>/dev/null || echo "- (could not list commits)" > /tmp/commits.txt
+          {
+            echo "Official Telegram for Android moved ahead of ZephyrGram."
+            echo
+            echo "| | ZephyrGram | Upstream |"
+            echo "|---|---|---|"
+            echo "| Version | ${{ steps.cmp.outputs.my_name }} (${{ steps.cmp.outputs.my_code }}) | ${{ steps.cmp.outputs.up_name }} (${{ steps.cmp.outputs.up_code }}) |"
+            echo "| API layer | ${{ steps.cmp.outputs.my_layer }} | ${{ steps.cmp.outputs.up_layer }} |"
+            echo
+            echo "Upstream commits after our base \`$base\`: **${{ steps.cmp.outputs.ahead }}** (newest first, up to 60):"
+            echo
+            cat /tmp/commits.txt
+            echo
+            echo "Full diff: https://github.com/${UPSTREAM}/compare/${base}...master"
+            echo
+            echo "To catch up: merge/rebase upstream into ZephyrGram, then update \`UPSTREAM_BASE\` and \`gradle.properties\`."
+          } > /tmp/body.md
+          gh issue create --title "$title" --label upstream --body-file /tmp/body.md

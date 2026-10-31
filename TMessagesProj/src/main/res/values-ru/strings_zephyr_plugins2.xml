@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrPluginUninstallArchiveText">\"%1$s\" будет отключён и удалён. Его настройки стираются; файл плагина и папка данных сохраняются в архиве на этом устройстве.</string>
+    <string name="ZephyrPluginRawJavaTitle">Опасное разрешение: полный доступ к приложению</string>
+</resources>

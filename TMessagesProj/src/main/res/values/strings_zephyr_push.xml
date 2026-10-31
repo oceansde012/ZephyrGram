@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrPushTitle">Background connection</string>
+    <string name="ZephyrPushOn">On</string>
+    <string name="ZephyrPushOff">Off</string>
+    <string name="ZephyrPushEnable">Keep connection in background</string>
+    <string name="ZephyrPushStatus">Status</string>
+    <string name="ZephyrPushStatusOff">Disabled</string>
+    <string name="ZephyrPushStatusStopped">Service not running (tap to start)</string>
+    <string name="ZephyrPushStatusConnecting">Running, connecting…</string>
+    <string name="ZephyrPushStatusConnected">Running, connected</string>
+    <string name="ZephyrPushInfo">ZephyrGram cannot use Google push (FCM). To deliver messages while the app is closed it keeps a connection to Telegram open through a foreground service. A small silent notification is shown while it runs. Muted chats and notification settings work as usual.</string>
+    <string name="ZephyrPushReliability">Reliability</string>
+    <string name="ZephyrPushBattery">Battery optimization</string>
+    <string name="ZephyrPushBatteryUnrestricted">Unrestricted</string>
+    <string name="ZephyrPushBatteryOptimized">Optimized (may be killed)</string>
+    <string name="ZephyrPushAutostart">Autostart and background settings</string>
+    <string name="ZephyrPushNotifPermission">Notification permission</string>
+    <string name="ZephyrPushNotifPermissionOff">Not granted</string>
+    <string name="ZephyrPushHideNotification">Service notification settings</string>
+    <string name="ZephyrPushVendorGuide">Guide for your phone (dontkillmyapp.com)</string>
+    <string name="ZephyrPushReliabilityInfo">Allow unrestricted battery usage so Android does not stop the connection. This costs some battery. In the service notification settings you can lower its importance to hide the status bar icon.</string>
+    <string name="ZephyrPushVendorHint">%1$s devices often kill background apps. Also enable Autostart, set the battery mode to “No restrictions” and lock ZephyrGram in the recent apps list.</string>
+    <string name="ZephyrPushChannel">Background connection</string>
+    <string name="ZephyrPushChannelInfo">Silent notification shown while ZephyrGram keeps its connection open to receive messages</string>
+    <string name="ZephyrPushNotifTitle">ZephyrGram</string>
+    <string name="ZephyrPushNotifText">Receiving messages in the background</string>
+    <string name="ZephyrPushPromptTitle">Reliable notifications</string>
+    <string name="ZephyrPushPromptText">ZephyrGram has no Google push, so it keeps its own connection to deliver messages. Allow it to run without battery restrictions so Android does not stop it.</string>
+    <string name="ZephyrPushPromptAllow">Allow</string>
+    <string name="ZephyrPushPromptLater">Later</string>
+</resources>

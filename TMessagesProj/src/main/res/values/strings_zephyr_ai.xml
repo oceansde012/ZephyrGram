@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAi">AI assistant</string>
+    <string name="ZephyrAiNewChat">New chat</string>
+    <string name="ZephyrAiClearConfirm">Delete this conversation from the device?</string>
+    <string name="ZephyrAiInputHint">Ask the assistant…</string>
+    <string name="ZephyrAiEmpty">Ask anything. Messages go to your configured AI server.</string>
+    <string name="ZephyrAiStop">Stop</string>
+    <string name="ZephyrAiSend">Send</string>
+    <string name="ZephyrAiCopy">Copy</string>
+    <string name="ZephyrAiCopied">Copied</string>
+    <string name="ZephyrAiAsk">Ask AI</string>
+    <string name="ZephyrAiThinking">…</string>
+    <string name="ZephyrAiErrNotConfigured">The AI server is not set up. Enter the server URL and your access token in the settings.</string>
+    <string name="ZephyrAiErrUnauthorized">Access denied (401). Your token is missing, wrong or revoked — request access via the bot.</string>
+    <string name="ZephyrAiErrRate">Too many requests (429). Wait a moment and try again.</string>
+    <string name="ZephyrAiErrStarting">The server is starting up. Try again in a few seconds.</string>
+    <string name="ZephyrAiErrNetwork">Network error: %1$s</string>
+    <string name="ZephyrAiErrServer">Server error: %1$s</string>
+    <string name="ZephyrAiOpenSettings">Open settings</string>
+    <string name="ZephyrAiRequestAccess">Request access via bot</string>
+    <string name="ZephyrAiServerUrl">Server URL</string>
+    <string name="ZephyrAiToken">Access token</string>
+    <string name="ZephyrAiModel">Model</string>
+    <string name="ZephyrAiModelDefault">Server default</string>
+    <string name="ZephyrAiModelLoading">Loading models…</string>
+    <string name="ZephyrAiModelNone">The server returned no models.</string>
+    <string name="ZephyrAiSystemPrompt">System prompt</string>
+    <string name="ZephyrAiTemperature">Temperature (%)</string>
+    <string name="ZephyrAiBotUsername">Access bot username</string>
+    <string name="ZephyrAiNotSet">Not set</string>
+    <string name="ZephyrAiTestConnection">Test connection</string>
+    <string name="ZephyrAiTestOk">Connected. Models available: %1$d</string>
+    <string name="ZephyrAiBotNotSet">Set the access bot username first (ask the server owner for it).</string>
+    <string name="ZephyrAiSettingsInfo">The token is stored privately on this device and is only sent to your server. To get one, tap \"Request access via bot\": the owner approves and the bot sends you the token.</string>
+    <string name="ZephyrAiSettingsHeader">Server</string>
+</resources>
