@@ -24,7 +24,7 @@ import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
-/** ZephyrGram settings: ghost mode, saved messages, local overrides and updates. */
+/** ZephyrGram settings: plugins, auto-reply and AI shortcuts, ghost mode, saved messages, local overrides and updates. */
 public class ZephyrSettingsActivity extends BaseFragment {
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_CHECK = 1;
@@ -32,37 +32,40 @@ public class ZephyrSettingsActivity extends BaseFragment {
     private static final int TYPE_SHADOW = 3;
     private static final int TYPE_SETTINGS = 4;
 
-    private static final int ROW_GHOST_HEADER = 0;
-    private static final int ROW_GHOST_NO_READ = 1;
-    private static final int ROW_GHOST_NO_TYPING = 2;
-    private static final int ROW_GHOST_ALWAYS_OFFLINE = 3;
-    private static final int ROW_GHOST_NO_STORY_VIEWS = 4;
-    private static final int ROW_GHOST_INFO = 5;
-    private static final int ROW_MESSAGES_HEADER = 6;
-    private static final int ROW_SAVE_DELETED = 7;
-    private static final int ROW_SAVE_EDITED = 8;
-    private static final int ROW_MESSAGES_SHADOW = 9;
-    private static final int ROW_OTHER_HEADER = 10;
-    private static final int ROW_LOCAL_PREMIUM = 11;
-    private static final int ROW_DISABLE_ADS = 12;
-    private static final int ROW_OTHER_SHADOW = 13;
-    private static final int ROW_UPDATES_HEADER = 14;
-    private static final int ROW_AUTO_UPDATE = 15;
-    private static final int ROW_CHECK_UPDATE = 16;
-    private static final int ROW_UPDATES_INFO = 17;
-    private static final int ROW_MORE_HEADER = 18;
-    private static final int ROW_GENERAL = 19;
-    private static final int ROW_APPEARANCE = 20;
-    private static final int ROW_CHATS = 21;
-    private static final int ROW_OTHER_SCREEN = 22;
-    private static final int ROW_AI = 23;
-    private static final int ROW_AUTOREPLY = 24;
-    private static final int ROW_PLUGINS = 25;
-    private static final int ROW_MORE_SHADOW = 26;
-    private static final int ROW_RESET = 27;
-    private static final int ROW_CREDITS = 28;
-    private static final int ROW_CREDITS_INFO = 29;
-    private static final int ROW_COUNT = 30;
+    // Most used entries (plugins, auto-reply, AI assistant) come first, then Ghost mode,
+    // so they are on screen without scrolling.
+    private static final int ROW_PLUGINS = 0;
+    private static final int ROW_AUTOREPLY = 1;
+    private static final int ROW_AI = 2;
+    private static final int ROW_TOP_SHADOW = 3;
+    private static final int ROW_GHOST_HEADER = 4;
+    private static final int ROW_GHOST_NO_READ = 5;
+    private static final int ROW_GHOST_NO_TYPING = 6;
+    private static final int ROW_GHOST_ALWAYS_OFFLINE = 7;
+    private static final int ROW_GHOST_NO_STORY_VIEWS = 8;
+    private static final int ROW_GHOST_INFO = 9;
+    private static final int ROW_MESSAGES_HEADER = 10;
+    private static final int ROW_SAVE_DELETED = 11;
+    private static final int ROW_SAVE_EDITED = 12;
+    private static final int ROW_MESSAGES_SHADOW = 13;
+    private static final int ROW_OTHER_HEADER = 14;
+    private static final int ROW_LOCAL_PREMIUM = 15;
+    private static final int ROW_DISABLE_ADS = 16;
+    private static final int ROW_OTHER_SHADOW = 17;
+    private static final int ROW_UPDATES_HEADER = 18;
+    private static final int ROW_AUTO_UPDATE = 19;
+    private static final int ROW_CHECK_UPDATE = 20;
+    private static final int ROW_UPDATES_INFO = 21;
+    private static final int ROW_MORE_HEADER = 22;
+    private static final int ROW_GENERAL = 23;
+    private static final int ROW_APPEARANCE = 24;
+    private static final int ROW_CHATS = 25;
+    private static final int ROW_OTHER_SCREEN = 26;
+    private static final int ROW_MORE_SHADOW = 27;
+    private static final int ROW_RESET = 28;
+    private static final int ROW_CREDITS = 29;
+    private static final int ROW_CREDITS_INFO = 30;
+    private static final int ROW_COUNT = 31;
 
     private RecyclerListView listView;
     private ListAdapter adapter;
@@ -440,7 +443,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
                             LocaleController.getString(titleRes),
                             position == ROW_AUTOREPLY ? autoReplySubtitle() : info != 0 ? LocaleController.getString(info) : "",
                             linkIcon(position),
-                            position != ROW_PLUGINS && position != ROW_RESET && position != ROW_CREDITS);
+                            position != ROW_AI && position != ROW_OTHER_SCREEN && position != ROW_RESET && position != ROW_CREDITS);
                 }
             } else if (type == TYPE_INFO) {
                 ((TextInfoPrivacyCell) holder.itemView).setText(
@@ -467,7 +470,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
             if (position == ROW_GHOST_INFO || position == ROW_UPDATES_INFO || position == ROW_CREDITS_INFO || position == ROW_OTHER_SHADOW) {
                 return TYPE_INFO;
             }
-            if (position == ROW_MESSAGES_SHADOW || position == ROW_MORE_SHADOW) {
+            if (position == ROW_TOP_SHADOW || position == ROW_MESSAGES_SHADOW || position == ROW_MORE_SHADOW) {
                 return TYPE_SHADOW;
             }
             if (isLinkRow(position)) {

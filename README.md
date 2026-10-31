@@ -30,7 +30,7 @@ Plugins are single Python files run by an embedded Python runtime ([Chaquopy](ht
 
 ### Settings derived from exteraGram
 
-Settings > ZephyrGram contains a Ghost mode block, message-saving switches, plugins, updates and four sub-screens. Several options are ported from [exteraGram](https://github.com/exteraSquad/exteraGram) (GPLv2) and modified. What is actually there:
+The ZephyrGram entry is the first item on the Telegram settings screen, right under the profile header. Settings > ZephyrGram starts with shortcuts to plugins, AI auto-reply and the AI assistant, followed by a Ghost mode block, message-saving switches, updates and four sub-screens. Several options are ported from [exteraGram](https://github.com/exteraSquad/exteraGram) (GPLv2) and modified. What is actually there:
 
 - **General:** disable number rounding, message time with seconds, hide phone number.
 - **Appearance:** main-screen title (app name / username / name), center title, unread counter on folder tabs, avatar corners, folder tab style (pill, rounded square, underline, none, filled pill), bottom-right button shape, holiday decorations (by date / always / never), always show snowfall, force blur.
