@@ -93,7 +93,8 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
                 }
                 ZephyrWrapCell cell=new ZephyrWrapCell(getParentActivity());
                 cell.setData(setting.text,value,isSwitch,isSwitch && model.getBoolean(setting),true);
-                final UItem row=UItem.asCustom(++index,cell,LayoutHelper.WRAP_CONTENT);
+                final UItem row=UItem.asCustom(cell,LayoutHelper.WRAP_CONTENT);
+                row.id=++index;
                 cell.setOnClickListener(v -> onClick(row,v,-1,0,0));
                 item=row;
             }
