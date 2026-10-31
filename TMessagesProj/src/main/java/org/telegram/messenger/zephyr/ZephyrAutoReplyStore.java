@@ -11,8 +11,10 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.zephyr.plugins.PluginManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Core-side access to the storage of the "ai_autoreply" plugin (SharedPreferences "zephyr_plugin_ai_autoreply").
@@ -87,6 +89,17 @@ public final class ZephyrAutoReplyStore {
             if (k != null && !k.equals(key)) out.put(k);
         }
         if (add) out.put(key);
+        return JSONObject.quote(out.toString());
+    }
+
+    /** "all_skip" without the given keys (chats that were just added again). */
+    private static String skipWithout(SharedPreferences p, Set<String> keys) {
+        JSONArray in = readSkip(p);
+        JSONArray out = new JSONArray();
+        for (int i = 0; i < in.length(); i++) {
+            String k = in.optString(i, null);
+            if (k != null && !keys.contains(k)) out.put(k);
+        }
         return JSONObject.quote(out.toString());
     }
 
@@ -209,19 +222,24 @@ public final class ZephyrAutoReplyStore {
             SharedPreferences p = prefs();
             JSONObject chats = readChats(p);
             SharedPreferences.Editor ed = p.edit();
+            HashSet<String> addedKeys = new HashSet<>();
             try {
                 for (int i = 0; i < ids.length; i++) {
                     String key = chatKey(account, ids[i]);
                     if (chats.has(key)) continue;
+                    String title = titles != null && i < titles.length ? titles[i] : null;
                     JSONObject c = new JSONObject();
                     c.put("enabled", true).put("account", account).put("dialog_id", ids[i])
-                            .put("title", titles[i] == null || titles[i].isEmpty() ? String.valueOf(ids[i]) : titles[i])
+                            .put("title", title == null || title.isEmpty() ? String.valueOf(ids[i]) : title)
                             .put("type", "user").put("fails", 0);
                     chats.put(key, c);
                     ed.putString("keep_" + sk(key), "true");
+                    addedKeys.add(key);
                     added++;
                 }
-                if (added > 0) ed.putString("chats", JSONObject.quote(chats.toString())).commit();
+                // like upsert: a chat added again is no longer "removed by the owner" (API.md, all_skip)
+                if (added > 0) ed.putString("chats", JSONObject.quote(chats.toString()))
+                        .putString("all_skip", skipWithout(p, addedKeys)).commit();
             } catch (Throwable t) {
                 FileLog.e(t);
                 return 0;
