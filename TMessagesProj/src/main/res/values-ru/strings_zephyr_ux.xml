@@ -48,7 +48,7 @@
     <string name="ZephyrUxHeaderDiagnostics">Диагностика</string>
     <string name="ZephyrUxHeaderBackground">Фон и приложение</string>
     <string name="ZephyrUxPushEnableInfo">Доставляет сообщения при закрытом приложении без push от Google</string>
-    <string name="ZephyrUxPluginsAutoUpdateInfo">Автоматически устанавливает новые версии установленных плагинов</string>
+    <string name="ZephyrUxPluginsAutoUpdateInfo">Сам устанавливает новые версии установленных плагинов: при запуске приложения и каждые 3 часа, только из подписанного магазина. Плагин, которому нужны новые разрешения, автоматически не обновляется.</string>
     <string name="ZephyrUxPluginsDevInfo">Позволяет устанавливать плагины из файлов. Только для разработчиков плагинов.</string>
     <string name="ZephyrUxDetId">ID</string>
     <string name="ZephyrUxDetChat">Чат</string>

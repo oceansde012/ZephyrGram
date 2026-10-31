@@ -95,4 +95,8 @@
     <string name="ZephyrPluginUnknownError">unknown error</string>
     <string name="ZephyrPluginUsernameNotFound">Username not found</string>
     <string name="ZephyrPluginUsernameError">Could not look up the username:</string>
+    <string name="ZephyrPluginAutoUpdated">Plugin updated: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastCheck">Last check: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastUpdate">Updated: %1$s (%2$s)</string>
+    <string name="ZephyrPluginsAutoUpdateProblem">Problem: %1$s</string>
 </resources>

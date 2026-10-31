@@ -91,4 +91,8 @@
     <string name="ZephyrPluginSettingsNotLoaded">Включите плагин, чтобы менять его настройки.</string>
     <string name="ZephyrPluginNotFound">Плагин не найден</string>
     <string name="ZephyrPluginUnknownError">неизвестная ошибка</string>
+    <string name="ZephyrPluginAutoUpdated">Плагин обновлён: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastCheck">Последняя проверка: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastUpdate">Обновлено: %1$s (%2$s)</string>
+    <string name="ZephyrPluginsAutoUpdateProblem">Проблема: %1$s</string>
 </resources>

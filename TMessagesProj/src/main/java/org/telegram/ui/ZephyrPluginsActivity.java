@@ -79,7 +79,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         items.add(UItem.asButton(REFRESH, R.drawable.msg_retry, s(R.string.ZephyrPluginsRefresh)).setEnabled(!repository.isLoading()));
         items.add(UItem.asButton(SEARCH, R.drawable.msg_search, s(R.string.ZephyrPluginsSearchHint), query));
         items.add(UItem.asCheck(AUTO, s(R.string.ZephyrPluginsAutoUpdate)).setChecked(manager.isAutoUpdateEnabled()));
-        items.get(items.size() - 1).subtext = s(R.string.ZephyrUxPluginsAutoUpdateInfo);
+        items.get(items.size() - 1).subtext = autoUpdateInfo();
         if (manager.isSafeMode()) items.add(UItem.asShadow(s(R.string.ZephyrPluginsSafeMode)));
         items.add(UItem.asHeader(s(R.string.ZephyrPluginsInstalled)));
         boolean found = false;
@@ -87,7 +87,10 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         for (PluginManager.InstalledPlugin plugin : manager.getInstalled()) {
             if (manager.getUpdate(plugin.id) != null) updates = true;
             if (!matches(plugin.name + " " + plugin.id)) continue;
-            UItem item = UItem.asButton(0, plugin.name, plugin.enabled ? s(R.string.ZephyrPluginEnabled) : s(R.string.ZephyrPluginsDisabledUser));
+            String state = plugin.enabled ? s(R.string.ZephyrPluginEnabled) : s(R.string.ZephyrPluginsDisabledUser);
+            org.telegram.messenger.zephyr.plugins.PluginIndex.VersionEntry newer = manager.getUpdate(plugin.id);
+            if (newer != null) state = plugin.version + " \u2192 " + newer.version;
+            UItem item = UItem.asButton(0, plugin.name, state);
             item.object = plugin.id; items.add(item); found = true;
         }
         if (!found) items.add(UItem.asShadow(s(query.isEmpty() ? R.string.ZephyrPluginsNoneInstalled : R.string.ZephyrPluginsNothingFound)));
@@ -106,6 +109,19 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         items.add(UItem.asCheck(DEVELOPER, s(R.string.ZephyrPluginsDeveloperMode)).setChecked(manager.isDeveloperModeEnabled()));
         items.get(items.size() - 1).subtext = s(R.string.ZephyrUxPluginsDevInfo);
         if (manager.isDeveloperModeEnabled()) items.add(UItem.asButton(IMPORT, s(R.string.ZephyrPluginsInstallFromFile)));
+    }
+    /** Explains what auto-update does and when it last looked / changed something. */
+    private String autoUpdateInfo() {
+        StringBuilder info = new StringBuilder(s(R.string.ZephyrUxPluginsAutoUpdateInfo));
+        long check = manager.getLastCheck();
+        info.append("\n").append(String.format(s(R.string.ZephyrPluginsAutoUpdateLastCheck), check > 0 ? PluginManager.formatTime(check) : "\u2014"));
+        if (manager.getLastUpdate() > 0 && !manager.getLastUpdateText().isEmpty()) {
+            info.append("\n").append(String.format(s(R.string.ZephyrPluginsAutoUpdateLastUpdate), manager.getLastUpdateText(), PluginManager.formatTime(manager.getLastUpdate())));
+        }
+        if (!manager.getLastUpdateError().isEmpty()) {
+            info.append("\n").append(String.format(s(R.string.ZephyrPluginsAutoUpdateProblem), manager.getLastUpdateError()));
+        }
+        return info.toString();
     }
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
         if (item.object instanceof String) { presentFragment(new ZephyrPluginDetailsActivity((String)item.object)); return; }

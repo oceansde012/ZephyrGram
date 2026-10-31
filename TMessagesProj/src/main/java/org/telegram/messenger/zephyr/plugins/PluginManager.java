@@ -2,19 +2,26 @@ package org.telegram.messenger.zephyr.plugins;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
+import android.text.format.DateUtils;
+import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.R;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -70,7 +77,17 @@ public final class PluginManager {
     public InstalledPlugin getInstalled(String id) { return installed.get(id); }
     public void addListener(Listener listener) { listeners.addIfAbsent(listener); }
     public void removeListener(Listener listener) { listeners.remove(listener); }
-    public boolean isAutoUpdateEnabled() { return prefs().getBoolean("auto_update", false); }
+    /** On by default: updates come only from the owner's signed store index and are verified before installing. */
+    public boolean isAutoUpdateEnabled() { return prefs().getBoolean("auto_update", true); }
+    public long getLastCheck() { return prefs().getLong("last_check", 0L); }
+    public long getLastUpdate() { return prefs().getLong("last_update_ts", 0L); }
+    public String getLastUpdateText() { return prefs().getString("last_update_text", ""); }
+    public String getLastUpdateError() { return prefs().getString("last_update_error", ""); }
+    /** Date and time for the plugin screens ("31 Oct, 21:40"). */
+    public static String formatTime(long millis) {
+        return DateUtils.formatDateTime(ApplicationLoader.applicationContext, millis,
+                DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
+    }
     public void setAutoUpdateEnabled(boolean enabled) {
         prefs().edit().putBoolean("auto_update", enabled).apply();
         if (enabled) { initialize(); PluginRepository.INSTANCE.refresh(null); }
@@ -87,7 +104,11 @@ public final class PluginManager {
         PluginRuntime.INSTANCE.setFailureListener((id, reason) -> worker.execute(() -> disableSync(id, "errors", reason)));
         PluginRepository.INSTANCE.addListener(() -> {
             if (!PluginRepository.INSTANCE.isLoading() && PluginRepository.INSTANCE.getIndex() != null) {
-                worker.execute(() -> { reconcile(); if (isAutoUpdateEnabled() && !PluginRepository.INSTANCE.isStale()) updateAllSync(); });
+                worker.execute(() -> {
+                    reconcile();
+                    if (PluginRepository.INSTANCE.getLastError() == null) prefs().edit().putLong("last_check", System.currentTimeMillis()).apply();
+                    if (isAutoUpdateEnabled() && !PluginRepository.INSTANCE.isStale()) autoUpdateSync();
+                });
             }
         });
         worker.execute(() -> {
@@ -157,6 +178,45 @@ public final class PluginManager {
         });
         PluginRepository.INSTANCE.loadCache();
         if (isAutoUpdateEnabled()) PluginRepository.INSTANCE.refresh(null);
+        scheduleAutoCheck();
+    }
+
+    private static final long AUTO_CHECK_MS = 3L * 60L * 60L * 1000L;
+    private boolean autoCheckScheduled;
+
+    /** While the app stays alive the store is looked at again every 3 hours (new versions are installed by the listener above). */
+    private void scheduleAutoCheck() {
+        if (autoCheckScheduled) return;
+        autoCheckScheduled = true;
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            @Override public void run() {
+                if (isAutoUpdateEnabled()) PluginRepository.INSTANCE.refresh(null);
+                AndroidUtilities.runOnUIThread(this, AUTO_CHECK_MS);
+            }
+        }, AUTO_CHECK_MS);
+    }
+
+    /** Installs every available update and tells the owner what changed (toast + remembered for the plugins screen). */
+    private void autoUpdateSync() {
+        Map<String, String> before = new HashMap<>();
+        for (InstalledPlugin p : getInstalled()) before.put(p.id, p.version);
+        String errors = updateAllSync();
+        List<String> done = new ArrayList<>();
+        for (InstalledPlugin p : getInstalled()) {
+            String old = before.get(p.id);
+            if (old != null && !old.equals(p.version)) done.add(p.name + " " + p.version);
+        }
+        SharedPreferences.Editor editor = prefs().edit();
+        if (!done.isEmpty()) {
+            final String text = TextUtils.join(", ", done);
+            editor.putLong("last_update_ts", System.currentTimeMillis()).putString("last_update_text", text);
+            AndroidUtilities.runOnUIThread(() -> Toast.makeText(ApplicationLoader.applicationContext,
+                    LocaleController.formatString(R.string.ZephyrPluginAutoUpdated, text), Toast.LENGTH_LONG).show());
+        }
+        if (errors != null) editor.putString("last_update_error", errors.split("\n")[0]);
+        else editor.remove("last_update_error");
+        editor.apply();
+        changed();
     }
 
     private void installCrashHandler() {

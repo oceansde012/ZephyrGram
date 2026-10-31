@@ -30,7 +30,7 @@
     <string name="ZephyrUxHeaderDiagnostics">Diagnostics</string>
     <string name="ZephyrUxHeaderBackground">Background and app</string>
     <string name="ZephyrUxPushEnableInfo">Delivers messages while the app is closed, without Google push</string>
-    <string name="ZephyrUxPluginsAutoUpdateInfo">Installs new versions of installed plugins automatically</string>
+    <string name="ZephyrUxPluginsAutoUpdateInfo">Installs new versions of installed plugins by itself: on app start and every 3 hours, only from the signed store. A plugin that asks for new permissions is not updated automatically.</string>
     <string name="ZephyrUxPluginsDevInfo">Allows installing plugins from files. For plugin developers only.</string>
     <string name="ZephyrUxDetId">ID</string>
     <string name="ZephyrUxDetChat">Chat</string>

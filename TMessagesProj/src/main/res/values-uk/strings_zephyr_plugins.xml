@@ -93,4 +93,8 @@
     <string name="ZephyrPluginUnknownError">невідома помилка</string>
     <string name="ZephyrPluginUsernameNotFound">Такого імені користувача не знайдено</string>
     <string name="ZephyrPluginUsernameError">Не вдалося знайти імʼя користувача:</string>
+    <string name="ZephyrPluginAutoUpdated">Плагін оновлено: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastCheck">Остання перевірка: %1$s</string>
+    <string name="ZephyrPluginsAutoUpdateLastUpdate">Оновлено: %1$s (%2$s)</string>
+    <string name="ZephyrPluginsAutoUpdateProblem">Проблема: %1$s</string>
 </resources>
