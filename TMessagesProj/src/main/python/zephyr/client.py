@@ -279,6 +279,12 @@ def run_on_ui(fn, delay_ms=0):
     Runtime.runOnUi(plugin.id, _state.bound_callback(fn), max(0, int(delay_ms)))
 
 
+def keep_awake(seconds):
+    """Keep the CPU awake for up to `seconds` (1..180) so this plugin's timers and sleeps keep running while the phone
+    sleeps. It always ends by itself and a shorter request never cuts a longer one. Newer apps only (feature-detect)."""
+    Runtime.keepAwake(_state.owner().id, int(max(1, min(180, float(seconds)))))
+
+
 def run_in_bg(fn):
     plugin = _state.owner()
     Runtime.runInBackground(plugin.id, _state.bound_callback(fn))

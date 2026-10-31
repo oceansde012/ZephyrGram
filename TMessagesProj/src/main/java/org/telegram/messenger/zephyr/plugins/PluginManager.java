@@ -368,6 +368,8 @@ public final class PluginManager {
                     .putString(manifest.id + ".status", enable ? "enabled" : "user").remove(manifest.id + ".error")
                     .remove("loading_id").commit()) throw new IOException("Cannot save plugin state");
             installed.put(manifest.id, new InstalledPlugin(manifest, active, enable, developer, enable ? "enabled" : "user", null));
+            // A freshly loaded version gets the same START event as at app launch (catch-up scan of missed messages).
+            if (enable) { try { PluginRuntime.INSTANCE.dispatchAppEventTo(manifest.id, "START"); } catch (Throwable ignore) { } }
         } catch (Exception e) {
             FileLog.e("PluginManager: install/update failed for " + manifest.id, e);
             PluginRuntime.INSTANCE.unload(manifest.id);

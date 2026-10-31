@@ -3,6 +3,7 @@ package org.telegram.messenger.zephyr.plugins;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.widget.Toast;
 
@@ -271,12 +272,17 @@ public final class PluginRuntime implements PluginHost {
         return result(id, "on_update_hook", name, account, update);
     }
     public static PluginHooks.Result callUpdates(String id, String name, int account, TLRPC.Updates updates) {
+        if ("TL_updateShortMessage".equals(name)) INSTANCE.keepAwake(id, 75);    // a private message arrived: finish the answer
         return result(id, "on_updates_hook", name, account, updates);
     }
     public static PluginHooks.Result callSendMessage(String id, int account, SendMessagesHelper.SendMessageParams params) {
         return result(id, "on_send_message_hook", account, params);
     }
     public static void callMessageEvent(String id, int kind, int account, MessageObject message) {
+        try {
+            // Only incoming private messages: groups and channels would keep the phone awake all day.
+            if (kind != PluginHooks.MSG_EDITED && message != null && !message.isOutOwner() && message.getDialogId() > 0) INSTANCE.keepAwake(id, 75);
+        } catch (Throwable ignore) { }
         INSTANCE.invoke(id, kind == PluginHooks.MSG_EDITED ? "on_message_edited" : "on_new_message", account, message);
     }
     public static void callMessagesDeleted(String id, int account, long dialogId, ArrayList<Integer> ids) {
@@ -315,6 +321,32 @@ public final class PluginRuntime implements PluginHost {
     }
     public void runInBackground(String id, PyObject callback) {
         background.execute(() -> runCallback(id, callback));
+    }
+    private PowerManager.WakeLock wakeLock;
+    private long awakeUntil;
+    /**
+     * Keeps the CPU running for up to `seconds` (max 180) so a plugin's timers and sleeps do not stand still while the
+     * phone is asleep: the foreground service keeps the process alive, but without a wake lock the CPU suspends and
+     * delayed callbacks (debounce, human reply pauses) only fire when something else wakes it, e.g. the owner opening
+     * the app. The hold is never shortened by a later, shorter request and always ends by itself.
+     */
+    public synchronized void keepAwake(String id, int seconds) {
+        if (!loaded.containsKey(id)) return;
+        long millis = Math.max(1, Math.min(seconds, 180)) * 1000L;
+        long until = SystemClock.elapsedRealtime() + millis;
+        if (until <= awakeUntil) return;
+        try {
+            if (wakeLock == null) {
+                PowerManager pm = (PowerManager) context().getSystemService(Context.POWER_SERVICE);
+                if (pm == null) return;
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zephyrgram:plugins");
+                wakeLock.setReferenceCounted(false);
+            }
+            wakeLock.acquire(millis);
+            awakeUntil = until;
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
     }
     public int selectedAccount() { return UserConfig.selectedAccount; }
     public String appVersion() { return BuildConfig.ZEPHYR_VERSION; }
