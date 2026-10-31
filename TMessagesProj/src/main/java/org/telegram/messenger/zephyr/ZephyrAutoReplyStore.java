@@ -3,6 +3,7 @@ package org.telegram.messenger.zephyr;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.telegram.messenger.ApplicationLoader;
@@ -62,6 +63,31 @@ public final class ZephyrAutoReplyStore {
             FileLog.e(t);
         }
         return new JSONObject();
+    }
+
+    /** "all_skip": chats the owner removed; the plugin's "answer everyone" never adds them again. */
+    private static JSONArray readSkip(SharedPreferences p) {
+        try {
+            String raw = p.getString("all_skip", null);
+            if (raw == null) return new JSONArray();
+            Object v = new JSONTokener(raw).nextValue();
+            if (v instanceof JSONArray) return (JSONArray) v;
+            if (v instanceof String && !((String) v).isEmpty()) return new JSONArray((String) v);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+        return new JSONArray();
+    }
+
+    private static String skipWith(SharedPreferences p, String key, boolean add) {
+        JSONArray in = readSkip(p);
+        JSONArray out = new JSONArray();
+        for (int i = 0; i < in.length(); i++) {
+            String k = in.optString(i, null);
+            if (k != null && !k.equals(key)) out.put(k);
+        }
+        if (add) out.put(key);
+        return JSONObject.quote(out.toString());
     }
 
     private static int readInt(SharedPreferences p, String key, int def) {
@@ -164,7 +190,8 @@ public final class ZephyrAutoReplyStore {
                         .put("title", title == null ? String.valueOf(dialogId) : title).put("type", type).put("fails", 0);
                 c.remove("auto_off_ts");
                 chats.put(key, c);
-                p.edit().putString("chats", JSONObject.quote(chats.toString())).putString("keep_" + sk(key), String.valueOf(enabled)).commit();
+                p.edit().putString("chats", JSONObject.quote(chats.toString())).putString("keep_" + sk(key), String.valueOf(enabled))
+                        .putString("all_skip", skipWith(p, key, false)).commit();
             } catch (Throwable t) {
                 FileLog.e(t);
             }
@@ -238,6 +265,7 @@ public final class ZephyrAutoReplyStore {
             chats.remove(key);
             String s = sk(key);
             p.edit().putString("chats", JSONObject.quote(chats.toString()))
+                    .putString("all_skip", skipWith(p, key, true))
                     .remove("mode_" + s).remove("prompt_" + s).remove("keep_" + s).remove("rlang_" + s).commit();
         }
         done();
