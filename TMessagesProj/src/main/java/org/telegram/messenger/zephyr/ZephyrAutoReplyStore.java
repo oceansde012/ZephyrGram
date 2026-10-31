@@ -284,7 +284,8 @@ public final class ZephyrAutoReplyStore {
             String s = sk(key);
             p.edit().putString("chats", JSONObject.quote(chats.toString()))
                     .putString("all_skip", skipWith(p, key, true))
-                    .remove("mode_" + s).remove("prompt_" + s).remove("keep_" + s).remove("rlang_" + s).commit();
+                    .remove("mode_" + s).remove("prompt_" + s).remove("keep_" + s).remove("rlang_" + s)
+                    .remove("lore_" + s).remove("learned_" + s).commit();
         }
         done();
     }
