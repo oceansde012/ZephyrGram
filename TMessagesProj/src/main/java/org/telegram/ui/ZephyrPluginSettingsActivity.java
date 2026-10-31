@@ -33,10 +33,14 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
      * Follows writes from elsewhere while the screen is open: the plugin itself (a chat added or paused after
      * errors), the app's Auto-reply tab. Kept in a field: SharedPreferences holds listeners weakly. Main thread.
      */
-    private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener=(sp,key) -> {
-        if (key==null || shows(key) || (ZephyrAutoReplyStore.PLUGIN_ID.equals(pluginId) && ZephyrAutoReplyStore.isListKey(key))) reloadSoon();
-    };
-    public ZephyrPluginSettingsActivity(String id) { pluginId=id; }
+    private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener;
+    public ZephyrPluginSettingsActivity(String id) {
+        pluginId=id;
+        // Built here, after pluginId is assigned (a field initializer cannot read a final field of this class).
+        prefsListener=(sp,key) -> {
+            if (key==null || shows(key) || (ZephyrAutoReplyStore.PLUGIN_ID.equals(this.pluginId) && ZephyrAutoReplyStore.isListKey(key))) reloadSoon();
+        };
+    }
     @Override protected CharSequence getTitle() { return ZephyrPluginsActivity.s(R.string.ZephyrPluginSettings); }
     @Override public boolean onFragmentCreate() {
         PluginManager.INSTANCE.addListener(this);
