@@ -32,7 +32,7 @@ public final class PluginManifest {
     public static final int MAX_SOURCE_BYTES = 512 * 1024;
     public static final Set<String> KNOWN_PERMISSIONS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
             "network.requests", "updates.read", "messages.send", "ui.menu", "internet", "java.raw",
-            "ai.complete", "chat.read")));
+            "ai.complete", "ai.memory", "chat.read")));
 
     private static final Pattern ID_RE = Pattern.compile("^[a-z][a-z0-9_]{2,31}$");
     private static final String STR = "(?:\"((?:[^\"\\\\\\n]|\\\\.)*)\"|'((?:[^'\\\\\\n]|\\\\.)*)')";
@@ -224,3 +224,4 @@ public final class PluginManifest {
         return b.toString();
     }
 }
+

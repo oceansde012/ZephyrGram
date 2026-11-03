@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class PluginChatApi {
     private static final Semaphore AI_SLOTS = new Semaphore(3);
+    private static final Semaphore MEMORY_SLOTS = new Semaphore(2);
     private static final int MAX_LIMIT = 100;
 
     private PluginChatApi() { }
@@ -119,6 +120,62 @@ public final class PluginChatApi {
     }
 
     // ------------------------------------------------------------------ messages
+
+    private static String memoryCall(String id, int account, String operation, long dialogId, int topicId,
+                                     JSONObject body, int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
+        checkAccount(account);
+        notMainThread();
+        if (!"status".equals(operation) && DialogObject.isEncryptedDialog(dialogId)) {
+            throw new IllegalArgumentException("Secret chats cannot use cloud memory");
+        }
+        final long epoch = PluginRuntime.INSTANCE.memoryEpoch(id);
+        if (!MEMORY_SLOTS.tryAcquire()) throw new ZephyrAiClient.AiException(ZephyrAiClient.ERR_RATE_LIMIT, "memory_busy");
+        try {
+            org.telegram.messenger.zephyr.ZephyrMemoryClient.Guard guard = () -> PluginRuntime.INSTANCE.memoryEpochCurrent(id, epoch);
+            JSONObject result = "status".equals(operation)
+                    ? ZephyrAiClient.memoryStatusBlocking(account, timeoutSec, guard)
+                    : ZephyrAiClient.memoryRequestBlocking(account, operation, dialogId, topicId, body, timeoutSec, expectedBinding, guard);
+            if (!guard.isCurrent()) throw new ZephyrAiClient.AiException(11, "memory_operation_cancelled");
+            return result.toString();
+        } finally { MEMORY_SLOTS.release(); }
+    }
+
+    public static String aiMemoryStatus(String id, int account, int timeoutSec) throws Exception {
+        return memoryCall(id, account, "status", 0, 0, null, timeoutSec, null);
+    }
+    public static String aiMemoryCancel(String id) {
+        PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
+        PluginRuntime.INSTANCE.invalidateMemory(id);
+        return "{}"; // synchronous local cancellation only; safe from UI callbacks
+    }
+    public static String aiMemoryConsent(String id, int account, long dialogId, int topicId, int retentionDays,
+                                         int timeoutSec, String expectedBinding) throws Exception {
+        return memoryCall(id, account, "consent", dialogId, topicId,
+                new JSONObject().put("retentionDays", retentionDays), timeoutSec, expectedBinding);
+    }
+    public static String aiMemoryWrite(String id, int account, long dialogId, int topicId, String messagesJson,
+                                       int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
+        if (messagesJson == null || messagesJson.length() > 250000) throw new IllegalArgumentException("Memory batch too large");
+        return memoryCall(id, account, "write", dialogId, topicId,
+                new JSONObject().put("messages", new JSONArray(messagesJson)), timeoutSec, expectedBinding);
+    }
+    public static String aiMemoryContext(String id, int account, long dialogId, int topicId, String query,
+                                         int timeoutSec, String expectedBinding) throws Exception {
+        return memoryCall(id, account, "context", dialogId, topicId,
+                new JSONObject().put("query", query), timeoutSec, expectedBinding);
+    }
+    public static String aiMemoryDelete(String id, int account, long dialogId, int topicId,
+                                        int timeoutSec, String expectedBinding) throws Exception {
+        return memoryCall(id, account, "delete", dialogId, topicId, null, timeoutSec, expectedBinding);
+    }
+    public static String aiMemoryImport(String id, int account, long dialogId, int topicId, String recordJson,
+                                        int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
+        if (recordJson == null || recordJson.length() > 50000) throw new IllegalArgumentException("Memory record too large");
+        return memoryCall(id, account, "import", dialogId, topicId, new JSONObject(recordJson), timeoutSec, expectedBinding);
+    }
 
     private static long fromId(TLRPC.Message m, long dialogId, int account) {
         if (m.from_id != null) return DialogObject.getPeerDialogId(m.from_id);

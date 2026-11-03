@@ -27,6 +27,16 @@ import java.util.concurrent.Executors;
  * and is never logged.
  */
 public class ZephyrAiClient {
+    public static final int MEMORY_API_VERSION = ZephyrMemoryClient.API_VERSION;
+
+    public static JSONObject memoryStatusBlocking(int account, int timeoutSec, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.statusBlocking(account, timeoutSec, guard);
+    }
+
+    public static JSONObject memoryRequestBlocking(int account, String operation, long dialogId, int topicId, JSONObject body,
+                                                  int timeoutSec, String expectedBinding, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.requestBlocking(account, operation, dialogId, topicId, body, timeoutSec, expectedBinding, guard);
+    }
 
     public static final int ERR_NOT_CONFIGURED = 1;
     public static final int ERR_UNAUTHORIZED = 2;
@@ -822,3 +832,4 @@ public class ZephyrAiClient {
         adminRequest("PATCH", "/admin/tokens/" + android.net.Uri.encode(id), body, raw -> Boolean.TRUE, listener);
     }
 }
+

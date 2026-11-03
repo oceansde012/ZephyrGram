@@ -97,4 +97,6 @@
     <string name="ZephyrPluginsAutoUpdateLastCheck">Остання перевірка: %1$s</string>
     <string name="ZephyrPluginsAutoUpdateLastUpdate">Оновлено: %1$s (%2$s)</string>
     <string name="ZephyrPluginsAutoUpdateProblem">Проблема: %1$s</string>
+    <string name="ZephyrPluginPermAiMemory">Зберігати й читати пам’ять чатів на вашому AI-сервері, зокрема дозволені локальні підсумки</string>
 </resources>
+

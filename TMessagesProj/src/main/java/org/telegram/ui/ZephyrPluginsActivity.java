@@ -53,6 +53,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
             else if ("internet".equals(permission)) id = R.string.ZephyrPluginPermInternet;
             else if ("java.raw".equals(permission)) id = R.string.ZephyrPluginPermJavaRaw;
             else if ("ai.complete".equals(permission)) id = R.string.ZephyrPluginPermAiComplete;
+            else if ("ai.memory".equals(permission)) id = R.string.ZephyrPluginPermAiMemory;
             else if ("chat.read".equals(permission)) id = R.string.ZephyrPluginPermChatRead;
             labels.add(s(id));
         }
@@ -182,3 +183,4 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     @Override public void onPluginsChanged() { update(); }
     @Override public void onRepositoryChanged() { update(); }
 }
+
