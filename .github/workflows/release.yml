@@ -1,7 +1,7 @@
 name: Release
 
-# Builds a signed arm64-v8a release APK and publishes it as a GitHub Release.
-# Trigger: push a tag vX.Y.Z (the version is taken from the tag), or run manually with a version.
+# Builds a signed arm64-v8a APK. Manual runs default to an Actions preview artifact;
+# pushing a vX.Y.Z tag retains the existing public GitHub Release behaviour.
 #
 # Required repository secrets:
 #   ZEPHYR_KEYSTORE_BASE64    base64 of the release keystore (.jks), e.g. `base64 -w0 zephyr.jks`
@@ -21,6 +21,11 @@ on:
         description: 'Version without the leading v (e.g. 0.1.0). The release tag will be v<version>.'
         required: true
         type: string
+      publish:
+        description: 'Publish a GitHub Release (off = build a preview artifact only)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -49,11 +54,18 @@ jobs:
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             raw="${INPUT_VERSION}"
-          else
+            publish=false
+            if [[ "${INPUT_PUBLISH}" == "true" ]]; then publish=true; fi
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
             raw="${GITHUB_REF_NAME}"
+            publish=true
+          else
+            echo "error: only a manual run or a v-prefixed tag push is supported" >&2
+            exit 1
           fi
           version="${raw#v}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
@@ -62,7 +74,8 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
-          echo "Version: $version"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "Version: $version; publish: $publish"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,6 +84,16 @@ jobs:
 
       - name: Fetch submodules
         run: bash scripts/init-submodules.sh
+
+      - name: Check APK version counter
+        id: counter
+        run: |
+          counter="$(sed -n 's/^ZEPHYR_VERSION_CODE=\([0-9][0-9]*\)$/\1/p' gradle.properties)"
+          if [[ ! "$counter" =~ ^[1-9][0-9]*$ ]]; then
+            echo "error: gradle.properties must contain one positive ZEPHYR_VERSION_CODE" >&2
+            exit 1
+          fi
+          echo "value=$counter" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -158,6 +181,8 @@ jobs:
         id: apk
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          PUBLISH: ${{ steps.version.outputs.publish }}
+          VERSION_COUNTER: ${{ steps.counter.outputs.value }}
         run: |
           mapfile -t apks < <(find TMessagesProj_App/build/outputs/apk -type f -name '*.apk')
           if (( ${#apks[@]} != 1 )); then
@@ -170,14 +195,44 @@ jobs:
             echo "error: the APK is not signed (check the ZEPHYR_* signing secrets)" >&2
             exit 1
           fi
-          "$apksigner" verify --print-certs "${apks[0]}" | grep -i 'SHA-256' || true
-          out="ZephyrGram-${VERSION}-arm64-v8a.apk"
+          if [[ "${PUBLISH}" == "true" ]]; then
+            out="ZephyrGram-${VERSION}-arm64-v8a.apk"
+          else
+            out="ZephyrGram-${VERSION}-preview-arm64-v8a.apk"
+          fi
           mkdir -p dist
           cp "${apks[0]}" "dist/$out"
+          # Certificate digests are public APK metadata, not signing key material.
+          certificate="$("$apksigner" verify --print-certs "dist/$out" | sed -n '/certificate SHA-256 digest:/p')"
+          if [[ -z "$certificate" ]]; then
+            echo "error: the verified APK did not expose a signing certificate digest" >&2
+            exit 1
+          fi
+          printf '%s\n' "$certificate" > dist/signing-certificate-sha256.txt
+          package_info="$("${ANDROID_HOME}/build-tools/36.0.0/aapt" dump badging "dist/$out" | sed -n '1p')"
+          {
+            printf 'ZephyrGram version: %s\n' "$VERSION"
+            printf 'ZephyrGram version counter: %s\n' "$VERSION_COUNTER"
+            printf 'Source commit: %s\n' "$GITHUB_SHA"
+            printf 'Source ref: %s\n' "$GITHUB_REF"
+            printf 'Public release requested: %s\n' "$PUBLISH"
+            printf 'APK package metadata: %s\n' "$package_info"
+          } > dist/build-info.txt
+          (cd dist && sha256sum "$out" > SHA256SUMS.txt)
           ls -l dist
           echo "path=dist/$out" >> "$GITHUB_OUTPUT"
 
+      - name: Upload preview APK and certificate report
+        if: steps.version.outputs.publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZephyrGram-preview-${{ steps.version.outputs.version }}-${{ github.run_id }}
+          path: dist/*
+          retention-days: 3
+          if-no-files-found: error
+
       - name: Publish GitHub Release
+        if: steps.version.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -192,3 +247,4 @@ jobs:
       - name: Remove keystore
         if: always()
         run: rm -f "${RUNNER_TEMP}/zephyr-release.jks"
+

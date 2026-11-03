@@ -99,4 +99,6 @@
     <string name="ZephyrPluginsAutoUpdateLastCheck">Last check: %1$s</string>
     <string name="ZephyrPluginsAutoUpdateLastUpdate">Updated: %1$s (%2$s)</string>
     <string name="ZephyrPluginsAutoUpdateProblem">Problem: %1$s</string>
+    <string name="ZephyrPluginPermAiMemory">Save and retrieve chat memory on your AI server, including opted-in local summaries</string>
 </resources>
+

@@ -45,6 +45,7 @@ public final class PluginRuntime implements PluginHost {
 
     private final Object pythonLock = new Object();
     private final ConcurrentHashMap<String, PluginManifest> loaded = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> memoryEpochs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ArrayDeque<Long>> errors = new ConcurrentHashMap<>();
     private final ExecutorService background = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "ZephyrPlugin");
@@ -131,6 +132,7 @@ public final class PluginRuntime implements PluginHost {
     @Override
     public void unload(String id) {
         synchronized (pythonLock) {
+            memoryEpochs.merge(id, 1L, (before, one) -> before + 1);
             if (host != null && loaded.containsKey(id)) {
                 String previous = PluginHooks.getCurrentPlugin();
                 PluginHooks.setCurrentPlugin(id);
@@ -153,6 +155,9 @@ public final class PluginRuntime implements PluginHost {
     @Override
     public void dispatchAppEvent(String event) {
         if (loaded.isEmpty()) return;
+        if ("settings_changed".equals(event)) {
+            for (String id : loaded.keySet()) invalidateMemory(id);
+        }
         background.execute(() -> {
             for (String id : loaded.keySet()) invoke(id, "on_app_event", event);
         });
@@ -161,6 +166,7 @@ public final class PluginRuntime implements PluginHost {
     /** Delivers an app event to one plugin only (e.g. "settings_changed" after the core edited its prefs). */
     public void dispatchAppEventTo(String id, String event) {
         if (!loaded.containsKey(id)) return;
+        if ("settings_changed".equals(event)) invalidateMemory(id);
         background.execute(() -> invoke(id, "on_app_event", event));
     }
 
@@ -171,6 +177,23 @@ public final class PluginRuntime implements PluginHost {
         if (m == null || !m.hasPermission(permission)) {
             throw new SecurityException("Plugin " + id + " needs permission " + permission);
         }
+    }
+
+    public int memoryApiVersion() { return org.telegram.messenger.zephyr.ZephyrAiClient.MEMORY_API_VERSION; }
+
+    /** Invalidate in-flight memory synchronously; do not wait for Python callbacks or the lifecycle lock. */
+    public void invalidateMemory(String id) {
+        memoryEpochs.merge(id, 1L, (before, one) -> before + 1);
+    }
+
+    public long memoryEpoch(String id) {
+        requirePermission(id, "ai.memory");
+        return memoryEpochs.getOrDefault(id, 0L);
+    }
+
+    public boolean memoryEpochCurrent(String id, long epoch) {
+        PluginManifest manifest = loaded.get(id);
+        return manifest != null && manifest.hasPermission("ai.memory") && memoryEpochs.getOrDefault(id, 0L) == epoch;
     }
 
     private PyObject invoke(String id, String method, Object... arguments) {
@@ -393,3 +416,4 @@ public final class PluginRuntime implements PluginHost {
         });
     }
 }
+

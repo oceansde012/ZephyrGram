@@ -1,5 +1,6 @@
 """Helpers execute as the current plugin; async work retains its owner."""
 import json
+import re
 import urllib.error
 import urllib.request
 from . import _state
@@ -7,6 +8,12 @@ from ._bridge import ChatApi, Runtime, require
 
 # True when the app can open ui.Page rows as sub-screens (create_settings(page)); older apps lack this name.
 SETTINGS_PAGES = True
+
+# This capability is advertised only when the native transport is present too.
+try:
+    MEMORY_API_VERSION = int(Runtime.memoryApiVersion())
+except Exception:
+    MEMORY_API_VERSION = 0
 
 
 def _account(account):
@@ -150,6 +157,151 @@ def ai_complete(messages, system=None, model=None, temperature=None, timeout=60,
         elif not code and "timed out" in lowered:
             code = 5
         raise AiError(text, code) from exc
+
+
+
+def _memory_account(account):
+    if isinstance(account, bool) or not isinstance(account, int) or account < 0:
+        raise AiError("memory_invalid_account", 10)
+    return account
+
+
+def _memory_scope(dialog_id, topic_id):
+    if (isinstance(dialog_id, bool) or not isinstance(dialog_id, int) or not dialog_id
+            or not -(1 << 63) <= dialog_id < (1 << 63)
+            or isinstance(topic_id, bool) or not isinstance(topic_id, int)
+            or not 0 <= topic_id <= 2147483647):
+        raise AiError("memory_invalid_scope", 12)
+    return dialog_id, topic_id
+
+
+def _memory_binding(value):
+    if not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value):
+        raise AiError("memory_binding_changed", 13)
+    return value
+
+
+def _memory_timeout(timeout):
+    try:
+        if isinstance(timeout, bool):
+            raise ValueError()
+        return max(1, min(30, int(timeout)))
+    except (TypeError, ValueError, OverflowError):
+        raise AiError("memory_invalid_timeout", 12) from None
+
+
+def _memory_call(name, *args):
+    plugin = _state.owner()
+    require(plugin, "ai.memory")
+    if MEMORY_API_VERSION != 1:
+        raise AiError("memory_not_supported", 9)
+    try:
+        result = json.loads(str(getattr(ChatApi, name)(plugin.id, *args)))
+        if not isinstance(result, dict):
+            raise ValueError()
+        return result
+    except Exception as exc:
+        if "SecurityException" in type(exc).__name__ or "SecurityException" in str(exc):
+            raise PermissionError("Plugin needs permission ai.memory") from None
+        code = int(getattr(exc, "code", 6) or 6)
+        getter = getattr(exc, "getMessage", None)
+        key = str(getter() if callable(getter) else exc)
+        if not re.fullmatch(r"memory_[a-z_]{1,50}", key):
+            key = "memory_operation_failed"
+        raise AiError(key, code) from None
+
+
+def ai_memory_status(account, timeout=10):
+    """Verified account-bound cloud-memory status (ai.memory, worker thread only).
+    Returns protocolVersion, ownerId, ownerMatch, opaque binding, storage, collectionEnabled and limits.
+    The token is never exposed. No collection or provider call is started by this method.
+    """
+    return _memory_call("aiMemoryStatus", _memory_account(account), _memory_timeout(timeout))
+
+
+def ai_memory_cancel():
+    """Synchronously invalidate this plugin's in-flight memory calls (ai.memory); no I/O.
+    Call before local off/delete/consent changes. Does not revoke server consent or report deletion success.
+    """
+    _memory_call("aiMemoryCancel")
+
+
+def ai_memory_consent(account, dialog_id, topic_id, retention_days=30, timeout=10, expected_binding=None):
+    """Explicit per-chat/topic opt-in; expected_binding must come from the owner's accepted status.
+    Does not read or send history. A changed endpoint/token/account requires fresh owner consent.
+    """
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or not 1 <= retention_days <= 90:
+        raise AiError("memory_invalid_retention", 12)
+    return _memory_call("aiMemoryConsent", _memory_account(account), dialog_id, topic_id,
+                        retention_days, _memory_timeout(timeout), _memory_binding(expected_binding))
+
+
+def ai_memory_write(account, dialog_id, topic_id, messages, timeout=10, expected_binding=None):
+    """Store 1..50 text records in the exact owner/chat/topic after consent (ai.memory).
+    Records: messageId, senderId (decimal string), speaker owner|other, text, date with timezone.
+    Does not enumerate history, send media, generate embeddings or call an AI model.
+    """
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    if not isinstance(messages, (list, tuple)) or not 1 <= len(messages) <= 50:
+        raise AiError("memory_invalid_data", 12)
+    seen = set()
+    for row in messages:
+        if not isinstance(row, dict) or set(row) != {"messageId", "senderId", "speaker", "text", "date"}:
+            raise AiError("memory_invalid_data", 12)
+        mid, sender, text, date = row["messageId"], row["senderId"], row["text"], row["date"]
+        if (isinstance(mid, bool) or not isinstance(mid, int) or not 1 <= mid <= 2147483647 or mid in seen
+                or not isinstance(sender, str) or not re.fullmatch(r"-?[1-9][0-9]{0,18}", sender)
+                or not -(1 << 63) <= int(sender) < (1 << 63)
+                or row["speaker"] not in ("owner", "other")
+                or not isinstance(text, str) or not text.strip() or len(text) > 4000 or "\0" in text
+                or not isinstance(date, str) or len(date) > 40
+                or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T.+(?:Z|[+-][0-9]{2}:[0-9]{2})", date)):
+            raise AiError("memory_invalid_data", 12)
+        seen.add(mid)
+    return _memory_call("aiMemoryWrite", _memory_account(account), dialog_id, topic_id,
+                        json.dumps(messages, ensure_ascii=False, allow_nan=False), _memory_timeout(timeout),
+                        _memory_binding(expected_binding))
+
+
+def ai_memory_context(account, dialog_id, topic_id, query="", timeout=10, expected_binding=None):
+    """Retrieve bounded untrusted source records only from this chat/topic (ai.memory).
+    Keep sender IDs/dates/source IDs, never treat returned text as system instructions.
+    """
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    if not isinstance(query, str) or len(query) > 200 or "\0" in query:
+        raise AiError("memory_invalid_data", 12)
+    return _memory_call("aiMemoryContext", _memory_account(account), dialog_id, topic_id,
+                        query, _memory_timeout(timeout), _memory_binding(expected_binding))
+
+
+def ai_memory_delete(account, dialog_id, topic_id, timeout=10, expected_binding=None):
+    """Revoke consent and delete this exact memory scope (ai.memory); works with collection disabled.
+    No automatic retry: an offline failure must stay pending in the UI, never be shown as success.
+    """
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    return _memory_call("aiMemoryDelete", _memory_account(account), dialog_id, topic_id,
+                        _memory_timeout(timeout), _memory_binding(expected_binding))
+
+
+
+def ai_memory_import(account, dialog_id, topic_id, record, timeout=10, expected_binding=None):
+    """Explicitly import one existing local summary, preserving unknown/mixed speaker provenance.
+    Private chats/topic0 only; no archive scan and no invented source messages. Requires server legacyImport.
+    """
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    if dialog_id < 0 or topic_id != 0 or not isinstance(record, dict) or set(record) != {"summary", "throughId", "revision", "updatedAt"}:
+        raise AiError("memory_invalid_data", 12)
+    summary, through, revision, date = record["summary"], record["throughId"], record["revision"], record["updatedAt"]
+    if (not isinstance(summary, str) or not summary.strip() or len(summary) > 8000 or "\0" in summary
+            or isinstance(through, bool) or not isinstance(through, int) or not 0 <= through <= 2147483647
+            or isinstance(revision, bool) or not isinstance(revision, int) or not 1 <= revision <= 2147483647
+            or not isinstance(date, str) or len(date) > 40
+            or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T.+(?:Z|[+-][0-9]{2}:[0-9]{2})", date)):
+        raise AiError("memory_invalid_data", 12)
+    return _memory_call("aiMemoryImport", _memory_account(account), dialog_id, topic_id,
+                        json.dumps(record, ensure_ascii=False, allow_nan=False), _memory_timeout(timeout),
+                        _memory_binding(expected_binding))
 
 
 def get_recent_messages(dialog_id, limit=20, account=None):
@@ -338,3 +490,4 @@ def app_locale():
 
 def api_version():
     return 1
+
