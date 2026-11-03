@@ -131,8 +131,8 @@ public final class PluginRuntime implements PluginHost {
 
     @Override
     public void unload(String id) {
+        invalidateMemory(id);
         synchronized (pythonLock) {
-            memoryEpochs.merge(id, 1L, (before, one) -> before + 1);
             if (host != null && loaded.containsKey(id)) {
                 String previous = PluginHooks.getCurrentPlugin();
                 PluginHooks.setCurrentPlugin(id);
@@ -245,6 +245,7 @@ public final class PluginRuntime implements PluginHost {
                 synchronized (pythonLock) {
                     // An explicit re-enable/update may have loaded a fresh generation already.
                     if (!loaded.remove(id, generation)) return;
+                    invalidateMemory(id);
                     PluginHooks.removePlugin(id);
                     PluginMenus.removePlugin(id);
                     errors.remove(id);
