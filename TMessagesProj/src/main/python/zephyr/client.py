@@ -18,6 +18,11 @@ try:
 except Exception:
     MEMORY_API_VERSION = 0
 
+try:
+    PICKER_CONTEXT_API_VERSION = int(Runtime.pickerContextApiVersion())
+except Exception:
+    PICKER_CONTEXT_API_VERSION = 0
+
 
 def _account(account):
     return Runtime.selectedAccount() if account is None else int(account)
@@ -526,4 +531,5 @@ def app_locale():
 
 def api_version():
     return 1
+
 
