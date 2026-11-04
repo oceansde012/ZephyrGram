@@ -146,6 +146,20 @@ public final class PluginSettingsModel {
         }
     }
 
+    /** Context-aware event. Native verifies the captured account owner before delivering any result. */
+    public boolean picked(Item it, long dialogId, String title, PluginPickerContext context) {
+        if (context == null || !context.isCurrent()) return false;
+        try {
+            String json = new JSONObject().put("id", dialogId).put("title", title == null ? "" : title)
+                    .put("context", context.toJson()).toString();
+            PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "pick", json);
+            return true;
+        } catch (Throwable t) {
+            FileLog.e("Plugin picker result could not be delivered");
+            return false;
+        }
+    }
+
     // ---------------------------------------------------------------- raw storage (also used by Python)
 
     private static final ConcurrentHashMap<String, Object> LOCKS = new ConcurrentHashMap<>();
@@ -227,3 +241,4 @@ public final class PluginSettingsModel {
         }
     }
 }
+

@@ -8,6 +8,7 @@ import android.widget.EditText;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
 import org.telegram.messenger.zephyr.plugins.PluginChatApi;
+import org.telegram.messenger.zephyr.plugins.PluginPickerContext;
 import org.json.JSONObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -142,7 +143,11 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         if (model==null || !(item.object instanceof PluginSettingsModel.Item)) return;
         PluginSettingsModel.Item setting=(PluginSettingsModel.Item)item.object;
         switch (setting.type) {
-            case PluginSettingsModel.TYPE_PAGE: presentFragment(new ZephyrPluginSettingsActivity(pluginId,setting.key,setting.text)); break;
+            case PluginSettingsModel.TYPE_PAGE:
+                ZephyrPluginSettingsActivity child = new ZephyrPluginSettingsActivity(pluginId,setting.key,setting.text);
+                child.setCurrentAccount(currentAccount);
+                presentFragment(child);
+                break;
             case PluginSettingsModel.TYPE_SWITCH: model.setValue(setting,!model.getBoolean(setting)); update(); reloadSoon(); break;
             case PluginSettingsModel.TYPE_INPUT:
                 EditText input=new EditText(getParentActivity()); input.setText(model.getString(setting)); input.setSingleLine(!setting.multiline);
@@ -165,22 +170,35 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
      */
     private void reloadSoon() { AndroidUtilities.cancelRunOnUIThread(loadRunnable); AndroidUtilities.runOnUIThread(loadRunnable, 150); }
     private void openPicker(PluginSettingsModel.Item setting) {
+        final PluginPickerContext context=PluginPickerContext.capture(currentAccount);
+        if (context==null) { pickerAccountChanged(); return; }
         Bundle args=new Bundle();
         args.putBoolean("onlySelect",true);
         args.putBoolean("checkCanWrite",false);
         args.putBoolean("allowGlobalSearch",true);
         args.putInt("dialogsType",DialogsActivity.DIALOGS_TYPE_DEFAULT);
         DialogsActivity picker=new DialogsActivity(args);
+        picker.setCurrentAccount(context.account);
         picker.setDelegate((fragment,dids,message,param,notify,scheduleDate,scheduleRepeatPeriod,topicsFragment) -> {
             if (dids==null || dids.isEmpty()) return false;
+            if (!context.isCurrent() || picker.getCurrentAccount()!=context.account) {
+                picker.finishFragment(); pickerAccountChanged(); return false;
+            }
             final long dialogId=dids.get(0).dialogId;
-            final int account=currentAccount;
+            final int account=context.account;
             picker.finishFragment();
             Utilities.globalQueue.postRunnable(() -> {
+                if (!context.isCurrent()) { AndroidUtilities.runOnUIThread(this::pickerAccountChanged); return; }
                 String title=String.valueOf(dialogId);
                 try { title=PluginChatApi.dialogInfo(account,dialogId).optString("title",title); } catch (Throwable ignore) { }
                 final String finalTitle=title;
-                AndroidUtilities.runOnUIThread(() -> { if (model!=null) { model.picked(setting,dialogId,finalTitle); reloadSoon(); } });
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (!context.isCurrent()) { pickerAccountChanged(); return; }
+                    if (model!=null) {
+                        if (!model.picked(setting,dialogId,finalTitle,context)) pickerAccountChanged();
+                        reloadSoon();
+                    }
+                });
             });
             return true;
         });
@@ -196,21 +214,35 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
     }
     private void resolve(PluginSettingsModel.Item setting, String text) {
         if (getParentActivity()==null) return;
-        final int account=currentAccount;
+        final PluginPickerContext context=PluginPickerContext.capture(currentAccount);
+        if (context==null) { pickerAccountChanged(); return; }
+        final int account=context.account;
         final AlertDialog progress=new AlertDialog(getParentActivity(),AlertDialog.ALERT_TYPE_SPINNER);
         progress.showDelayed(300);
         Utilities.globalQueue.postRunnable(() -> {
+            if (!context.isCurrent()) {
+                AndroidUtilities.runOnUIThread(() -> { try { progress.dismiss(); } catch (Throwable ignore) { } pickerAccountChanged(); });
+                return;
+            }
             JSONObject found=null; String error=null;
             try { found=PluginChatApi.resolveUsernameBlocking(account,text); if (found==null) error=ZephyrPluginsActivity.s(R.string.ZephyrPluginUsernameNotFound); }
             catch (Throwable t) { error=ZephyrPluginsActivity.s(R.string.ZephyrPluginUsernameError)+" "+t.getMessage(); }
             final JSONObject result=found; final String message=error;
             AndroidUtilities.runOnUIThread(() -> {
                 try { progress.dismiss(); } catch (Throwable ignore) { }
-                if (result!=null && model!=null) { model.picked(setting,result.optLong("id"),result.optString("title")); reloadSoon(); }
+                if (!context.isCurrent()) { pickerAccountChanged(); return; }
+                if (result!=null && model!=null) {
+                    if (!model.picked(setting,result.optLong("id"),result.optString("title"),context)) pickerAccountChanged();
+                    reloadSoon();
+                }
                 else ZephyrPluginsActivity.error(this,message);
             });
         });
     }
+    private void pickerAccountChanged() {
+        ZephyrPluginsActivity.error(this,ZephyrPluginsActivity.s(R.string.ZephyrPluginPickerAccountChanged));
+    }
     @Override protected boolean onLongClick(UItem item, View view, int position, float x, float y) { return false; }
     private void update() { if (listView!=null && listView.adapter!=null) listView.adapter.update(true); }
 }
+

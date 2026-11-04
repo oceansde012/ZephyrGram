@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - 'feature/neon-memory-bridge'
+      - 'feature/picker-account-context'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -34,7 +35,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/neon-memory-bridge' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/neon-memory-bridge' || github.ref == 'refs/heads/feature/picker-account-context') }}
 
 jobs:
   release:
@@ -68,8 +69,11 @@ jobs:
           elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/feature/neon-memory-bridge" ]]; then
             raw="0.2.2"
             publish=false
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/feature/picker-account-context" ]]; then
+            raw="0.2.3"
+            publish=false
           else
-            echo "error: only a manual run, the memory bridge preview branch, or a v-prefixed tag push is supported" >&2
+            echo "error: only a manual run, an explicit preview branch, or a v-prefixed tag push is supported" >&2
             exit 1
           fi
           version="${raw#v}"

@@ -125,7 +125,12 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         return info.toString();
     }
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.object instanceof String) { presentFragment(new ZephyrPluginDetailsActivity((String)item.object)); return; }
+        if (item.object instanceof String) {
+            ZephyrPluginDetailsActivity activity=new ZephyrPluginDetailsActivity((String)item.object);
+            activity.setCurrentAccount(currentAccount);
+            presentFragment(activity);
+            return;
+        }
         switch (item.id) {
             case REFRESH: repository.refresh((index, failure) -> error(this, failure)); break;
             case AUTO: manager.setAutoUpdateEnabled(!manager.isAutoUpdateEnabled()); break;
@@ -183,4 +188,5 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     @Override public void onPluginsChanged() { update(); }
     @Override public void onRepositoryChanged() { update(); }
 }
+
 

@@ -181,6 +181,8 @@ public final class PluginRuntime implements PluginHost {
 
     public int memoryApiVersion() { return org.telegram.messenger.zephyr.ZephyrAiClient.MEMORY_API_VERSION; }
 
+    public int pickerContextApiVersion() { return PluginPickerContext.API_VERSION; }
+
     /** Invalidate in-flight memory synchronously; do not wait for Python callbacks or the lifecycle lock. */
     public void invalidateMemory(String id) {
         memoryEpochs.merge(id, 1L, (before, one) -> before + 1);
@@ -417,4 +419,5 @@ public final class PluginRuntime implements PluginHost {
         });
     }
 }
+
 

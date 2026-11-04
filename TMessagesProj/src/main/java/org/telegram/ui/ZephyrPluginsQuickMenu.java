@@ -91,7 +91,11 @@ public final class ZephyrPluginsQuickMenu {
         }
         io.addGap();
         io.add(R.drawable.msg_customize, LocaleController.getString(R.string.ZephyrNavAllPlugins),
-                () -> fragment.presentFragment(new ZephyrPluginsActivity()));
+                () -> {
+                    ZephyrPluginsActivity activity = new ZephyrPluginsActivity();
+                    activity.setCurrentAccount(account);
+                    fragment.presentFragment(activity);
+                });
         io.show();
     }
 
@@ -223,9 +227,12 @@ public final class ZephyrPluginsQuickMenu {
                 }
             });
         };
+        final int sourceAccount = fragment.getCurrentAccount();
         final Runnable openSettings = () -> {
             io.dismiss();
-            fragment.presentFragment(new ZephyrPluginSettingsActivity(plugin.id));
+            ZephyrPluginSettingsActivity activity = new ZephyrPluginSettingsActivity(plugin.id);
+            activity.setCurrentAccount(sourceAccount);
+            fragment.presentFragment(activity);
         };
 
         if (tapOpensSettings) {
@@ -277,3 +284,4 @@ public final class ZephyrPluginsQuickMenu {
         cell.getTextView().setLayoutParams(textLp);
     }
 }
+

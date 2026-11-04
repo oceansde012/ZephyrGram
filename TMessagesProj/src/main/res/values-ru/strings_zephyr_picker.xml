@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrPluginPickerAccountChanged">Аккаунт изменился во время выбора чата. Откройте выбор заново в нужном аккаунте.</string>
+</resources>

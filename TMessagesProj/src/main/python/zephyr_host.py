@@ -109,6 +109,16 @@ def invoke(plugin_id, method, arguments):
             key, event, value = args
             item = plugin._settings.get(str(key))
             if event == "pick":
+                callback = getattr(item, "on_pick_context", None) or getattr(item, "on_resolved_context", None)
+                if callback:
+                    data = json.loads(str(value))
+                    context = data.get("context")
+                    if (not isinstance(context, dict) or type(context.get("account")) is not int
+                            or context["account"] < 0 or not isinstance(context.get("ownerId"), str)
+                            or not context["ownerId"].isdigit() or not 0 < int(context["ownerId"]) < (1 << 63)):
+                        return None  # Old native host/event has no verified provenance: never guess.
+                    return callback(int(data["id"]), str(data.get("title") or ""),
+                                    {"account": context["account"], "ownerId": context["ownerId"]})
                 callback = getattr(item, "on_pick", None) or getattr(item, "on_resolved", None)
                 if callback:
                     data = json.loads(str(value))
@@ -142,3 +152,4 @@ def run_callback(plugin_id, callback, arguments):
         return callback(*tuple(arguments))
     finally:
         _state.current.reset(token)
+
