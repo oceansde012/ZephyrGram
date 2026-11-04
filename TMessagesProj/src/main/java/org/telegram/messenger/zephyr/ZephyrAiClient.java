@@ -211,6 +211,8 @@ public class ZephyrAiClient {
     private static HttpURLConnection open(String method, String path, String token) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(endpoint(path)).openConnection();
         c.setRequestMethod(method);
+        // never replay the Authorization header to a redirect target; 3xx is handled as an error
+        c.setInstanceFollowRedirects(false);
         c.setConnectTimeout(45000);
         c.setReadTimeout(120000);
         c.setRequestProperty("Authorization", "Bearer " + ZephyrAiSetupParser.sanitizeSecret(token));
@@ -669,6 +671,7 @@ public class ZephyrAiClient {
                 c = openWithRetry(null, () -> {
                     HttpURLConnection cc = (HttpURLConnection) new URL(adminEndpoint(path)).openConnection();
                     cc.setRequestMethod(method);
+                    cc.setInstanceFollowRedirects(false);
                     cc.setConnectTimeout(45000);
                     cc.setReadTimeout(60000);
                     cc.setRequestProperty("Authorization", "Bearer " + secret);
