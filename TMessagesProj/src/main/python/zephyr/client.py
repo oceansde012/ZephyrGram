@@ -1,7 +1,10 @@
 """Helpers execute as the current plugin; async work retains its owner."""
+import ipaddress
 import json
 import re
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from . import _state
 from ._bridge import ChatApi, Runtime, require
@@ -463,15 +466,42 @@ def _read_limited(response):
     return body
 
 
+def _check_public_https(url):
+    """https only, and the host must resolve exclusively to public (globally routable) addresses."""
+    parts = urllib.parse.urlsplit(str(url))
+    if parts.scheme != "https" or not parts.hostname:
+        raise ValueError("Only HTTPS URLs are supported")
+    try:
+        infos = socket.getaddrinfo(parts.hostname, parts.port or 443, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise ValueError("Cannot resolve host") from exc
+    if not infos:
+        raise ValueError("Cannot resolve host")
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
+        if getattr(address, "ipv4_mapped", None) is not None:
+            address = address.ipv4_mapped
+        if not address.is_global or address.is_multicast:
+            raise ValueError("Private, loopback and link-local addresses are not allowed")
+
+
+class _PublicHttpsRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _check_public_https(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def http_get(url, headers=None, timeout=15):
+    """HTTPS GET (internet). Refuses http:// and hosts resolving to private/loopback/link-local addresses, also on
+    redirects. (A host that changes its DNS answer between this check and the connection is not covered.)"""
     plugin = _state.owner()
     require(plugin, "internet")
-    if not str(url).startswith(("https://", "http://")):
-        raise ValueError("Only HTTP(S) URLs are supported")
+    _check_public_https(url)
     req = urllib.request.Request(str(url), headers=headers or {}, method="GET")
     timeout = min(max(float(timeout), 1.0), 60.0)
+    opener = urllib.request.build_opener(_PublicHttpsRedirects())
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with opener.open(req, timeout=timeout) as response:
             return response.status, _read_limited(response)
     except urllib.error.HTTPError as response:
         with response:

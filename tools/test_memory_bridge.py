@@ -158,6 +158,28 @@ class MemoryWrappers(unittest.TestCase):
                 self.client.ai_memory_context(0, -1001234567890, topic, expected_binding=BINDING)
         self.assertEqual(self.native.calls, [])
 
+    def test_http_get_refuses_cleartext_and_non_public_targets(self):
+        import socket
+        from unittest import mock
+        for url in ("http://example.com/", "ftp://example.com/", "https://127.0.0.1/", "https://10.0.0.5/x",
+                    "https://169.254.169.254/latest", "https://[::1]/", "https://[::ffff:192.168.1.1]/",
+                    "https://[fe80::1]/", "https://0.0.0.0/", "https:///nohost"):
+            with self.assertRaises(ValueError, msg=url):
+                self.client.http_get(url)
+
+        def resolve(host, port, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ({"internal.test": "10.1.2.3"}.get(host, "93.184.216.34"), port))]
+        with mock.patch.object(socket, "getaddrinfo", resolve):
+            with self.assertRaises(ValueError):
+                self.client.http_get("https://internal.test/")
+            self.client._check_public_https("https://public.test/path")
+            with self.assertRaises(ValueError):
+                self.client._PublicHttpsRedirects().redirect_request(
+                    None, None, 302, "Found", {}, "http://public.test/")
+            with self.assertRaises(ValueError):
+                self.client._PublicHttpsRedirects().redirect_request(
+                    None, None, 302, "Found", {}, "https://internal.test/")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
