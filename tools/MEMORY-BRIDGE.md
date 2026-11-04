@@ -6,7 +6,7 @@ This is the real Android/Python host implementation, not a plugin-side HTTP subs
 
 Plugin identity is derived natively: `PluginRuntime` sets the current plugin id on the calling thread around every plugin callback (load, unload, hooks, menu/settings callbacks, `run_on_ui`/`run_in_bg` timers), and every Python-facing Java method (`PluginChatApi`, `PluginSettingsModel.getRaw/putRaw/putRawIf/remove`, `Runtime.log/reportError/...`, hook/menu registration, including every `ai_memory_*` call) rejects an `id` that differs from it with `SecurityException`. Calls from threads that were not started by `PluginRuntime` (for example a raw `threading.Thread` in a plugin) have no identity and are rejected. Python is still not a sandbox: a plugin can reach other Java classes through Chaquopy, so this closes cross-plugin id spoofing through the plugin API only.
 
-`client.http_get` requires `https://`, refuses hosts that resolve to non-public addresses (private, loopback, link-local, CGNAT, multicast, IPv4-mapped equivalents) and applies the same check to every redirect. A hostname whose DNS answer changes between the check and the connection is not covered.
+`client.http_get` requires `https://`, refuses hosts that resolve to non-public addresses (private, loopback, link-local, CGNAT, multicast, and their IPv4-mapped or NAT64 `64:ff9b::/96` forms) and applies the same check to every redirect. A hostname whose DNS answer changes between the check and the connection is not covered.
 
 ## Python API
 

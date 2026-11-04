@@ -466,6 +466,9 @@ def _read_limited(response):
     return body
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
 def _check_public_https(url):
     """https only, and the host must resolve exclusively to public (globally routable) addresses."""
     parts = urllib.parse.urlsplit(str(url))
@@ -481,6 +484,9 @@ def _check_public_https(url):
         address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
         if getattr(address, "ipv4_mapped", None) is not None:
             address = address.ipv4_mapped
+        elif address.version == 6 and address in _NAT64:
+            # DNS64 answers on IPv6-only mobile networks: judge the embedded IPv4 address
+            address = ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
         if not address.is_global or address.is_multicast:
             raise ValueError("Private, loopback and link-local addresses are not allowed")
 

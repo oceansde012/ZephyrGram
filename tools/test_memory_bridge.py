@@ -173,6 +173,12 @@ class MemoryWrappers(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.client.http_get("https://internal.test/")
             self.client._check_public_https("https://public.test/path")
+        for ok in ("https://[64:ff9b::808:808]/", "https://[2606:4700::1111]/"):
+            self.client._check_public_https(ok)  # NAT64 of a public IPv4 (IPv6-only mobile networks) stays allowed
+        for bad in ("https://[64:ff9b::a00:1]/", "https://[64:ff9b::7f00:1]/", "https://[2002:a00:1::1]/"):
+            with self.assertRaises(ValueError, msg=bad):
+                self.client._check_public_https(bad)
+        with mock.patch.object(socket, "getaddrinfo", resolve):
             with self.assertRaises(ValueError):
                 self.client._PublicHttpsRedirects().redirect_request(
                     None, None, 302, "Found", {}, "http://public.test/")
