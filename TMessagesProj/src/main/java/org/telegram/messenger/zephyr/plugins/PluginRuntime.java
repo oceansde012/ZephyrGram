@@ -119,7 +119,7 @@ public final class PluginRuntime implements PluginHost {
             try {
                 startPython().callAttr("load_plugin", id, file.getAbsolutePath(), data.getAbsolutePath());
             } catch (Throwable t) {
-                log(id, "Load failed: " + t);
+                logImpl(id, "Load failed: " + t);
                 FileLog.e("Plugin " + id + ": load failed " + t.getClass().getName(), t);
                 unload(id);
                 throw new Exception("Cannot load " + id + ": " + t.getMessage(), t);
@@ -139,7 +139,7 @@ public final class PluginRuntime implements PluginHost {
                 try {
                     host.callAttr("unload_plugin", id);
                 } catch (Throwable t) {
-                    log(id, "Unload failed: " + t);
+                    logImpl(id, "Unload failed: " + t);
                     FileLog.e("Plugin " + id + ": unload failed " + t.getClass().getName(), t);
                 } finally {
                     PluginHooks.setCurrentPlugin(previous);
@@ -173,6 +173,7 @@ public final class PluginRuntime implements PluginHost {
     public boolean isLoaded(String id) { return loaded.containsKey(id); }
 
     public void requirePermission(String id, String permission) {
+        PluginHooks.requireCaller(id);
         PluginManifest m = loaded.get(id);
         if (m == null || !m.hasPermission(permission)) {
             throw new SecurityException("Plugin " + id + " needs permission " + permission);
@@ -208,24 +209,29 @@ public final class PluginRuntime implements PluginHost {
             try {
                 return host.callAttr("invoke", id, method, arguments);
             } catch (Throwable t) {
-                reportError(id, t.toString());
+                reportErrorImpl(id, t.toString());
                 return null;
             } finally {
                 long elapsed = SystemClock.elapsedRealtime() - started;
                 if (elapsed > 200) {
-                    log(id, "Slow callback " + method + ": " + elapsed + " ms");
+                    logImpl(id, "Slow callback " + method + ": " + elapsed + " ms");
                     FileLog.w("Plugin " + id + ": slow callback " + method + " " + elapsed + " ms");
                 }
                 PluginHooks.setCurrentPlugin(previous);
                 // Python cannot be interrupted, so a hook that stalls the network/update thread is counted
                 // like an error and eventually disables the plugin.
-                if (elapsed > 3000 && method.endsWith("_hook")) reportError(id, "Hook " + method + " blocked for " + elapsed + " ms");
+                if (elapsed > 3000 && method.endsWith("_hook")) reportErrorImpl(id, "Hook " + method + " blocked for " + elapsed + " ms");
             }
         }
     }
 
     public void reportError(String id, String message) {
-        log(id, message);
+        PluginHooks.requireCaller(id);
+        reportErrorImpl(id, message);
+    }
+
+    private void reportErrorImpl(String id, String message) {
+        logImpl(id, message);
         // Error text comes from exceptions (class + message), never from chat content.
         FileLog.e("Plugin " + id + ": hook/callback error: " + (message != null && message.length() > 600 ? message.substring(0, 600) : message));
         PluginManifest generation = loaded.get(id);
@@ -250,7 +256,10 @@ public final class PluginRuntime implements PluginHost {
                     PluginMenus.removePlugin(id);
                     errors.remove(id);
                     if (host != null) {
+                        String previous = PluginHooks.getCurrentPlugin();
+                        PluginHooks.setCurrentPlugin(id);
                         try { host.callAttr("unload_plugin", id); } catch (Throwable t) { FileLog.e(t); }
+                        finally { PluginHooks.setCurrentPlugin(previous); }
                     }
                 }
                 FailureListener listener = failureListener;
@@ -259,7 +268,12 @@ public final class PluginRuntime implements PluginHost {
         }
     }
 
-    public synchronized void log(String id, String message) {
+    public void log(String id, String message) {
+        PluginHooks.requireCaller(id);
+        logImpl(id, message);
+    }
+
+    private synchronized void logImpl(String id, String message) {
         if (!PluginManifest.isValidId(id)) return;
         try {
             File dir = getDataDirectory(id);
@@ -283,7 +297,7 @@ public final class PluginRuntime implements PluginHost {
         PyObject value = INSTANCE.invoke(id, method, args);
         if (value == null) return null;
         try { return value.toJava(PluginHooks.Result.class); }
-        catch (Throwable t) { INSTANCE.reportError(id, "Invalid hook result: " + t); return null; }
+        catch (Throwable t) { INSTANCE.reportErrorImpl(id, "Invalid hook result: " + t); return null; }
     }
 
     public static PluginHooks.Result callPreRequest(String id, String name, int account, TLObject request) {
@@ -296,7 +310,7 @@ public final class PluginRuntime implements PluginHost {
         return result(id, "on_update_hook", name, account, update);
     }
     public static PluginHooks.Result callUpdates(String id, String name, int account, TLRPC.Updates updates) {
-        if ("TL_updateShortMessage".equals(name)) INSTANCE.keepAwake(id, 75);    // a private message arrived: finish the answer
+        if ("TL_updateShortMessage".equals(name)) INSTANCE.keepAwakeImpl(id, 75);    // a private message arrived: finish the answer
         return result(id, "on_updates_hook", name, account, updates);
     }
     public static PluginHooks.Result callSendMessage(String id, int account, SendMessagesHelper.SendMessageParams params) {
@@ -305,7 +319,7 @@ public final class PluginRuntime implements PluginHost {
     public static void callMessageEvent(String id, int kind, int account, MessageObject message) {
         try {
             // Only incoming private messages: groups and channels would keep the phone awake all day.
-            if (kind != PluginHooks.MSG_EDITED && message != null && !message.isOutOwner() && message.getDialogId() > 0) INSTANCE.keepAwake(id, 75);
+            if (kind != PluginHooks.MSG_EDITED && message != null && !message.isOutOwner() && message.getDialogId() > 0) INSTANCE.keepAwakeImpl(id, 75);
         } catch (Throwable ignore) { }
         INSTANCE.invoke(id, kind == PluginHooks.MSG_EDITED ? "on_message_edited" : "on_new_message", account, message);
     }
@@ -335,15 +349,17 @@ public final class PluginRuntime implements PluginHost {
             String previous = PluginHooks.getCurrentPlugin();
             PluginHooks.setCurrentPlugin(id);
             try { host.callAttr("run_callback", id, callback, args); }
-            catch (Throwable t) { reportError(id, t.toString()); }
+            catch (Throwable t) { reportErrorImpl(id, t.toString()); }
             finally { PluginHooks.setCurrentPlugin(previous); }
         }
     }
 
     public void runOnUi(String id, PyObject callback, long delayMs) {
+        PluginHooks.requireCaller(id);
         AndroidUtilities.runOnUIThread(() -> runCallback(id, callback), Math.max(0, delayMs));
     }
     public void runInBackground(String id, PyObject callback) {
+        PluginHooks.requireCaller(id);
         background.execute(() -> runCallback(id, callback));
     }
     private PowerManager.WakeLock wakeLock;
@@ -354,7 +370,12 @@ public final class PluginRuntime implements PluginHost {
      * delayed callbacks (debounce, human reply pauses) only fire when something else wakes it, e.g. the owner opening
      * the app. The hold is never shortened by a later, shorter request and always ends by itself.
      */
-    public synchronized void keepAwake(String id, int seconds) {
+    public void keepAwake(String id, int seconds) {
+        PluginHooks.requireCaller(id);
+        keepAwakeImpl(id, seconds);
+    }
+
+    private synchronized void keepAwakeImpl(String id, int seconds) {
         if (!loaded.containsKey(id)) return;
         long millis = Math.max(1, Math.min(seconds, 180)) * 1000L;
         long until = SystemClock.elapsedRealtime() + millis;
@@ -386,6 +407,7 @@ public final class PluginRuntime implements PluginHost {
     public Context context() { return ApplicationLoader.applicationContext; }
 
     public void copyToClipboard(String id, String text) {
+        PluginHooks.requireCaller(id);
         if (!loaded.containsKey(id)) return;
         AndroidUtilities.runOnUIThread(() -> {
             if (!loaded.containsKey(id)) return;
@@ -394,6 +416,7 @@ public final class PluginRuntime implements PluginHost {
         });
     }
     public void bulletin(String id, String text) {
+        PluginHooks.requireCaller(id);
         if (!loaded.containsKey(id)) return;
         AndroidUtilities.runOnUIThread(() -> {
             if (loaded.containsKey(id)) Toast.makeText(context(), text, Toast.LENGTH_SHORT).show();

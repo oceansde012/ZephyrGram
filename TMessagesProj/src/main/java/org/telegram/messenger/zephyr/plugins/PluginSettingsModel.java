@@ -111,7 +111,7 @@ public final class PluginSettingsModel {
     }
 
     private Object readValue(Item it) {
-        String raw = getRaw(pluginId, it.key);
+        String raw = readRaw(pluginId, it.key);
         if (raw != null) {
             try {
                 return new org.json.JSONTokener(raw).nextValue();
@@ -127,7 +127,7 @@ public final class PluginSettingsModel {
         if (value instanceof Boolean || value instanceof Number) {
             json = String.valueOf(value);
         }
-        putRaw(pluginId, it.key, json);
+        writeRaw(pluginId, it.key, json);
         PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "change", json);
     }
 
@@ -170,8 +170,13 @@ public final class PluginSettingsModel {
         return c.getSharedPreferences("zephyr_plugin_" + pluginId, Context.MODE_PRIVATE);
     }
 
-    /** @return JSON text of the stored value or null. */
+    /** @return JSON text of the stored value or null. Python-facing: only the running plugin may read its own settings. */
     public static String getRaw(String pluginId, String key) {
+        PluginHooks.requireCaller(pluginId);
+        return readRaw(pluginId, key);
+    }
+
+    private static String readRaw(String pluginId, String key) {
         try {
             return prefs(pluginId).getString(key, null);
         } catch (Throwable t) {
@@ -180,6 +185,11 @@ public final class PluginSettingsModel {
     }
 
     public static void putRaw(String pluginId, String key, String json) {
+        PluginHooks.requireCaller(pluginId);
+        writeRaw(pluginId, key, json);
+    }
+
+    private static void writeRaw(String pluginId, String key, String json) {
         try {
             synchronized (lock(pluginId)) {
                 prefs(pluginId).edit().putString(key, json).apply();
@@ -195,6 +205,7 @@ public final class PluginSettingsModel {
      * json == null removes the key. The in-memory value is updated at once (apply), like putRaw.
      */
     public static boolean putRawIf(String pluginId, String key, String expected, String json) {
+        PluginHooks.requireCaller(pluginId);
         try {
             synchronized (lock(pluginId)) {
                 SharedPreferences p = prefs(pluginId);
@@ -211,6 +222,7 @@ public final class PluginSettingsModel {
     }
 
     public static void remove(String pluginId, String key) {
+        PluginHooks.requireCaller(pluginId);
         try {
             synchronized (lock(pluginId)) {
                 prefs(pluginId).edit().remove(key).apply();

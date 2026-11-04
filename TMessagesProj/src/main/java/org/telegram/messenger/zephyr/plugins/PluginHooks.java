@@ -116,8 +116,20 @@ public final class PluginHooks {
         return currentPlugin.get();
     }
 
-    public static void setCurrentPlugin(String id) {
+    /** Package-private on purpose: only PluginRuntime may set the identity, never Python through the bridge. */
+    static void setCurrentPlugin(String id) {
         currentPlugin.set(id);
+    }
+
+    /**
+     * Native identity check for every Python-facing API: the plugin id passed from Python must be the plugin whose
+     * callback (hook, timer, UI callback, load/unload) PluginRuntime is running on this thread. A mismatch, or a call
+     * from a thread outside any plugin callback, is rejected.
+     */
+    public static void requireCaller(String pluginId) {
+        if (pluginId == null || !pluginId.equals(currentPlugin.get())) {
+            throw new SecurityException("Plugin identity mismatch");
+        }
     }
 
     // ---------------------------------------------------------------- registry
@@ -274,32 +286,38 @@ public final class PluginHooks {
     // ---------------------------------------------------------------- registration (called from Python)
 
     public static synchronized void addRequestHook(String pluginId, String name, boolean substring, int priority, boolean hasPre, boolean hasPost) {
+        requireCaller(pluginId);
         requestHooks.add(new Hook(pluginId, name, substring, priority, hasPre, hasPost, nextSeq()));
         hasRequestHooks = true;
     }
 
     public static synchronized void removeRequestHook(String pluginId, String name) {
+        requireCaller(pluginId);
         requestHooks.remove(pluginId, name);
         hasRequestHooks = !requestHooks.isEmpty();
     }
 
     public static synchronized void addUpdateHook(String pluginId, String name, boolean substring, int priority) {
+        requireCaller(pluginId);
         updateHooks.add(new Hook(pluginId, name, substring, priority, true, false, nextSeq()));
         refreshUpdateFlags();
     }
 
     public static synchronized void addUpdatesHook(String pluginId, String name, boolean substring, int priority) {
+        requireCaller(pluginId);
         updatesHooks.add(new Hook(pluginId, name, substring, priority, true, false, nextSeq()));
         refreshUpdateFlags();
     }
 
     public static synchronized void addSendMessageHook(String pluginId, int priority) {
+        requireCaller(pluginId);
         sendList = addSimple(sendList, pluginId, priority);
         hasSendHooks = true;
     }
 
     /** kind: MSG_NEW, MSG_EDITED, MSG_DELETED */
     public static synchronized void addMessageHook(String pluginId, int kind, int priority) {
+        requireCaller(pluginId);
         switch (kind) {
             case MSG_NEW:
                 newMsgList = addSimple(newMsgList, pluginId, priority);
