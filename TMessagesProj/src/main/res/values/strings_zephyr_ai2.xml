@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrShareHeader">Share access</string>
+    <string name="ZephyrShareAdminSecret">Admin secret</string>
+    <string name="ZephyrShareAddPerson">Add person</string>
+    <string name="ZephyrShareAddFromChats">Choose from chats</string>
+    <string name="ZephyrShareAddByUsername">Enter @username</string>
+    <string name="ZephyrShareUsernameHint">@username</string>
+    <string name="ZephyrShareUserNotFound">User not found. Only private chats are supported.</string>
+    <string name="ZephyrShareNeedAdmin">Set the admin secret first.</string>
+    <string name="ZephyrShareConfirmTitle">Send access to %1$s?</string>
+    <string name="ZephyrShareConfirmInfo">This message will be sent from your account. Cancel revokes the new token.
+
+%1$s</string>
+    <string name="ZephyrShareSentTo">Access sent to %1$s</string>
+    <string name="ZephyrShareSendFailed">Could not send the message</string>
+    <string name="ZephyrShareSendFailedInfo">The token is shown only once. Copy it and send it manually.
+
+%1$s</string>
+    <string name="ZephyrShareMessage">ZephyrGram AI access
+
+Open ZephyrGram → Settings → AI assistant → Import access and paste this message, or enter the details manually.
+
+Server: %1$s
+Token: %2$s
+
+%3$s</string>
+    <string name="ZephyrSharePeopleHeader">People with access</string>
+    <string name="ZephyrShareRefresh">Refresh list</string>
+    <string name="ZephyrShareNoPeople">Nobody yet</string>
+    <string name="ZephyrShareLoading">Loading…</string>
+    <string name="ZephyrSharePersonInfo">Last used: %1$s · requests: %2$d</string>
+    <string name="ZephyrShareNeverUsed">never</string>
+    <string name="ZephyrShareRevokedTag">revoked</string>
+    <string name="ZephyrShareRevoke">Revoke access</string>
+    <string name="ZephyrShareRevokeConfirm">Revoke access for %1$s? Their token will stop working.</string>
+    <string name="ZephyrShareRevoked">Access revoked</string>
+    <string name="ZephyrShareEditLimits">Edit limits</string>
+    <string name="ZephyrShareRatePerMin">Requests per minute</string>
+    <string name="ZephyrShareDailyLimit">Requests per day</string>
+    <string name="ZephyrShareLimitsInfo">Leave a field empty to keep the current value.</string>
+    <string name="ZephyrShareLimitsSaved">Limits saved</string>
+    <string name="ZephyrShareErrUnavailable">The server has no admin API (404). Update the server.</string>
+    <string name="ZephyrShareErrSecret">The admin secret was rejected by the server.</string>
+    <string name="ZephyrShareInfo">The admin secret is stored only on this device and used by the app core; plugins cannot read it.</string>
+    <string name="ZephyrShareImport">Import access</string>
+    <string name="ZephyrShareImportInfo">Paste the message you received. The server and token are filled in automatically.</string>
+    <string name="ZephyrShareImportHint">Paste the message here</string>
+    <string name="ZephyrShareImportBad">No access line found in this text.</string>
+    <string name="ZephyrShareImportDone">Access imported</string>
+</resources>

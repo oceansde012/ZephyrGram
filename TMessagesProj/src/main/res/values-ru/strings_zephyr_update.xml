@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrUpdates">Обновления</string>
+    <string name="ZephyrAutoUpdateCheck">Автоматически проверять обновления</string>
+    <string name="ZephyrCheckForUpdates">Проверить обновления</string>
+    <string name="ZephyrUpdatesInfo">Обновления загружаются из релизов ZephyrGram на GitHub. Автоматическая проверка — не чаще раза в сутки.</string>
+    <string name="ZephyrUpdateAvailable">Доступно обновление</string>
+    <string name="ZephyrUpdateAvailableText">Доступна версия ZephyrGram %1$s. У вас %2$s.</string>
+    <string name="ZephyrUpdateButton">Обновить</string>
+    <string name="ZephyrUpdateLater">Позже</string>
+    <string name="ZephyrUpdateDownloading">Загрузка обновления…</string>
+    <string name="ZephyrUpToDate">У вас последняя версия</string>
+    <string name="ZephyrUpdateCheckFailed">Не удалось проверить обновления. Попробуйте позже.</string>
+    <string name="ZephyrUpdateNoApk">В этом релизе нет APK для загрузки.</string>
+    <string name="ZephyrUpdateDownloadFailed">Не удалось загрузить обновление. Попробуйте позже.</string>
+</resources>

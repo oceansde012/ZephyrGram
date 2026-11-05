@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrForwardNoAuthor">Forward without author</string>
+    <string name="ZephyrSaveToSaved">Save to Saved Messages</string>
+    <string name="ZephyrSavedDone">Saved</string>
+    <string name="ZephyrCopyPhoto">Copy photo</string>
+    <string name="ZephyrPhotoCopied">Photo copied</string>
+    <string name="ZephyrPhotoNotLoaded">The photo is not downloaded yet</string>
+    <string name="ZephyrMessageDetails">Message details</string>
+    <string name="ZephyrCopy">Copy</string>
+    <string name="ZephyrDiscussButton">Discuss</string>
+    <string name="ZephyrMenuForwardNoAuthor">Forward without author</string>
+    <string name="ZephyrMenuSaveToSaved">Save to Saved Messages</string>
+    <string name="ZephyrMenuCopyPhoto">Copy photo</string>
+    <string name="ZephyrMenuDetails">Message details</string>
+    <string name="ZephyrShortcutPermissions">Permissions</string>
+    <string name="ZephyrShortcutAdmins">Administrators</string>
+    <string name="ZephyrShortcutMembers">Members</string>
+    <string name="ZephyrShortcutRecentActions">Recent actions</string>
+    <string name="ZephyrBottomButton">Bottom button in channels</string>
+    <string name="ZephyrBottomButtonMute">Mute / Unmute</string>
+    <string name="ZephyrBottomButtonDiscuss">Discuss</string>
+    <string name="ZephyrActionTimestamps">Time on service messages</string>
+    <string name="ZephyrCommaAfterMention">Comma after @mention</string>
+    <string name="ZephyrHideCategories">Hide emoji categories</string>
+    <string name="ZephyrHideCameraTile">Hide camera tile in attach menu</string>
+    <string name="ZephyrVideoMessagesCamera">Round video camera</string>
+    <string name="ZephyrCameraDefault">Default</string>
+    <string name="ZephyrCameraFront">Front</string>
+    <string name="ZephyrCameraRear">Rear</string>
+    <string name="ZephyrCameraLast">Last used</string>
+    <string name="ZephyrStaticZoom">Static zoom in round video camera</string>
+</resources>

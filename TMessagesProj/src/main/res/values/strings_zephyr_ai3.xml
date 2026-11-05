@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAiOnbHeader">Quick start</string>
+    <string name="ZephyrAiStep1">1. Server URL</string>
+    <string name="ZephyrAiStep2">2. Your token</string>
+    <string name="ZephyrAiStep3Header">3. Share access (optional, for the server owner)</string>
+    <string name="ZephyrAiOnbInfo">Step 1: enter the server address. Step 2: enter the token you were given, or tap “Import access” and paste the whole message from the owner. Step 3 is only for the server owner: it needs the admin secret.</string>
+    <string name="ZephyrAiSettingsInfoNoBot">The token is stored privately on this device and is only sent to your server. Get it from the server owner and paste it via “Import access”.</string>
+    <string name="ZephyrAiOptionsHeader">Assistant options</string>
+    <string name="ZephyrAiBotOptional">Access bot (optional)</string>
+    <string name="ZephyrAiErrUnauthorizedNoBot">Access denied (401). Your token is missing, wrong or revoked — paste the token in “Import access”.</string>
+    <string name="ZephyrAiErrServerDown">The server is unavailable or waking up (code %1$s). Try again in a minute.</string>
+    <string name="ZephyrAiTokenSaved">Saved (%1$d characters, ends with …%2$s)</string>
+    <string name="ZephyrAiUrlBad">Cannot understand this address. Example: https://zephyrgram-ai.onrender.com</string>
+    <string name="ZephyrShareNeedUrl">First enter the server address (step 1).</string>
+    <string name="ZephyrShareEnterSecret">Enter secret</string>
+    <string name="ZephyrShareSecretShort">The admin secret is usually at least 32 characters. Check that it was pasted completely.</string>
+    <string name="ZephyrShareErrAdminMissing">The admin API was not found on this server. Check the server address, or set ADMIN_SECRET on the server and redeploy it.</string>
+    <string name="ZephyrShareErrLockout">Too many wrong attempts. Wait a minute and try again.</string>
+    <string name="ZephyrShareAddFromContacts">Choose from contacts</string>
+    <string name="ZephyrShareUserBot">Bots cannot be given access. Choose a person.</string>
+    <string name="ZephyrShareUserSelf">This is you — you do not need to share access with yourself.</string>
+    <string name="ZephyrShareUserNotUser">This is a group or channel. Choose a person.</string>
+    <string name="ZephyrShareUserInvalid">Invalid username. Use @name or a t.me link.</string>
+    <string name="ZephyrShareResolveNetwork">Could not check the username. Check your connection and try again.</string>
+    <string name="ZephyrShareImportTokenOnly">Token imported; the server address stayed the same.</string>
+    <string name="ZephyrShareImportUrlOnly">Server address imported. Now enter your token (step 2).</string>
+    <string name="ZephyrShareSecretLooksToken">This looks like a user access token (zgai_…), not the admin secret. Paste the admin secret from the server settings.</string>
+</resources>

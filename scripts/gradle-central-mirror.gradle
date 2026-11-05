@@ -1,0 +1,30 @@
+// Local only: route Maven Central through Google's mirror (central rate-limits this container's IP).
+// The Gradle plugin portal redirects to Central, so the mirror is put in front of it; the portal stays as fallback.
+def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
+def fix = { repos ->
+    def portals = []
+    repos.all { r ->
+        if (r instanceof MavenArtifactRepository) {
+            def u = r.url.toString()
+            if (u.contains('repo.maven.apache.org') || u.contains('repo1.maven.org')) {
+                r.url = mirror
+            } else if (u.contains('plugins.gradle.org') && !portals.contains(r)) {
+                portals << r
+            }
+        }
+    }
+    portals.toList().each { p ->
+        def portalUrl = p.url
+        p.url = mirror
+        def added = repos.maven { url portalUrl }
+        portals << added
+    }
+}
+beforeSettings { s ->
+    fix(s.pluginManagement.repositories)
+    fix(s.dependencyResolutionManagement.repositories)
+}
+allprojects {
+    fix(buildscript.repositories)
+    fix(repositories)
+}

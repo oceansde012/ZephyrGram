@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrNavHistory">History and saved messages</string>
+    <string name="ZephyrNavHistoryState">Deleted: %1$s · edited: %2$s</string>
+    <string name="ZephyrNavHistoryInfo">Deleted messages and earlier versions of edited messages are stored only on this device.</string>
+    <string name="ZephyrNavUpdates">App updates</string>
+    <string name="ZephyrNavUpdatesState">Version %1$s · auto-check: %2$s</string>
+    <string name="ZephyrNavGhostOn">On: %1$d of %2$d</string>
+    <string name="ZephyrNavGhostOff">Off · read receipts, typing, online, stories</string>
+    <string name="ZephyrNavPluginsState">Installed: %1$d · enabled: %2$d</string>
+    <string name="ZephyrNavAdvancedInfo">Local Premium, ads, message filters, background connection, logs</string>
+    <string name="ZephyrNavAllPlugins">All plugins</string>
+    <string name="ZephyrNavNoPlugins">No plugins installed</string>
+    <string name="ZephyrNavArThisChat">Auto-reply in this chat</string>
+    <string name="ZephyrNavArChatSettings">Auto-reply settings for this chat</string>
+    <string name="ZephyrNavArOn">Auto-reply is on in this chat</string>
+    <string name="ZephyrNavArOff">Auto-reply is paused in this chat</string>
+    <string name="ZephyrNavArPluginOff">On for this chat, but the auto-reply plugin is disabled</string>
+    <string name="ZephyrNavArMasterOff">On for this chat, but auto-reply is turned off for all chats</string>
+</resources>

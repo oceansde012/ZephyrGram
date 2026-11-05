@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrShareHeader">Поділитися доступом</string>
+    <string name="ZephyrShareAdminSecret">Секрет адміністратора</string>
+    <string name="ZephyrShareAddPerson">Додати людину</string>
+    <string name="ZephyrShareAddFromChats">Вибрати з чатів</string>
+    <string name="ZephyrShareAddByUsername">Ввести @username</string>
+    <string name="ZephyrShareUsernameHint">@username</string>
+    <string name="ZephyrShareUserNotFound">Користувача не знайдено. Підтримуються лише приватні чати.</string>
+    <string name="ZephyrShareNeedAdmin">Спочатку вкажіть секрет адміністратора.</string>
+    <string name="ZephyrShareConfirmTitle">Надіслати доступ для %1$s?</string>
+    <string name="ZephyrShareConfirmInfo">Це повідомлення буде надіслано з вашого акаунта. «Скасувати» відкличе новий токен.
+
+%1$s</string>
+    <string name="ZephyrShareSentTo">Доступ надіслано: %1$s</string>
+    <string name="ZephyrShareSendFailed">Не вдалося надіслати повідомлення</string>
+    <string name="ZephyrShareSendFailedInfo">Токен показується лише один раз. Скопіюйте його й надішліть вручну.
+
+%1$s</string>
+    <string name="ZephyrShareMessage">Доступ до ZephyrGram AI
+
+Відкрийте ZephyrGram → Налаштування → AI-асистент → Імпорт доступу й вставте це повідомлення, або введіть дані вручну.
+
+Сервер: %1$s
+Токен: %2$s
+
+%3$s</string>
+    <string name="ZephyrSharePeopleHeader">Люди з доступом</string>
+    <string name="ZephyrShareRefresh">Оновити список</string>
+    <string name="ZephyrShareNoPeople">Поки нікого</string>
+    <string name="ZephyrShareLoading">Завантаження…</string>
+    <string name="ZephyrSharePersonInfo">Остання активність: %1$s · запитів: %2$d</string>
+    <string name="ZephyrShareNeverUsed">ніколи</string>
+    <string name="ZephyrShareRevokedTag">відкликано</string>
+    <string name="ZephyrShareRevoke">Відкликати доступ</string>
+    <string name="ZephyrShareRevokeConfirm">Відкликати доступ для %1$s? Токен перестане працювати.</string>
+    <string name="ZephyrShareRevoked">Доступ відкликано</string>
+    <string name="ZephyrShareEditLimits">Змінити ліміти</string>
+    <string name="ZephyrShareRatePerMin">Запитів за хвилину</string>
+    <string name="ZephyrShareDailyLimit">Запитів за добу</string>
+    <string name="ZephyrShareLimitsInfo">Залиште поле порожнім, щоб не змінювати значення.</string>
+    <string name="ZephyrShareLimitsSaved">Ліміти збережено</string>
+    <string name="ZephyrShareErrUnavailable">На сервері немає адмін-API (404). Оновіть сервер.</string>
+    <string name="ZephyrShareErrSecret">Сервер відхилив секрет адміністратора.</string>
+    <string name="ZephyrShareInfo">Секрет адміністратора зберігається лише на цьому пристрої й використовується ядром застосунку; плагіни не можуть його прочитати.</string>
+    <string name="ZephyrShareImport">Імпорт доступу</string>
+    <string name="ZephyrShareImportInfo">Вставте отримане повідомлення. Сервер і токен буде заповнено автоматично.</string>
+    <string name="ZephyrShareImportHint">Вставте повідомлення сюди</string>
+    <string name="ZephyrShareImportBad">У цьому тексті немає рядка доступу.</string>
+    <string name="ZephyrShareImportDone">Доступ імпортовано</string>
+</resources>

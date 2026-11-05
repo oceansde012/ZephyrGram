@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrAvatarCorners">Кути аватарок</string>
+    <string name="ZephyrTabStyle">Стиль вкладок папок</string>
+    <string name="ZephyrTabStylePill">Таблетка (типово)</string>
+    <string name="ZephyrTabStyleRounded">Заокруглений квадрат</string>
+    <string name="ZephyrTabStyleUnderline">Підкреслення</string>
+    <string name="ZephyrTabStyleNone">Без індикатора</string>
+    <string name="ZephyrTabStyleFilled">Залита таблетка</string>
+    <string name="ZephyrFabShape">Форма кнопки внизу праворуч</string>
+    <string name="ZephyrFabCircle">Коло</string>
+    <string name="ZephyrFabSquare">Заокруглений квадрат</string>
+    <string name="ZephyrHolidayMode">Святкові прикраси</string>
+    <string name="ZephyrHolidayAuto">За датою</string>
+    <string name="ZephyrHolidayAlways">Завжди Новий рік</string>
+    <string name="ZephyrHolidayNever">Ніколи</string>
+    <string name="ZephyrForceSnow">Завжди показувати снігопад</string>
+    <string name="ZephyrForceBlur">Примусове розмиття</string>
+    <string name="ZephyrStickerSize">Розмір стікерів</string>
+    <string name="ZephyrDoubleTapIncoming">Подвійний дотик по вхідних</string>
+    <string name="ZephyrDoubleTapOutgoing">Подвійний дотик по вихідних</string>
+    <string name="ZephyrDoubleTapOff">Вимкнено</string>
+    <string name="ZephyrDoubleTapReaction">Реакція</string>
+    <string name="ZephyrDoubleTapReply">Відповісти</string>
+    <string name="ZephyrDoubleTapCopy">Копіювати</string>
+    <string name="ZephyrDoubleTapForward">Переслати</string>
+    <string name="ZephyrDoubleTapEdit">Редагувати</string>
+    <string name="ZephyrDoubleTapDelete">Видалити</string>
+</resources>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrForwardNoAuthor">Переслати без автора</string>
+    <string name="ZephyrSaveToSaved">Зберегти в Збережені</string>
+    <string name="ZephyrSavedDone">Збережено</string>
+    <string name="ZephyrCopyPhoto">Копіювати фото</string>
+    <string name="ZephyrPhotoCopied">Фото скопійовано</string>
+    <string name="ZephyrPhotoNotLoaded">Фото ще не завантажено</string>
+    <string name="ZephyrMessageDetails">Деталі повідомлення</string>
+    <string name="ZephyrCopy">Копіювати</string>
+    <string name="ZephyrDiscussButton">Обговорення</string>
+    <string name="ZephyrMenuForwardNoAuthor">Переслати без автора</string>
+    <string name="ZephyrMenuSaveToSaved">Зберегти в Збережені</string>
+    <string name="ZephyrMenuCopyPhoto">Копіювати фото</string>
+    <string name="ZephyrMenuDetails">Деталі повідомлення</string>
+    <string name="ZephyrShortcutPermissions">Дозволи</string>
+    <string name="ZephyrShortcutAdmins">Адміністратори</string>
+    <string name="ZephyrShortcutMembers">Учасники</string>
+    <string name="ZephyrShortcutRecentActions">Останні дії</string>
+    <string name="ZephyrBottomButton">Нижня кнопка в каналах</string>
+    <string name="ZephyrBottomButtonMute">Вимкнути / увімкнути звук</string>
+    <string name="ZephyrBottomButtonDiscuss">Обговорення</string>
+    <string name="ZephyrActionTimestamps">Час у службових повідомленнях</string>
+    <string name="ZephyrCommaAfterMention">Кома після @згадки</string>
+    <string name="ZephyrHideCategories">Сховати категорії емодзі</string>
+    <string name="ZephyrHideCameraTile">Сховати плитку камери в меню вкладень</string>
+    <string name="ZephyrVideoMessagesCamera">Камера для відеоповідомлень</string>
+    <string name="ZephyrCameraDefault">Типово</string>
+    <string name="ZephyrCameraFront">Фронтальна</string>
+    <string name="ZephyrCameraRear">Основна</string>
+    <string name="ZephyrCameraLast">Остання використана</string>
+    <string name="ZephyrStaticZoom">Статичний зум у камері відеоповідомлень</string>
+</resources>

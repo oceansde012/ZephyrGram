@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrMessageFilters">Фільтри повідомлень</string>
+    <string name="ZephyrFiltersEnable">Увімкнути фільтри повідомлень</string>
+    <string name="ZephyrFiltersInfo">Фільтри працюють лише на цьому пристрої. Вхідні повідомлення, що збігаються, ховаються у відкритому чаті та не викликають сповіщень. На сервері нічого не змінюється, лічильники непрочитаних і прев\'ю чатів не змінюються.</string>
+    <string name="ZephyrFiltersHeader">Фільтри</string>
+    <string name="ZephyrFiltersAdd">Додати фільтр</string>
+    <string name="ZephyrFiltersTest">Перевірити фільтри на прикладі тексту</string>
+    <string name="ZephyrFiltersEmpty">Фільтрів ще немає</string>
+    <string name="ZephyrFilterNew">Новий фільтр</string>
+    <string name="ZephyrFilterName">Назва (необов\'язково)</string>
+    <string name="ZephyrFilterPattern">Ключове слово або regex</string>
+    <string name="ZephyrFilterRegex">Регулярний вираз</string>
+    <string name="ZephyrFilterMatchCase">Враховувати регістр</string>
+    <string name="ZephyrFilterSender">ID відправника (0 = будь-який)</string>
+    <string name="ZephyrFilterChat">ID чату (0 = будь-який)</string>
+    <string name="ZephyrFilterInvalid">Вкажіть ключове слово, ID відправника або ID чату, і перевірте коректність regex.</string>
+    <string name="ZephyrFilterOn">Увімк.</string>
+    <string name="ZephyrFilterOff">Вимк.</string>
+    <string name="ZephyrFilterTestPrompt">Текст повідомлення для перевірки</string>
+    <string name="ZephyrFilterTestMatch">Сховано фільтром: %1$s</string>
+    <string name="ZephyrFilterTestNoMatch">Жоден увімкнений фільтр не збігається з цим текстом (умови відправника та чату в тесті ігноруються).</string>
+    <string name="ZephyrLocalPremiumInfo">Локальний Premium змінює лише вигляд застосунку та функції, відкриті на цьому пристрої. Усе, що перевіряє сервер (ліміти, надсилання лише для Premium, стікери, реакції, переклади, розпізнавання мовлення), не працюватиме. Приховування реклами теж локальне.</string>
+</resources>

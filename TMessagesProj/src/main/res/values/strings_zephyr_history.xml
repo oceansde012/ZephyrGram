@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrEditHistory">Edit history</string>
+    <string name="ZephyrEditHistoryCurrent">Current version</string>
+    <string name="ZephyrEditHistoryOriginal">Original</string>
+    <string name="ZephyrEditHistoryVersion">Version %1$d</string>
+    <string name="ZephyrEditHistoryEmpty">No edits were recorded for this message. Make sure \"Save edited messages\" is enabled.</string>
+    <string name="ZephyrEditHistoryDeleted">Deleted on the server: %1$s (kept locally)</string>
+    <string name="ZephyrEditHistoryCopy">Copy text</string>
+    <string name="ZephyrEditHistoryEmptyText">(no text)</string>
+    <string name="ZephyrHistoryStorageHeader">Saved history</string>
+    <string name="ZephyrHistoryStats">Deleted messages: %1$d\nEdit revisions: %2$d\nSize: %3$s</string>
+    <string name="ZephyrHistoryLoading">Calculating…</string>
+    <string name="ZephyrHistoryClear">Clear saved history</string>
+    <string name="ZephyrHistoryClearConfirm">All locally saved deleted messages and edit revisions will be removed. This cannot be undone.</string>
+    <string name="ZephyrHistoryCleared">Saved history cleared</string>
+</resources>

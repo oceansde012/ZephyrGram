@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrArTitle">AI-автовідповідач</string>
+    <string name="ZephyrArHubNone">Немає активних чатів</string>
+    <string name="ZephyrArHubCount">Активних чатів: %1$d</string>
+    <string name="ZephyrArHubMasterOff">Вимкнено · чатів: %1$d</string>
+    <string name="ZephyrArHubNoPlugin">Плагін не встановлено</string>
+    <string name="ZephyrArHubPluginOff">Плагін вимкнено</string>
+    <string name="ZephyrArMaster">Автовідповідач увімкнено</string>
+    <string name="ZephyrArMasterInfo">Головний перемикач усього бота. Налаштування чатів зберігаються.</string>
+    <string name="ZephyrArAddChat">Додати чат</string>
+    <string name="ZephyrArAddFromChats">З моїх чатів</string>
+    <string name="ZephyrArAddByUsername">За @username</string>
+    <string name="ZephyrArChats">Чати</string>
+    <string name="ZephyrArModeAuto">Авто</string>
+    <string name="ZephyrArModeDraft">Чернетка</string>
+    <string name="ZephyrArModeFriend">Друг</string>
+    <string name="ZephyrArPaused">%1$s · на паузі</string>
+    <string name="ZephyrArAutoOff">%1$s · пауза через помилки, бот увімкнеться сам</string>
+    <string name="ZephyrArOptionMode">Режим: %1$s</string>
+    <string name="ZephyrArEnable">Увімкнути для цього чату</string>
+    <string name="ZephyrArDisable">Призупинити для цього чату</string>
+    <string name="ZephyrArRemove">Прибрати з автовідповідача</string>
+    <string name="ZephyrArEmptyTitle">Чатів ще немає</string>
+    <string name="ZephyrArEmptyInfo">Бот відповідає у вашому стилі лише в чатах, які ви додали.
+Натисніть «Додати чат» тут або напишіть команду прямо в чаті.
+Режими: Авто відповідає одразу, Чернетка заповнює поле вводу, Друг чекає на «.ai» від співрозмовника.
+
+.ai on - увімкнути в цьому чаті
+.ai off - вимкнути в цьому чаті
+.ai status - показати стан</string>
+    <string name="ZephyrArPluginSettings">Налаштування плагіна</string>
+    <string name="ZephyrArInstallInfo">Автовідповідач працює через плагін «AI-автовідповідач». Встановіть його, щоб користуватися цим екраном.</string>
+    <string name="ZephyrArInstall">Встановити плагін</string>
+    <string name="ZephyrArEnablePlugin">Увімкнути плагін</string>
+    <string name="ZephyrArOnlyPrivate">Тут можна додати лише приватні чати</string>
+    <string name="ZephyrArNoBots">Ботів додавати не можна</string>
+    <string name="ZephyrArAdded">Додано: %1$s</string>
+    <string name="ZephyrArRemoved">Прибрано: %1$s</string>
+    <string name="ZephyrArAccountHeader">%1$s · увімк.: %2$d з %3$d</string>
+    <string name="ZephyrArAddAll">Усі особисті чати %1$s (без ботів)</string>
+    <string name="ZephyrArAddAllConfirm">Увімкнути автовідповідь в усіх особистих чатах %1$s? Боти, видалені користувачі й «Збережене» пропускаються. Чати, що вже є в списку, зберігають свої налаштування.</string>
+    <string name="ZephyrArAddedMany">Додано чатів: %1$d</string>
+</resources>

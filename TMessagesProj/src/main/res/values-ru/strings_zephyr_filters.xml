@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrMessageFilters">Фильтры сообщений</string>
+    <string name="ZephyrFiltersEnable">Включить фильтры сообщений</string>
+    <string name="ZephyrFiltersInfo">Фильтры работают только на этом устройстве. Подходящие входящие сообщения скрываются в открытом чате и не вызывают уведомлений. На сервере ничего не меняется, счётчики непрочитанного и превью чатов не затрагиваются.</string>
+    <string name="ZephyrFiltersHeader">Фильтры</string>
+    <string name="ZephyrFiltersAdd">Добавить фильтр</string>
+    <string name="ZephyrFiltersTest">Проверить фильтры на примере текста</string>
+    <string name="ZephyrFiltersEmpty">Фильтров пока нет</string>
+    <string name="ZephyrFilterNew">Новый фильтр</string>
+    <string name="ZephyrFilterName">Название (необязательно)</string>
+    <string name="ZephyrFilterPattern">Ключевое слово или regex</string>
+    <string name="ZephyrFilterRegex">Регулярное выражение</string>
+    <string name="ZephyrFilterMatchCase">Учитывать регистр</string>
+    <string name="ZephyrFilterSender">ID отправителя (0 = любой)</string>
+    <string name="ZephyrFilterChat">ID чата (0 = любой)</string>
+    <string name="ZephyrFilterInvalid">Укажите ключевое слово, ID отправителя или ID чата и проверьте корректность regex.</string>
+    <string name="ZephyrFilterOn">Вкл.</string>
+    <string name="ZephyrFilterOff">Выкл.</string>
+    <string name="ZephyrFilterTestPrompt">Текст сообщения для проверки</string>
+    <string name="ZephyrFilterTestMatch">Скрыто фильтром: %1$s</string>
+    <string name="ZephyrFilterTestNoMatch">Ни один включённый фильтр не совпадает с этим текстом (условия отправителя и чата в тесте игнорируются).</string>
+    <string name="ZephyrLocalPremiumInfo">Локальный Premium меняет только вид приложения и функции, открытые на этом устройстве. Всё, что проверяет сервер (лимиты, отправка только для Premium, стикеры, реакции, переводы, распознавание речи), работать не будет. Скрытие рекламы тоже локальное.</string>
+</resources>
