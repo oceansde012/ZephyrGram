@@ -377,13 +377,17 @@ public class Switch extends View {
             return;
         }
 
-        int width = AndroidUtilities.dp(31);
+        final boolean zephyrNewStyle = org.telegram.messenger.zephyr.ZephyrConfig.newSwitchStyle;
+        // New style = Material 3: track 52x32, thumb 16 (off) to 24 (on) dp. Fitted down when the view is smaller.
+        final float m3 = zephyrNewStyle ? Math.min(1f, Math.min(getMeasuredWidth() / (float) AndroidUtilities.dp(52), getMeasuredHeight() / (float) AndroidUtilities.dp(32))) : 1f;
+        int width = zephyrNewStyle ? (int) (AndroidUtilities.dp(52) * m3) : AndroidUtilities.dp(31);
         int thumb = AndroidUtilities.dp(20);
         int x = (getMeasuredWidth() - width) / 2;
-        final boolean zephyrNewStyle = org.telegram.messenger.zephyr.ZephyrConfig.newSwitchStyle;
-        final float zephyrTrackH = AndroidUtilities.dpf2(zephyrNewStyle ? 20 : 14);
+        final float zephyrTrackH = zephyrNewStyle ? AndroidUtilities.dpf2(32) * m3 : AndroidUtilities.dpf2(14);
         float y = (getMeasuredHeight() - zephyrTrackH) / 2;
-        int tx = x + AndroidUtilities.dp(7) + (int) (AndroidUtilities.dp(17) * progress);
+        int tx = zephyrNewStyle
+                ? x + (int) (AndroidUtilities.dpf2(16) * m3 + (width - AndroidUtilities.dpf2(32) * m3) * progress)
+                : x + AndroidUtilities.dp(7) + (int) (AndroidUtilities.dp(17) * progress);
         int ty = getMeasuredHeight() / 2;
 
 
@@ -449,7 +453,7 @@ public class Switch extends View {
 
             rectF.set(x, y, x + width, y + zephyrTrackH);
             canvasToDraw.drawRoundRect(rectF, zephyrTrackH / 2, zephyrTrackH / 2, paint);
-            canvasToDraw.drawCircle(tx, ty, AndroidUtilities.dpf2(10), paint);
+            if (!zephyrNewStyle) canvasToDraw.drawCircle(tx, ty, AndroidUtilities.dpf2(10), paint);
 
             if (a == 0 && rippleDrawable != null) {
                 rippleDrawable.setBounds(tx - AndroidUtilities.dp(18), ty - AndroidUtilities.dp(18), tx + AndroidUtilities.dp(18), ty + AndroidUtilities.dp(18));
@@ -496,7 +500,7 @@ public class Switch extends View {
             alpha = (int) (a1 + (a2 - a1) * colorProgress);
             paint.setColor(((alpha & 0xff) << 24) | ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff));
 
-            canvasToDraw.drawCircle(tx, ty, zephyrNewStyle ? AndroidUtilities.dpf2(5 + 3 * progress) : AndroidUtilities.dp(8), paint);
+            canvasToDraw.drawCircle(tx, ty, zephyrNewStyle ? AndroidUtilities.dpf2(8 + 4 * progress) * m3 : AndroidUtilities.dp(8), paint);
 
             if (a == 0) {
                 if (iconDrawable != null) {

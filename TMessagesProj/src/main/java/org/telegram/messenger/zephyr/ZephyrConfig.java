@@ -342,7 +342,7 @@ public class ZephyrConfig {
     public static volatile boolean disableUnarchiveSwipe = false;
     public static volatile boolean hideActionBarStatus = false;
     public static volatile boolean useSystemFonts = false;
-    public static volatile boolean newSwitchStyle = false;
+    public static volatile boolean newSwitchStyle = true;
     public static volatile boolean disableDividers = false;
     /** 0 = hide, 1 = ID, 2 = ID + DC. */
     public static volatile int showIdAndDc = 0;
@@ -358,7 +358,7 @@ public class ZephyrConfig {
         disableUnarchiveSwipe = p.getBoolean("disableUnarchiveSwipe", false);
         hideActionBarStatus = p.getBoolean("hideActionBarStatus", false);
         useSystemFonts = p.getBoolean("useSystemFonts", false);
-        newSwitchStyle = p.getBoolean("newSwitchStyle", false);
+        newSwitchStyle = p.getBoolean("newSwitchStyle", true);
         disableDividers = p.getBoolean("disableDividers", false);
         showIdAndDc = p.getInt("showIdAndDc", 0);
         tabletMode = p.getInt("tabletMode", 0);

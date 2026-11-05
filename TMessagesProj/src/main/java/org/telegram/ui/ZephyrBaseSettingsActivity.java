@@ -33,6 +33,85 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         }
     }
 
+    /** A switch whose stored value is the opposite of what the screen shows ("Dividers" shows !disableDividers). */
+    protected static final class Inverted {
+        final String key;
+        Inverted(String key) { this.key = key; }
+    }
+
+    /** An expandable group "N/M": a switch for all items plus nested check rows, each a ZephyrConfig boolean key. */
+    protected static final class Group {
+        final String id;
+        final int titleRes;
+        final String[] keys;
+        final int[] titleRes2;
+        Group(String id, int titleRes, String[] keys, int[] titleRes2) {
+            this.id = id; this.titleRes = titleRes; this.keys = keys; this.titleRes2 = titleRes2;
+        }
+        int on() {
+            int n = 0;
+            for (String key : keys) if (ZephyrConfig.getBool(key)) n++;
+            return n;
+        }
+    }
+
+    /** One nested row of a Group. */
+    protected static final class GroupChild {
+        final Group group;
+        final int index;
+        GroupChild(Group group, int index) { this.group = group; this.index = index; }
+    }
+
+    private final java.util.HashSet<String> expandedGroups = new java.util.HashSet<>();
+    private final java.util.HashMap<String, org.telegram.ui.Cells.ZephyrWrapCell> groupCells = new java.util.HashMap<>();
+
+    private org.telegram.ui.Cells.ZephyrWrapCell groupCell(String key) {
+        org.telegram.ui.Cells.ZephyrWrapCell cell = groupCells.get(key);
+        if (cell == null) {
+            cell = new org.telegram.ui.Cells.ZephyrWrapCell(getParentActivity(), false);
+            groupCells.put(key, cell);
+        }
+        return cell;
+    }
+
+    /** Group row with "N/M" and a chevron; when expanded, one check row per key follows. Keys keep their names. */
+    protected void addGroup(ArrayList<UItem> items, Group group) {
+        boolean open = expandedGroups.contains(group.id);
+        int on = group.on();
+        org.telegram.ui.Cells.ZephyrWrapCell cell = groupCell("g:" + group.id);
+        cell.bind(LocaleController.getString(group.titleRes) + "  " + on + "/" + group.keys.length + (open ? " \u25B4" : " \u25BE"),
+                null, null, 0, true, on > 0, true, false, 0, open ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_FIRST : org.telegram.ui.Cells.ZephyrWrapCell.POSITION_SINGLE);
+        final org.telegram.ui.Cells.ZephyrWrapCell parentCell = cell;
+        UItem row = UItem.asCustom(cell, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT);
+        row.id = ("g:" + group.id).hashCode();
+        row.object = group;
+        cell.setOnClickListener(v -> onClick(row, parentCell, -1, 0, 0));
+        items.add(row);
+        if (!open) return;
+        for (int i = 0; i < group.keys.length; i++) {
+            org.telegram.ui.Cells.ZephyrWrapCell child = groupCell("c:" + group.id + ":" + i);
+            child.bind(LocaleController.getString(group.titleRes2[i]), null, null, 0, false, false, false, false, 1,
+                    i == group.keys.length - 1 ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_LAST : org.telegram.ui.Cells.ZephyrWrapCell.POSITION_MIDDLE);
+            child.setCheckMode(true, ZephyrConfig.getBool(group.keys[i]));
+            UItem childRow = UItem.asCustom(child, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT);
+            childRow.id = ("c:" + group.id + ":" + i).hashCode();
+            childRow.object = new GroupChild(group, i);
+            final org.telegram.ui.Cells.ZephyrWrapCell childCell = child;
+            child.setOnClickListener(v -> onClick(childRow, childCell, -1, 0, 0));
+            items.add(childRow);
+        }
+    }
+
+    /** Switch that shows the opposite of a stored key (no negations on screen, keys stay as they are). */
+    protected void addInvertedSwitch(ArrayList<UItem> items, String key, int titleRes, int infoRes) {
+        UItem item = UItem.asCheck(("inv:" + key).hashCode(), LocaleController.getString(titleRes)).setChecked(!ZephyrConfig.getBool(key));
+        if (infoRes != 0) {
+            item.subtext = LocaleController.getString(infoRes);
+        }
+        item.object = new Inverted(key);
+        items.add(item);
+    }
+
     @Override
     public View createView(android.content.Context context) {
         ZephyrConfig.load();
@@ -84,6 +163,29 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
                 ((TextCheckCell) view).setChecked(value);
             }
             item.checked = value;
+        } else if (item.object instanceof Inverted) {
+            String key = ((Inverted) item.object).key;
+            boolean stored = !ZephyrConfig.getBool(key);       // the shown state is !stored: toggling the shown state flips the stored one
+            ZephyrConfig.setBool(key, stored);
+            boolean shown = !stored;
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(shown);
+            }
+            item.checked = shown;
+        } else if (item.object instanceof Group) {
+            Group group = (Group) item.object;
+            if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell && ((org.telegram.ui.Cells.ZephyrWrapCell) view).wasSwitchTouched()) {
+                boolean enable = group.on() == 0;     // any on -> all off; none on -> all on
+                for (String key : group.keys) ZephyrConfig.setBool(key, enable);
+            } else if (!expandedGroups.remove(group.id)) {
+                expandedGroups.add(group.id);
+            }
+            if (listView != null && listView.adapter != null) listView.adapter.update(false);
+        } else if (item.object instanceof GroupChild) {
+            GroupChild child = (GroupChild) item.object;
+            String key = child.group.keys[child.index];
+            ZephyrConfig.setBool(key, !ZephyrConfig.getBool(key));
+            if (listView != null && listView.adapter != null) listView.adapter.update(false);
         } else if (item.object instanceof Choice) {
             final Choice choice = (Choice) item.object;
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());

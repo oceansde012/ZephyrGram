@@ -55,11 +55,20 @@ public class ZephyrWrapCell extends FrameLayout {
     private float lastTouchX;
     private boolean switchZone;
 
+    /** True = the cell paints its own card (plugin screens); false = a flat row inside a ZephyrCards section. */
+    private final boolean standalone;
+    private final org.telegram.ui.Components.CheckBox2 checkMark;
+
     public ZephyrWrapCell(Context context) {
+        this(context, true);
+    }
+
+    public ZephyrWrapCell(Context context, boolean standalone) {
         super(context);
+        this.standalone = standalone;
         setMinimumHeight(AndroidUtilities.dp(52));
         setWillNotDraw(false);
-        setPadding(AndroidUtilities.dp(CARD_MARGIN_DP), 0, AndroidUtilities.dp(CARD_MARGIN_DP), 0);
+        if (standalone) setPadding(AndroidUtilities.dp(CARD_MARGIN_DP), 0, AndroidUtilities.dp(CARD_MARGIN_DP), 0);
 
         row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -106,8 +115,23 @@ public class ZephyrWrapCell extends FrameLayout {
         checkBox = new Switch(context);
         checkBox.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
         checkBox.setVisibility(GONE);
-        row.addView(checkBox, LayoutHelper.createLinear(37, 20, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
+        row.addView(checkBox, LayoutHelper.createLinear(52, 32, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
+        checkMark = new org.telegram.ui.Components.CheckBox2(context, 22);
+        checkMark.setColor(Theme.key_radioBackgroundChecked, Theme.key_checkboxDisabled, Theme.key_checkboxCheck);
+        checkMark.setDrawUnchecked(true);
+        checkMark.setVisibility(GONE);
+        row.addView(checkMark, LayoutHelper.createLinear(22, 22, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
         applyColors();
+    }
+
+    /** Shows a check mark at the right instead of the switch (rows nested in an expandable group). */
+    public void setCheckMode(boolean show, boolean checked) {
+        checkMark.setVisibility(show ? VISIBLE : GONE);
+        if (show) {
+            checkBox.setVisibility(GONE);
+            switchDivider.setVisibility(GONE);
+            checkMark.setChecked(checked, false);
+        }
     }
 
     private void applyColors() {
@@ -173,8 +197,8 @@ public class ZephyrWrapCell extends FrameLayout {
         radii[0] = radii[1] = radii[2] = radii[3] = top;
         radii[4] = radii[5] = radii[6] = radii[7] = bottom;
         // The ripple follows the card's rounded corners and stays inside its side margins.
-        int margin = AndroidUtilities.dp(CARD_MARGIN_DP);
-        setForeground(new InsetDrawable(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector), top, bottom), margin, 0, margin, 0));
+        int margin = standalone ? AndroidUtilities.dp(CARD_MARGIN_DP) : 0;
+        if (standalone) setForeground(new InsetDrawable(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector), top, bottom), margin, 0, margin, 0));
         invalidate();
     }
 
@@ -187,7 +211,7 @@ public class ZephyrWrapCell extends FrameLayout {
     public boolean dispatchTouchEvent(MotionEvent ev) {
         if (ev.getActionMasked() == MotionEvent.ACTION_DOWN || ev.getActionMasked() == MotionEvent.ACTION_UP) {
             lastTouchX = ev.getX();
-            int zone = AndroidUtilities.dp(CARD_MARGIN_DP + 16 + 37 + 14 + 12);
+            int zone = AndroidUtilities.dp((standalone ? CARD_MARGIN_DP : 0) + 16 + 52 + 12 + 12);
             switchZone = checkBox.getVisibility() == VISIBLE
                     && (LocaleController.isRTL ? lastTouchX < zone : lastTouchX > getWidth() - zone);
         }
@@ -202,11 +226,13 @@ public class ZephyrWrapCell extends FrameLayout {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        int margin = AndroidUtilities.dp(CARD_MARGIN_DP);
-        cardRect.set(margin, 0, getMeasuredWidth() - margin, getMeasuredHeight());
-        cardPath.reset();
-        cardPath.addRoundRect(cardRect, radii, Path.Direction.CW);
-        canvas.drawPath(cardPath, cardPaint);
+        int margin = standalone ? AndroidUtilities.dp(CARD_MARGIN_DP) : 0;
+        if (standalone) {
+            cardRect.set(margin, 0, getMeasuredWidth() - margin, getMeasuredHeight());
+            cardPath.reset();
+            cardPath.addRoundRect(cardRect, radii, Path.Direction.CW);
+            canvas.drawPath(cardPath, cardPaint);
+        }
         super.onDraw(canvas);
         if (divider && Theme.dividerPaint != null) {
             int inset = margin + AndroidUtilities.dp(TEXT_START_DP + indentDp + (hasIcon ? ICON_SIZE_DP + ICON_GAP_DP : 0));
