@@ -291,6 +291,29 @@ public final class PluginRuntime implements PluginHost {
         logImpl(id, message);
     }
 
+    /**
+     * Called by the host's dynamic_proxy guard when a plugin proxy method raised (the call usually comes from Java,
+     * outside any plugin callback, so there is no caller identity to check). Only names reach the log, sanitised
+     * and shortened, so a plugin cannot write free text into another plugin's log.
+     */
+    public static void logProxyError(String id, String method, String errorClass) {
+        if (id == null || !INSTANCE.loaded.containsKey(id)) return;
+        String m = sanitizeName(method);
+        String e = sanitizeName(errorClass);
+        INSTANCE.logImpl(id, "Proxy method " + m + " raised " + e + "; contained, the app got a safe default");
+        FileLog.d("zephyr plugin " + id + ": proxy " + m + " raised " + e);
+    }
+
+    private static String sanitizeName(String s) {
+        if (s == null) return "?";
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length() && b.length() < 64; i++) {
+            char c = s.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_' || c == '.' || c == '$') b.append(c);
+        }
+        return b.length() == 0 ? "?" : b.toString();
+    }
+
     /** Native-side note in a plugin's log (no identity check: the text comes from the app, never from Python). */
     void logNative(String id, String message) {
         logImpl(id, message);

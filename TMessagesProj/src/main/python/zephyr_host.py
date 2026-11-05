@@ -6,6 +6,13 @@ from pathlib import Path
 from zephyr import BasePlugin, HookResult, _state
 from zephyr._bridge import Runtime
 
+try:
+    import java as _java
+    from zephyr import _proxy
+    _proxy.install(_java)  # exceptions in plugin dynamic_proxy methods must never reach Java
+except Exception:  # never block plugin loading
+    pass
+
 _HOOKS = frozenset(("pre_request_hook", "post_request_hook", "on_update_hook",
                     "on_updates_hook", "on_send_message_hook"))
 _INLINE_RESULT_SEND = "on_inline_result_send"
