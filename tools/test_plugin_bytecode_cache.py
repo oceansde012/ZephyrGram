@@ -27,7 +27,6 @@ class BytecodeCacheTests(unittest.TestCase):
         self.host = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.host)
         self.dir = tempfile.TemporaryDirectory()
-        self.path = Path(self.dir.name) / 'demo.plugin'
         self.compiles = 0
         real = builtins.compile
 
@@ -43,15 +42,19 @@ class BytecodeCacheTests(unittest.TestCase):
                 sys.modules.pop(name)
         sys.modules.update(self.saved)
 
-    def run_code(self, source):
-        self.path.write_bytes(source)
+    def run_code(self, source, name='demo.plugin'):
+        path = Path(self.dir.name) / name
+        path.write_bytes(source)
         scope = {}
-        exec(self.host._compiled(source, str(self.path)), scope)
+        exec(self.host._compiled('demo', source, str(path)), scope)
         return scope['VALUE']
+
+    def files(self):
+        return sorted(p.name for p in Path(self.dir.name).iterdir())
 
     def test_second_load_uses_cache(self):
         self.assertEqual(self.run_code(b'VALUE = 1\n'), 1)
-        self.assertTrue(Path(str(self.path) + '.pyc').exists())
+        self.assertIn('demo.pyc', self.files())
         self.assertEqual(self.run_code(b'VALUE = 1\n'), 1)
         self.assertEqual(self.compiles, 1)
 
@@ -60,20 +63,35 @@ class BytecodeCacheTests(unittest.TestCase):
         self.assertEqual(self.run_code(b'VALUE = 2\n'), 2)
         self.assertEqual(self.compiles, 2)
 
+    def test_update_candidate_writes_the_cache_the_restart_uses(self):
+        self.run_code(b'VALUE = 1\n')
+        # update: the candidate file is loaded first, then renamed to the active name
+        self.assertEqual(self.run_code(b'VALUE = 2\n', 'candidate-123.plugin'), 2)
+        (Path(self.dir.name) / 'candidate-123.plugin').replace(Path(self.dir.name) / 'demo.plugin')
+        self.assertEqual(self.run_code(b'VALUE = 2\n'), 2)  # restart
+        self.assertEqual(self.compiles, 2)
+        self.assertEqual(self.files(), ['demo.plugin', 'demo.pyc'])  # no orphan cache files
+
+    def test_stray_per_file_caches_are_removed(self):
+        (Path(self.dir.name) / 'candidate-9.plugin.pyc').write_bytes(b'old')
+        (Path(self.dir.name) / 'demo.plugin.pyc').write_bytes(b'old')
+        self.run_code(b'VALUE = 1\n')
+        self.assertEqual(self.files(), ['demo.plugin', 'demo.pyc'])
+
     def test_corrupt_cache_falls_back(self):
         self.run_code(b'VALUE = 1\n')
-        cache = Path(str(self.path) + '.pyc')
+        cache = Path(self.dir.name) / 'demo.pyc'
         cache.write_bytes(cache.read_bytes()[:40] + b'garbage')
         self.assertEqual(self.run_code(b'VALUE = 1\n'), 1)
         self.assertEqual(self.compiles, 2)
         self.assertEqual(self.run_code(b'VALUE = 1\n'), 1)
         self.assertEqual(self.compiles, 2)
 
-    def test_errors_keep_their_file_name(self):
-        self.path.write_bytes(b'x = (\n')
+    def test_errors_name_the_active_file(self):
+        path = Path(self.dir.name) / 'candidate-5.plugin'
         with self.assertRaises(SyntaxError) as e:
-            self.host._compiled(b'x = (\n', str(self.path))
-        self.assertEqual(e.exception.filename, str(self.path))
+            self.host._compiled('demo', b'x = (\n', str(path))
+        self.assertEqual(e.exception.filename, str(Path(self.dir.name) / 'demo.plugin'))
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ def load_plugin(plugin_id, path, data_dir):
         source = Path(path).read_bytes()
         if len(source) > 2 * 1024 * 1024:
             raise ValueError("Plugin is larger than 2 MB")
-        exec(_compiled(source, path), module.__dict__)
+        exec(_compiled(plugin_id, source, path), module.__dict__)
         plugin_class = module.__dict__.get("Plugin")
         if not isinstance(plugin_class, type) or not issubclass(plugin_class, BasePlugin):
             raise TypeError("Plugin must subclass zephyr.BasePlugin")
@@ -50,30 +50,39 @@ def load_plugin(plugin_id, path, data_dir):
         _state.current.reset(token)
 
 
-def _compiled(source, path):
-    """Code object of a plugin, cached next to its file by the source's SHA-256 and the interpreter's magic.
+def _compiled(plugin_id, source, path):
+    """Code object of a plugin, cached as plugins/<id>/<id>.pyc by the interpreter's magic and the source's SHA-256.
 
     compile() is one C call that holds the GIL for its whole run (a 500 KB plugin takes hundreds of ms on a phone),
     so every UI-thread plugin call (send hook, menu condition, settings tap) waited for it at app start and after
-    each plugin update. Loading the cached bytecode takes a few ms. Any cache problem falls back to compile().
+    each plugin update. Loading the cached bytecode takes a few ms. The cache is keyed by the plugin id and the
+    code is compiled under the active file name (<id>.plugin), so an update, which loads candidate-<n>.plugin
+    first, writes the cache the next start uses. Any cache problem falls back to compile().
     """
     import hashlib
     import importlib.util
     import marshal
     import os
+    folder = Path(path).parent
+    filename = str(folder / (plugin_id + ".plugin"))
+    cache = folder / (plugin_id + ".pyc")
+    for stray in folder.glob("*.plugin.pyc"):  # an earlier 0.2.6 build cached per file name
+        try:
+            stray.unlink()
+        except OSError:
+            pass
     header = importlib.util.MAGIC_NUMBER + hashlib.sha256(source).digest()
-    cache = Path(str(path) + ".pyc")
     try:
         data = cache.read_bytes()
         if data[:len(header)] == header:
             code = marshal.loads(data[len(header):])
-            if isinstance(code, types.CodeType) and code.co_filename == str(path):
+            if isinstance(code, types.CodeType) and code.co_filename == filename:
                 return code
     except Exception:
         pass
-    code = compile(source.decode("utf-8"), path, "exec")
+    code = compile(source.decode("utf-8"), filename, "exec")
     try:
-        tmp = Path(str(cache) + ".tmp")
+        tmp = folder / (plugin_id + ".pyc.tmp")
         tmp.write_bytes(header + marshal.dumps(code))
         os.replace(str(tmp), str(cache))
     except Exception:
