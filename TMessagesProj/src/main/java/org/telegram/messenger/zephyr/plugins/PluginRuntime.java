@@ -222,7 +222,7 @@ public final class PluginRuntime implements PluginHost {
                 PluginHooks.setCurrentPlugin(previous);
                 // Python cannot be interrupted, so a hook that stalls the network/update thread is counted
                 // like an error and eventually disables the plugin.
-                if (elapsed > 3000 && method.endsWith("_hook")) reportErrorImpl(id, "Hook " + method + " blocked for " + elapsed + " ms");
+                if (elapsed > 3000 && (method.endsWith("_hook") || INLINE_RESULT_SEND.equals(method))) reportErrorImpl(id, "Hook " + method + " blocked for " + elapsed + " ms");
             }
         }
     }
@@ -275,6 +275,11 @@ public final class PluginRuntime implements PluginHost {
         logImpl(id, message);
     }
 
+    /** Native-side note in a plugin's log (no identity check: the text comes from the app, never from Python). */
+    void logNative(String id, String message) {
+        logImpl(id, message);
+    }
+
     private synchronized void logImpl(String id, String message) {
         if (!PluginManifest.isValidId(id)) return;
         try {
@@ -317,6 +322,12 @@ public final class PluginRuntime implements PluginHost {
     }
     public static PluginHooks.Result callSendMessage(String id, int account, SendMessagesHelper.SendMessageParams params) {
         return result(id, "on_send_message_hook", account, params);
+    }
+    static final String INLINE_RESULT_SEND = "on_inline_result_send";
+
+    /** infoJson: PluginInlineResults.describe. Runs on the UI thread, like on_send_message. */
+    public static PluginHooks.Result callInlineResultSend(String id, int account, String infoJson) {
+        return result(id, INLINE_RESULT_SEND, account, infoJson);
     }
     public static void callMessageEvent(String id, int kind, int account, MessageObject message) {
         try {
