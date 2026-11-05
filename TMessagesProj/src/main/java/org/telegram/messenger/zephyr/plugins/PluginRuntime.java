@@ -112,6 +112,7 @@ public final class PluginRuntime implements PluginHost {
             unload(id);
             File data = getDataDirectory(id);
             if (!data.isDirectory() && !data.mkdirs()) throw new IllegalStateException("Cannot create plugin data directory");
+            PluginSettingsModel.prunePicked(id);
             loaded.put(id, manifest);
             errors.remove(id);
             String previous = PluginHooks.getCurrentPlugin();

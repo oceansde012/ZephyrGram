@@ -79,7 +79,8 @@ class Page(_Item):
 class FilePicker(_Item):
     """Button that opens the system file chooser (client.FILE_PICKER, 0.2.7+). The chosen files are copied into this
     plugin's data_dir/picked/ (at most 20 files, 50 MB each) and on_pick(paths) runs on the UI thread with a list of
-    paths relative to data_dir, which client.send_media accepts as they are. kind: "any" | "image" | "video" | "audio"."""
+    paths relative to data_dir, which client.send_media accepts as they are. Copies older than 24 hours are deleted
+    (on plugin load and on every pick). A cancelled or failed choice calls on_pick([]). kind: "any" | "image" | "video" | "audio"."""
     type = 9
     def __init__(self, key, text, on_pick, subtext=None, kind="any", multiple=False):
         if not callable(on_pick):

@@ -162,6 +162,20 @@ public final class PluginSettingsModel {
         }
     }
 
+    /** Deletes files in data/picked older than 24 hours (user-chosen copies are meant to be used right away). Safe off the UI thread. */
+    public static void prunePicked(String pluginId) {
+        try {
+            java.io.File[] files = new java.io.File(PluginRuntime.getDataDirectory(pluginId), "picked").listFiles();
+            if (files == null) return;
+            long limit = System.currentTimeMillis() - 24L * 60 * 60 * 1000;
+            for (java.io.File f : files) {
+                if (f.isFile() && f.lastModified() < limit) f.delete();
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+    }
+
     /** Context-aware event. Native verifies the captured account owner before delivering any result. */
     public boolean picked(Item it, long dialogId, String title, PluginPickerContext context) {
         if (context == null || !context.isCurrent()) return false;

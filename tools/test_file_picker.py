@@ -9,7 +9,10 @@ import unittest
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
 MAIN = ROOT / "TMessagesProj/src/main"
-sys.path.insert(0, str(MAIN / "python"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_inline_media import JavaSide, PYTHON_ROOT, install_fake_java  # noqa: E402
+sys.path.insert(0, str(PYTHON_ROOT))
+install_fake_java(JavaSide())
 from zephyr import ui  # noqa: E402
 
 
@@ -47,6 +50,12 @@ class FilePicker(unittest.TestCase):
         # names are sanitised: no path separator can survive
         self.assertIn('replaceAll("[^\\\\p{L}\\\\p{N}._-]+","_")', act)
         self.assertIn("MAX_PICKED_BYTES", act)
+
+    def test_cancel_and_prune(self):
+        act = read("java/org/telegram/ui/ZephyrPluginSettingsActivity.java")
+        self.assertGreaterEqual(act.count("model.filesPicked(setting,new ArrayList<String>())"), 2)
+        self.assertIn("prunePicked", read("java/org/telegram/messenger/zephyr/plugins/PluginRuntime.java"))
+        self.assertIn("24L * 60 * 60 * 1000", read("java/org/telegram/messenger/zephyr/plugins/PluginSettingsModel.java"))
 
     def test_flag_and_strings(self):
         self.assertIn("FILE_PICKER = True", read("python/zephyr/client.py"))

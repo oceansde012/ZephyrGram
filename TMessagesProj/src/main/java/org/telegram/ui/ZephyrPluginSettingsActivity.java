@@ -275,14 +275,17 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         super.onActivityResultFragment(requestCode,resultCode,data);
         if (requestCode!=PICK_PLUGIN_FILES) return;
         final PluginSettingsModel.Item setting=pendingFilePicker; pendingFilePicker=null;
-        if (setting==null || resultCode!=Activity.RESULT_OK || data==null) return;
+        if (setting==null) return;
+        // A cancelled choice still reaches the plugin as an empty list, so it can close its own state.
+        if (resultCode!=Activity.RESULT_OK || data==null) { if (model!=null) model.filesPicked(setting,new ArrayList<String>()); return; }
         final ArrayList<Uri> uris=new ArrayList<>();
         if (data.getClipData()!=null) {
             for (int i=0; i<data.getClipData().getItemCount() && uris.size()<MAX_PICKED_FILES; i++) uris.add(data.getClipData().getItemAt(i).getUri());
         } else if (data.getData()!=null) uris.add(data.getData());
-        if (uris.isEmpty()) return;
+        if (uris.isEmpty()) { if (model!=null) model.filesPicked(setting,new ArrayList<String>()); return; }
         Utilities.globalQueue.postRunnable(() -> {
             final ArrayList<String> paths=new ArrayList<>(); String error=null;
+            PluginSettingsModel.prunePicked(pluginId);
             try {
                 File dir=new File(PluginRuntime.getDataDirectory(pluginId),"picked");
                 if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException(ZephyrPluginsActivity.s(R.string.ZephyrUxPluginErrCreateDir));
@@ -293,9 +296,8 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
             } catch (Throwable t) { error=t.getMessage(); }
             final String message=error;
             AndroidUtilities.runOnUIThread(() -> {
-                if (message!=null && paths.isEmpty()) { ZephyrPluginsActivity.error(this,message); return; }
                 if (message!=null) ZephyrPluginsActivity.error(this,message);
-                if (model!=null && !paths.isEmpty()) { model.filesPicked(setting,paths); reloadSoon(); }
+                if (model!=null) { model.filesPicked(setting,paths); reloadSoon(); }
             });
         });
     }
