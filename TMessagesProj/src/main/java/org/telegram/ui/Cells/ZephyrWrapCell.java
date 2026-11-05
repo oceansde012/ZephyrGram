@@ -34,7 +34,7 @@ import org.telegram.ui.Components.Switch;
 public class ZephyrWrapCell extends FrameLayout {
     public static final int POSITION_SINGLE = 0, POSITION_FIRST = 1, POSITION_MIDDLE = 2, POSITION_LAST = 3;
 
-    private static final int CARD_MARGIN_DP = 14, CARD_RADIUS_DP = 16, TEXT_START_DP = 16;
+    private static final int CARD_MARGIN_DP = org.telegram.ui.ZephyrCards.MARGIN_DP, CARD_RADIUS_DP = org.telegram.ui.ZephyrCards.CARD_RADIUS_DP, TEXT_START_DP = 16;
     private static final int ICON_SIZE_DP = 24, ICON_GAP_DP = 16, INDENT_DP = 20;
 
     private final LinearLayout row;

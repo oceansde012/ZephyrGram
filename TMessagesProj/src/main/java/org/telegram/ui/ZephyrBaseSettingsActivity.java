@@ -36,7 +36,9 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
     @Override
     public View createView(android.content.Context context) {
         ZephyrConfig.load();
-        return super.createView(context);
+        View view = super.createView(context);
+        ZephyrCards.enable(listView, false);
+        return view;
     }
 
     protected void addSwitch(ArrayList<UItem> items, String key, int titleRes) {

@@ -26,6 +26,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
         items.add(UItem.asCheck(ID_LOCAL_PREMIUM, LocaleController.getString(R.string.ZephyrLocalPremium)).setChecked(ZephyrConfig.localPremium));
         items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxLocalPremiumInfo);
         items.add(UItem.asCheck(ID_DISABLE_ADS, LocaleController.getString(R.string.ZephyrDisableAds)).setChecked(ZephyrConfig.disableAds));
+        items.add(UItem.asCheck(ID_SETTINGS_CARDS, LocaleController.getString(R.string.ZephyrSettingsCards)).setChecked(ZephyrConfig.settingsCards));
         items.add(UItem.asCheck(ID_HIDE_VIA_BOT, LocaleController.getString(R.string.ZephyrHideViaBot)).setChecked(ZephyrConfig.hideViaBot));
         items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrLocalPremiumInfo)));
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrFiltersHeader)));
@@ -54,6 +55,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
     private static final int ID_LOCAL_PREMIUM = 3;
     private static final int ID_DISABLE_ADS = 4;
     private static final int ID_HIDE_VIA_BOT = 9105;
+    private static final int ID_SETTINGS_CARDS = 9106;
     private static final int ID_PUSH = 9102;
     private static final int ID_SHARE_LOGS = 9103;
     private static final int ID_FREEZE_LOG = 9104;
@@ -93,6 +95,14 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
             confirmReset(this, null);
         } else if (item.id == ID_CREDITS) {
             showCredits(this);
+        } else if (item.id == ID_SETTINGS_CARDS) {
+            final boolean value = !ZephyrConfig.settingsCards;
+            ZephyrConfig.setSettingsCards(value);
+            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
+                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
+            }
+            item.checked = value;
+            org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(R.raw.info, LocaleController.getString(R.string.ZephyrRestartToApply)).show();
         } else if (item.id == ID_HIDE_VIA_BOT) {
             final boolean value = !ZephyrConfig.hideViaBot;
             ZephyrConfig.setHideViaBot(value);

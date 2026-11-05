@@ -62,4 +62,5 @@
     <string name="ZephyrUxAiTimeout">The AI request timed out</string>
     <string name="ZephyrUxAiNoToken">The server did not return a token</string>
     <string name="ZephyrHideViaBot">Hide “via @bot”</string>
+    <string name="ZephyrSettingsCards">Card-style settings (restart to apply)</string>
 </resources>

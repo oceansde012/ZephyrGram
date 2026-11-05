@@ -78,4 +78,5 @@
     <string name="ZephyrUxAiTimeout">Час очікування відповіді AI вичерпано</string>
     <string name="ZephyrUxAiNoToken">Сервер не повернув токен</string>
     <string name="ZephyrHideViaBot">Приховувати «via @bot»</string>
+    <string name="ZephyrSettingsCards">Налаштування картками (після перезапуску)</string>
 </resources>
