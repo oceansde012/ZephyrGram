@@ -219,12 +219,17 @@ public final class PluginRuntime implements PluginHost {
             String previous = PluginHooks.getCurrentPlugin();
             PluginHooks.setCurrentPlugin(id);
             long started = SystemClock.elapsedRealtime();
+            // Tells the UI-thread watchdog which plugin call a freeze happened in (restored for nested calls).
+            final boolean onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
+            final String previousMainCall = onMain ? MainThreadWatchdog.mainCall : null;
+            if (onMain) MainThreadWatchdog.mainCall = id + " " + method;
             try {
                 return host.callAttr("invoke", id, method, arguments);
             } catch (Throwable t) {
                 reportErrorImpl(id, t.toString());
                 return null;
             } finally {
+                if (onMain) MainThreadWatchdog.mainCall = previousMainCall;
                 long elapsed = SystemClock.elapsedRealtime() - started;
                 if (elapsed > 200) {
                     logImpl(id, "Slow callback " + method + ": " + elapsed + " ms");
@@ -372,9 +377,12 @@ public final class PluginRuntime implements PluginHost {
             if (host == null || !loaded.containsKey(id)) return;
             String previous = PluginHooks.getCurrentPlugin();
             PluginHooks.setCurrentPlugin(id);
+            final boolean onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
+            final String previousMainCall = onMain ? MainThreadWatchdog.mainCall : null;
+            if (onMain) MainThreadWatchdog.mainCall = id + " run_on_ui";
             try { host.callAttr("run_callback", id, callback, args); }
             catch (Throwable t) { reportErrorImpl(id, t.toString()); }
-            finally { PluginHooks.setCurrentPlugin(previous); }
+            finally { if (onMain) MainThreadWatchdog.mainCall = previousMainCall; PluginHooks.setCurrentPlugin(previous); }
         }
     }
 
@@ -446,6 +454,81 @@ public final class PluginRuntime implements PluginHost {
             if (loaded.containsKey(id)) Toast.makeText(context(), text, Toast.LENGTH_SHORT).show();
         });
     }
+    static final String NOTIFY_CHANNEL = "zephyr_plugins";
+    static final long NOTIFY_MIN_INTERVAL_MS = 10_000;
+    private final ConcurrentHashMap<String, Long> lastNotify = new ConcurrentHashMap<>();
+
+    /**
+     * client.notify: a real Android notification on the "ZephyrGram plugins" channel (Saved Messages do not ring).
+     * At most one per plugin per {@link #NOTIFY_MIN_INTERVAL_MS}; a newer one replaces the plugin's previous one.
+     * Tap opens Saved Messages of {@code account}. The texts are never logged.
+     * @return true if shown; false if rate-limited, notifications are off or not allowed.
+     */
+    public boolean notify(String id, String title, String text, int account) {
+        PluginHooks.requireCaller(id);
+        if (!loaded.containsKey(id)) return false;
+        if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) throw new IllegalArgumentException("Invalid account");
+        long now = SystemClock.elapsedRealtime();
+        Long last = lastNotify.get(id);
+        if (last != null && now - last < NOTIFY_MIN_INTERVAL_MS) {
+            logImpl(id, "notify: skipped, at most one notification per " + NOTIFY_MIN_INTERVAL_MS / 1000 + " s");
+            return false;
+        }
+        Context ctx = context();
+        if (android.os.Build.VERSION.SDK_INT >= 33 && ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            logImpl(id, "notify: skipped, the app may not post notifications");
+            return false;
+        }
+        androidx.core.app.NotificationManagerCompat manager = androidx.core.app.NotificationManagerCompat.from(ctx);
+        if (!manager.areNotificationsEnabled()) {
+            logImpl(id, "notify: skipped, notifications are off for the app");
+            return false;
+        }
+        lastNotify.put(id, now);
+        String safeTitle = clip(title, 120);
+        String safeText = clip(text, 2000);
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                android.app.NotificationChannel channel = new android.app.NotificationChannel(NOTIFY_CHANNEL,
+                        org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.ZephyrPluginNotifyChannel),
+                        android.app.NotificationManager.IMPORTANCE_HIGH);
+                manager.createNotificationChannel(channel);
+            }
+            android.content.Intent intent = new android.content.Intent(ctx, org.telegram.ui.LaunchActivity.class);
+            intent.setAction("com.tmessages.openchat" + Math.random() + Integer.MAX_VALUE);
+            intent.setFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            long self = UserConfig.getInstance(account).getClientUserId();
+            if (self != 0) intent.putExtra("userId", self);
+            intent.putExtra("currentAccount", account);
+            android.app.PendingIntent open = android.app.PendingIntent.getActivity(ctx, id.hashCode(), intent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+            PluginManifest manifest = loaded.get(id);
+            String name = manifest != null && manifest.name != null && !manifest.name.isEmpty() ? manifest.name : id;
+            androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(ctx, NOTIFY_CHANNEL)
+                    .setSmallIcon(org.telegram.messenger.R.drawable.notification)
+                    .setContentTitle(safeTitle.isEmpty() ? name : safeTitle)
+                    .setContentText(safeText)
+                    .setStyle(new androidx.core.app.NotificationCompat.BigTextStyle().bigText(safeText))
+                    .setSubText(name)
+                    .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
+                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true)
+                    .setContentIntent(open);
+            manager.notify("zephyr_plugin_" + id, 1, builder.build());
+            logImpl(id, "notify: shown");
+            return true;
+        } catch (Throwable t) {
+            logImpl(id, "notify: failed, " + t.getClass().getSimpleName());
+            FileLog.e("Plugin " + id + ": notify failed " + t.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    private static String clip(String text, int max) {
+        String t = text == null ? "" : text.trim();
+        return t.length() > max ? t.substring(0, max - 1) + "\u2026" : t;
+    }
+
     public int sendRequest(String id, TLObject request, PyObject callback, int account) {
         requirePermission(id, "network.requests");
         if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) throw new IllegalArgumentException("Invalid account");

@@ -2,4 +2,7 @@
 <resources>
     <string name="ZephyrShareLogs">Share logs</string>
     <string name="ZephyrLogsInfo">Logging is on by default in ZephyrGram. Tokens, secrets and message text are never written to the logs. To open the debug menu, tap the version number at the bottom of Settings.</string>
+    <string name="ZephyrCopyFreezeLog">Copy freeze log</string>
+    <string name="ZephyrFreezeLogEmpty">No freezes recorded</string>
+    <string name="ZephyrFreezeLogCopied">Freeze log copied</string>
 </resources>

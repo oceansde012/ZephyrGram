@@ -2,4 +2,5 @@
 <resources>
     <string name="ZephyrPluginUninstallArchiveText">\"%1$s\" will be disabled and removed. Its settings are deleted; the plugin file and its data folder are kept in an archive on this device.</string>
     <string name="ZephyrPluginRawJavaTitle">Dangerous permission: full app access</string>
+    <string name="ZephyrPluginNotifyChannel">ZephyrGram plugins</string>
 </resources>

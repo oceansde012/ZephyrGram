@@ -22,6 +22,8 @@ import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalFragment;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class ZephyrPluginSettingsActivity extends UniversalFragment implements PluginManager.Listener {
     private final String pluginId;
@@ -33,6 +35,11 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
     /** A reload was asked for while one was running: the running one may have read older values, so load again. */
     private boolean loadAgain;
     private final Runnable loadRunnable=this::load;
+    /**
+     * Rows by setting key, reused on every rebuild. A new view per rebuild made every row look new to the list,
+     * so each reload (coming back from a sub-screen, a changed value) redrew the whole screen.
+     */
+    private final HashMap<String, ZephyrWrapCell> cells=new HashMap<>();
     /**
      * Follows writes from elsewhere while the screen is open: the plugin itself (a chat added or paused after
      * errors), the app's Auto-reply tab. Kept in a field: SharedPreferences holds listeners weakly. Main thread.
@@ -88,14 +95,14 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         if (plugin==null || !plugin.enabled) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(R.string.ZephyrPluginSettingsNotLoaded))); return; }
         if (model==null || model.items.isEmpty()) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(loading ? R.string.Loading : R.string.ZephyrPluginSettingsEmpty))); return; }
         if (getParentActivity()==null) return;
-        int index=0;
+        HashSet<String> used=new HashSet<>();
         for (PluginSettingsModel.Item setting : model.items) {
             UItem item;
             if (setting.type==PluginSettingsModel.TYPE_HEADER) item=UItem.asHeader(setting.text);
             else if (setting.type==PluginSettingsModel.TYPE_DIVIDER) item=UItem.asShadow(setting.text);
             else if (setting.type==PluginSettingsModel.TYPE_PAGE) {
                 // Navigation row (like the category list of exteraGram): icon + title, opens a sub-screen.
-                item=UItem.asButton(++index,pageIcon(setting.icon),setting.text);
+                item=UItem.asButton(rowId(setting),pageIcon(setting.icon),setting.text);
             } else {
                 // Own wrapping row: the stock one-line cells cut long titles and values with "...".
                 boolean isSwitch=setting.type==PluginSettingsModel.TYPE_SWITCH;
@@ -105,17 +112,22 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
                     int selected=model.getInt(setting);
                     value=setting.options!=null && selected>=0 && selected<setting.options.length ? setting.options[selected] : "";
                 }
-                ZephyrWrapCell cell=new ZephyrWrapCell(getParentActivity());
+                ZephyrWrapCell cell=cells.get(setting.key);
+                if (cell==null) { cell=new ZephyrWrapCell(getParentActivity()); cells.put(setting.key,cell); }
+                used.add(setting.key);
                 cell.setData(setting.text,value,isSwitch,isSwitch && model.getBoolean(setting),true);
                 final UItem row=UItem.asCustom(cell,LayoutHelper.WRAP_CONTENT);
-                row.id=++index;
+                row.id=rowId(setting);
                 cell.setOnClickListener(v -> onClick(row,v,-1,0,0));
                 item=row;
             }
             item.object=setting; items.add(item);
             if (setting.subtext!=null && !setting.subtext.isEmpty()) items.add(UItem.asShadow(setting.subtext));
         }
+        cells.keySet().retainAll(used);
     }
+    /** Stable per key (keys are unique on a screen), so a rebuilt row is the same row. */
+    private static int rowId(PluginSettingsModel.Item setting) { return setting.key==null ? 0 : setting.key.hashCode(); }
     /** Icon names a plugin may use on a ui.Page row. */
     private static int pageIcon(String name) {
         if (name==null) return R.drawable.msg_info;
@@ -243,6 +255,10 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
         ZephyrPluginsActivity.error(this,ZephyrPluginsActivity.s(R.string.ZephyrPluginPickerAccountChanged));
     }
     @Override protected boolean onLongClick(UItem item, View view, int position, float x, float y) { return false; }
-    private void update() { if (listView!=null && listView.adapter!=null) listView.adapter.update(true); }
+    /**
+     * Rebinds in place without the remove/insert animation: rows keep their views, so only changed texts and
+     * switches redraw. The animated diff saw every row as new and redrew the whole screen on each reload.
+     */
+    private void update() { if (listView!=null && listView.adapter!=null) listView.adapter.update(false); }
 }
 

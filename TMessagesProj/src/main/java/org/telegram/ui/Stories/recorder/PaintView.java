@@ -1946,7 +1946,7 @@ public class PaintView extends SizeNotifierFrameLayoutPhoto implements IPhotoPai
                             widgetsCount++;
                         }
                     }
-                    if (widgetsCount >= MessagesController.getInstance(currentAccount).storiesSuggestedReactionsLimitDefault && !UserConfig.getInstance(currentAccount).isPremium()) {
+                    if (widgetsCount >= MessagesController.getInstance(currentAccount).storiesSuggestedReactionsLimitDefault && !UserConfig.getInstance(currentAccount).isRealPremium()) {
                         showPremiumBulletin(LocaleController.formatPluralString("StoryPremiumWidgets2", MessagesController.getInstance(currentAccount).storiesSuggestedReactionsLimitPremium));
                         return false;
                     }

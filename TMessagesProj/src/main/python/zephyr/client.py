@@ -643,6 +643,18 @@ def bulletin(text):
     Runtime.bulletin(_state.owner().id, str(text))
 
 
+def notify(title, text, account=None):
+    """Show a real Android notification (unlike bulletin, which is a short in-app toast): for something the owner
+    must see even with the app closed, e.g. a question the plugin left in Saved Messages, which do not ring.
+    Channel "ZephyrGram plugins" (the user can mute it in Android settings); tapping it opens Saved Messages of
+    `account` (default: the selected account). title is cut to 120 characters, text to 2000; the texts are never
+    logged. At most one notification per plugin every 10 seconds, and a newer one replaces the previous one.
+    Returns True if shown, False if rate-limited or notifications are off / not allowed for the app.
+    Any thread. Newer apps only: check `getattr(client, "NOTIFY", False)`."""
+    plugin = _state.owner()
+    return bool(Runtime.notify(plugin.id, str(title or ""), str(text or ""), _account(account)))
+
+
 def copy_to_clipboard(text):
     Runtime.copyToClipboard(_state.owner().id, str(text))
 
@@ -708,6 +720,7 @@ def http_get(url, headers=None, timeout=15):
 # Feature detection for plugins that also run on older apps (these names are missing there).
 INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_result_send / InlineAction (inline.hook)
 SEND_MEDIA = True           # send_media (media.send)
+NOTIFY = True               # notify (Android notification, 0.2.6)
 
 _MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024

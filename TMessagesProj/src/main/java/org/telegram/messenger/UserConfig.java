@@ -579,6 +579,12 @@ public class UserConfig extends BaseController {
         return user.premium || org.telegram.messenger.zephyr.ZephyrConfig.localPremium;
     }
 
+    /** Premium as the server sees it. Use for limits the server enforces (Local Premium must not raise them). */
+    public boolean isRealPremium() {
+        TLRPC.User user = currentUser;
+        return user != null && user.premium;
+    }
+
     public Long getEmojiStatus() {
         return UserObject.getEmojiStatusDocumentId(currentUser);
     }

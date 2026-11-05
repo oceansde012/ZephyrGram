@@ -101,6 +101,7 @@ public final class PluginManager {
         initialized = true;
         startElapsed = android.os.SystemClock.elapsedRealtime();
         installCrashHandler();
+        MainThreadWatchdog.start();
         PluginRuntime.INSTANCE.setFailureListener((id, reason) -> worker.execute(() -> disableSync(id, "errors", reason)));
         PluginRepository.INSTANCE.addListener(() -> {
             if (!PluginRepository.INSTANCE.isLoading() && PluginRepository.INSTANCE.getIndex() != null) {

@@ -20,7 +20,7 @@ public class ZephyrConfig {
     public static volatile boolean saveDeleted = false;
     public static volatile boolean saveEdited = false;
     public static volatile boolean localPremium = false;
-    public static volatile boolean disableAds = false;
+    public static volatile boolean disableAds = true;
     public static volatile boolean autoUpdateCheck = true;
     public static volatile long lastUpdateCheck = 0;
 
@@ -426,7 +426,7 @@ public class ZephyrConfig {
         saveDeleted = p.getBoolean("saveDeleted", false);
         saveEdited = p.getBoolean("saveEdited", false);
         localPremium = p.getBoolean("localPremium", false);
-        disableAds = p.getBoolean("disableAds", false);
+        disableAds = p.getBoolean("disableAds", true);
         autoUpdateCheck = p.getBoolean("autoUpdateCheck", true);
         lastUpdateCheck = p.getLong("lastUpdateCheck", 0);
         loadExtera(p);
@@ -486,6 +486,29 @@ public class ZephyrConfig {
     public static void setLocalPremium(boolean value) {
         localPremium = value;
         prefs().edit().putBoolean("localPremium", value).apply();
+    }
+
+    /**
+     * Local Premium is client-only: the server still rejects Premium-only requests.
+     * Such errors are logged and not shown, so the user sees no dialogs/bulletins for them.
+     */
+    public static boolean isLocalPremiumError(int account, String errorText) {
+        if (!localPremium || errorText == null) {
+            return false;
+        }
+        try {
+            if (org.telegram.messenger.UserConfig.getInstance(account).isRealPremium()) {
+                return false;
+            }
+        } catch (Throwable ignore) {
+            return false;
+        }
+        String t = errorText.toUpperCase(java.util.Locale.ROOT);
+        if (t.startsWith("PREMIUM_") || t.endsWith("_PREMIUM_REQUIRED") || t.contains("PREMIUM_ACCOUNT_REQUIRED")) {
+            org.telegram.messenger.FileLog.d("zephyr localPremium: server rejected premium-only request: " + errorText);
+            return true;
+        }
+        return false;
     }
 
     public static void setDisableAds(boolean value) {

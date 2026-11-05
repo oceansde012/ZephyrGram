@@ -2,4 +2,7 @@
 <resources>
     <string name="ZephyrShareLogs">Поделиться логами</string>
     <string name="ZephyrLogsInfo">В ZephyrGram журнал включён по умолчанию. Токены, секреты и текст сообщений никогда не записываются в логи. Чтобы открыть меню отладки, коснитесь номера версии внизу Настроек.</string>
+    <string name="ZephyrCopyFreezeLog">Скопировать журнал зависаний</string>
+    <string name="ZephyrFreezeLogEmpty">Зависаний не было</string>
+    <string name="ZephyrFreezeLogCopied">Журнал зависаний скопирован</string>
 </resources>

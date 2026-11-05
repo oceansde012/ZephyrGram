@@ -26,7 +26,7 @@ def load_plugin(plugin_id, path, data_dir):
         source = Path(path).read_bytes()
         if len(source) > 2 * 1024 * 1024:
             raise ValueError("Plugin is larger than 2 MB")
-        exec(compile(source.decode("utf-8"), path, "exec"), module.__dict__)
+        exec(_compiled(plugin_id, source, path), module.__dict__)
         plugin_class = module.__dict__.get("Plugin")
         if not isinstance(plugin_class, type) or not issubclass(plugin_class, BasePlugin):
             raise TypeError("Plugin must subclass zephyr.BasePlugin")
@@ -48,6 +48,46 @@ def load_plugin(plugin_id, path, data_dir):
         raise
     finally:
         _state.current.reset(token)
+
+
+def _compiled(plugin_id, source, path):
+    """Code object of a plugin, cached as plugins/<id>/<id>.pyc by the interpreter's magic and the source's SHA-256.
+
+    compile() is one C call that holds the GIL for its whole run (a 500 KB plugin takes hundreds of ms on a phone),
+    so every UI-thread plugin call (send hook, menu condition, settings tap) waited for it at app start and after
+    each plugin update. Loading the cached bytecode takes a few ms. The cache is keyed by the plugin id and the
+    code is compiled under the active file name (<id>.plugin), so an update, which loads candidate-<n>.plugin
+    first, writes the cache the next start uses. Any cache problem falls back to compile().
+    """
+    import hashlib
+    import importlib.util
+    import marshal
+    import os
+    folder = Path(path).parent
+    filename = str(folder / (plugin_id + ".plugin"))
+    cache = folder / (plugin_id + ".pyc")
+    for stray in folder.glob("*.plugin.pyc"):  # an earlier 0.2.6 build cached per file name
+        try:
+            stray.unlink()
+        except OSError:
+            pass
+    header = importlib.util.MAGIC_NUMBER + hashlib.sha256(source).digest()
+    try:
+        data = cache.read_bytes()
+        if data[:len(header)] == header:
+            code = marshal.loads(data[len(header):])
+            if isinstance(code, types.CodeType) and code.co_filename == filename:
+                return code
+    except Exception:
+        pass
+    code = compile(source.decode("utf-8"), filename, "exec")
+    try:
+        tmp = folder / (plugin_id + ".pyc.tmp")
+        tmp.write_bytes(header + marshal.dumps(code))
+        os.replace(str(tmp), str(cache))
+    except Exception:
+        pass
+    return code
 
 
 def unload_plugin(plugin_id):
@@ -99,16 +139,23 @@ def invoke(plugin_id, method, arguments):
                     raise ValueError("Duplicate setting key: " + key)
                 built[key] = item
                 data.append(item._data(key))
-            if page:
-                # A sub-screen is open above the main one: keep the callbacks of both (main-screen rows are Page
-                # rows only, so merging never hides a callback).
-                plugin._settings.update(built)
-            else:
-                plugin._settings = built
+            # Always merge, never replace: the main screen stays open under its sub-screens and rebuilds on its
+            # own (a chat switch, a plugin update). Replacing the map there dropped the callbacks of the
+            # sub-screens still on top of it, so their buttons, switches and pickers silently did nothing.
+            # A key rebuilt later takes the newest callback; a row that is gone is never shown, so its old
+            # callback can never fire.
+            plugin._settings.update(built)
             return json.dumps(data, allow_nan=False)
         if method == "__settings_event__":
             key, event, value = args
             item = plugin._settings.get(str(key))
+            if item is None:
+                # Should not happen any more; say so in the plugin log instead of dropping the tap silently.
+                try:
+                    plugin.log("Settings: no callback for '%s' (%s)" % (key, event))
+                except Exception:
+                    pass
+                return None
             if event == "pick":
                 callback = getattr(item, "on_pick_context", None) or getattr(item, "on_resolved_context", None)
                 if callback:

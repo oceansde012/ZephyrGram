@@ -729,10 +729,11 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
         return arrayList;
     }
 
-    public ChatAttachAlertPhotoLayout(ChatAttachAlert alert, Context context, boolean forceDarkTheme, boolean needCamera, Theme.ResourcesProvider resourcesProvider) {
+    public ChatAttachAlertPhotoLayout(ChatAttachAlert alert, Context context, boolean forceDarkTheme, boolean allowCamera, Theme.ResourcesProvider resourcesProvider) {
         super(alert, context, resourcesProvider);
         this.forceDarkTheme = forceDarkTheme;
-        this.needCamera = needCamera && !org.telegram.messenger.zephyr.ZephyrConfig.hideCameraTile;
+        // ZephyrGram: "Hide camera tile". The parameter is renamed so that every use below (adapter, click handler) reads the field.
+        this.needCamera = allowCamera && !org.telegram.messenger.zephyr.ZephyrConfig.hideCameraTile;
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.albumsDidLoad);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.cameraInitied);
         FrameLayout container = alert.getContainer();

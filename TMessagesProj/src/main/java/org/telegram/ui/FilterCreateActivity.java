@@ -679,7 +679,7 @@ public class FilterCreateActivity extends BaseFragment {
                 }
             }
 
-            final int maxCount = getUserConfig().isPremium() ? getMessagesController().dialogFiltersChatsLimitPremium : getMessagesController().dialogFiltersChatsLimitDefault;
+            final int maxCount = getUserConfig().isRealPremium() ? getMessagesController().dialogFiltersChatsLimitPremium : getMessagesController().dialogFiltersChatsLimitDefault;
             if (peers.size() > maxCount) {
                 showDialog(new LimitReachedBottomSheet(this, getContext(), LimitReachedBottomSheet.TYPE_CHATS_IN_FOLDER, currentAccount, null));
                 return;
