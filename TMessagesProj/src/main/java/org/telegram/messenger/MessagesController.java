@@ -534,7 +534,7 @@ public class MessagesController extends BaseController implements NotificationCe
     public String mapKey;
     public int maxMessageLength;
     public int getMaxMessageLength() {
-        return getUserConfig().isPremium() ? config.messageLengthLimitPremium.get() : config.messageLengthLimitDefault.get();
+        return getUserConfig().isRealPremium() ? config.messageLengthLimitPremium.get() : config.messageLengthLimitDefault.get();
     }
     public int maxCaptionLength;
     public int roundVideoSize;
@@ -880,7 +880,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public void lockFiltersInternal() {
         boolean changed = false;
-        if (!getUserConfig().isPremium() && dialogFilters.size() - 1 > dialogFiltersLimitDefault) {
+        if (!getUserConfig().isRealPremium() && dialogFilters.size() - 1 > dialogFiltersLimitDefault) {
             int n = dialogFilters.size() - 1 - dialogFiltersLimitDefault;
             ArrayList<DialogFilter> filtersSortedById = new ArrayList<>(dialogFilters);
             Collections.reverse(filtersSortedById);
@@ -904,19 +904,19 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public int getCaptionMaxLengthLimit() {
-        return getUserConfig().isPremium() ? captionLengthLimitPremium : captionLengthLimitDefault;
+        return getUserConfig().isRealPremium() ? captionLengthLimitPremium : captionLengthLimitDefault;
     }
 
     public int getAboutLimit() {
-        return getUserConfig().isPremium() ? aboutLengthLimitPremium : aboutLengthLimitDefault;
+        return getUserConfig().isRealPremium() ? aboutLengthLimitPremium : aboutLengthLimitDefault;
     }
 
     public int getMaxUserReactionsCount() {
-        return getUserConfig().isPremium() ? reactionsUserMaxPremium : reactionsUserMaxDefault;
+        return getUserConfig().isRealPremium() ? reactionsUserMaxPremium : reactionsUserMaxDefault;
     }
 
     public int getChatReactionsCount() {
-        return getUserConfig().isPremium() ? reactionsInChatMax : 1;
+        return getUserConfig().isRealPremium() ? reactionsInChatMax : 1;
     }
 
     public int getChatMaxUniqReactions(long dialogId) {

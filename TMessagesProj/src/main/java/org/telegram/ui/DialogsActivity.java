@@ -3972,7 +3972,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 currentCount = 0;
                             }
                             int totalCount = currentCount + alwaysShow.size();
-                            if ((totalCount > getMessagesController().dialogFiltersChatsLimitDefault && !getUserConfig().isPremium()) || totalCount > getMessagesController().dialogFiltersChatsLimitPremium) {
+                            if ((totalCount > getMessagesController().dialogFiltersChatsLimitDefault && !getUserConfig().isRealPremium()) || totalCount > getMessagesController().dialogFiltersChatsLimitPremium) {
                                 showDialog(new LimitReachedBottomSheet(DialogsActivity.this, fragmentView.getContext(), LimitReachedBottomSheet.TYPE_CHATS_IN_FOLDER, currentAccount, null));
                                 return;
                             }
@@ -9287,7 +9287,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountDefault;
                 }
             } else {
-                maxPinnedCount = getUserConfig().isPremium() ? getMessagesController().dialogFiltersPinnedLimitPremium : getMessagesController().dialogFiltersPinnedLimitDefault;
+                maxPinnedCount = getUserConfig().isRealPremium() ? getMessagesController().dialogFiltersPinnedLimitPremium : getMessagesController().dialogFiltersPinnedLimitDefault;
             }
             if (newPinnedSecretCount + pinnedSecretCount > maxPinnedCount || newPinnedCount + pinnedCount - alreadyAdded > maxPinnedCount) {
                 if (folderId != 0 || filter != null) {

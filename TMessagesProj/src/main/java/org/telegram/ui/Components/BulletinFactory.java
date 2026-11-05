@@ -141,10 +141,12 @@ public final class BulletinFactory {
 
     public static void showError(String error) {
         if (!LaunchActivity.isActive) return;
+        if (org.telegram.messenger.zephyr.ZephyrConfig.isLocalPremiumError(UserConfig.selectedAccount, error)) return;
         global().createErrorBulletin(LocaleController.formatString(R.string.UnknownErrorCode, error)).show();
     }
     public static void showError(String error, FrameLayout topContainer, Theme.ResourcesProvider resourcesProvider) {
         if (!LaunchActivity.isActive) return;
+        if (org.telegram.messenger.zephyr.ZephyrConfig.isLocalPremiumError(UserConfig.selectedAccount, error)) return;
         if (topContainer == null) {
             showError(error);
             return;
@@ -158,6 +160,7 @@ public final class BulletinFactory {
     public static void showError(TLRPC.TL_error error) {
         if (!LaunchActivity.isActive) return;
         if (error != null && error.code == 406) return;
+        if (error != null && org.telegram.messenger.zephyr.ZephyrConfig.isLocalPremiumError(UserConfig.selectedAccount, error.text)) return;
         global().createErrorBulletin(LocaleController.formatString(R.string.UnknownErrorCode, error.text)).show();
     }
 

@@ -488,6 +488,29 @@ public class ZephyrConfig {
         prefs().edit().putBoolean("localPremium", value).apply();
     }
 
+    /**
+     * Local Premium is client-only: the server still rejects Premium-only requests.
+     * Such errors are logged and not shown, so the user sees no dialogs/bulletins for them.
+     */
+    public static boolean isLocalPremiumError(int account, String errorText) {
+        if (!localPremium || errorText == null) {
+            return false;
+        }
+        try {
+            if (org.telegram.messenger.UserConfig.getInstance(account).isRealPremium()) {
+                return false;
+            }
+        } catch (Throwable ignore) {
+            return false;
+        }
+        String t = errorText.toUpperCase(java.util.Locale.ROOT);
+        if (t.startsWith("PREMIUM_") || t.endsWith("_PREMIUM_REQUIRED") || t.contains("PREMIUM_ACCOUNT_REQUIRED")) {
+            org.telegram.messenger.FileLog.d("zephyr localPremium: server rejected premium-only request: " + errorText);
+            return true;
+        }
+        return false;
+    }
+
     public static void setDisableAds(boolean value) {
         disableAds = value;
         prefs().edit().putBoolean("disableAds", value).apply();

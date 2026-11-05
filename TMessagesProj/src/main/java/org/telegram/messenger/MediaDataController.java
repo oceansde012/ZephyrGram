@@ -1117,7 +1117,7 @@ public class MediaDataController extends BaseController {
         if (!found) {
             recentGifs.add(0, document);
         }
-        if ((recentGifs.size() > getMessagesController().savedGifsLimitDefault && !UserConfig.getInstance(currentAccount).isPremium()) || recentGifs.size() > getMessagesController().savedGifsLimitPremium) {
+        if ((recentGifs.size() > getMessagesController().savedGifsLimitDefault && !UserConfig.getInstance(currentAccount).isRealPremium()) || recentGifs.size() > getMessagesController().savedGifsLimitPremium) {
             TLRPC.Document old = recentGifs.remove(recentGifs.size() - 1);
             getMessagesStorage().getStorageQueue().postRunnable(() -> {
                 try {
