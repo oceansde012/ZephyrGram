@@ -92,27 +92,26 @@ public final class PluginRepository {
     public synchronized PluginIndex refreshSync() throws Exception {
         loadCacheLocked();
         if (PUBLIC_KEYS.length == 0) throw new IOException("Plugin store signing key is not configured");
-        byte[] raw, sig;
-        PluginIndex next;
+        // index-v2.json may carry plugins up to 2 MiB (old apps reject those); fall back to index.json if v2 is unavailable.
+        String indexName = "v2";
+        Fetched got;
         try {
-            raw = fetch(BASE + "index.json", MAX_INDEX_BYTES);
-            sig = fetch(BASE + "index.json.sig", 1024);
-            next = verifySignedIndex(raw, sig, PUBLIC_KEYS);
-        } catch (Exception primary) {
-            FileLog.w("PluginRepository: primary index fetch failed, trying fallback: " + primary.getClass().getName());
-            // Fallback mirror; the signature is verified exactly the same way, so the CDN is untrusted transport only.
-            try {
-                raw = fetch(FALLBACK_BASE + "index.json", MAX_INDEX_BYTES);
-                sig = fetch(FALLBACK_BASE + "index.json.sig", 1024);
-                next = verifySignedIndex(raw, sig, PUBLIC_KEYS);
-            } catch (Exception fallback) { throw primary; }
+            got = fetchSigned("index-v2.json");
+        } catch (Exception v2Failure) {
+            FileLog.w("PluginRepository: index-v2 unavailable, using index.json: " + v2Failure.getClass().getName());
+            indexName = "v1";
+            got = fetchSigned("index.json");
         }
+        byte[] raw = got.raw, sig = got.sig;
+        PluginIndex next = got.index;
         long now = System.currentTimeMillis();
         if (next.isExpired(now)) throw new IOException("Plugin index has expired");
         String hash = sha256(raw);
-        long highest = prefs().getLong("highest_sequence", -1);
+        // Rollback state is tracked per index file: v1 and v2 may share a sequence number with different bytes.
+        String seqKey = seqKey(indexName), hashKey = hashKey(indexName);
+        long highest = prefs().getLong(seqKey, -1);
         if (next.sequence < highest) throw new IOException("Plugin index rollback was rejected");
-        if (next.sequence == highest && !hash.equals(prefs().getString("highest_hash", ""))) {
+        if (next.sequence == highest && !hash.equals(prefs().getString(hashKey, ""))) {
             throw new IOException("Conflicting plugin index sequence was rejected");
         }
         JSONObject envelope = new JSONObject();
@@ -122,8 +121,8 @@ public final class PluginRepository {
         mkdir(cache);
         String name = "index-" + next.sequence + "-" + hash + "-" + System.nanoTime() + ".json";
         writeSynced(new File(cache, name), envelope.toString().getBytes(StandardCharsets.UTF_8));
-        if (!prefs().edit().putLong("highest_sequence", next.sequence).putString("highest_hash", hash)
-                .putString("cache_file", name).commit()) throw new IOException("Cannot persist trusted index sequence");
+        if (!prefs().edit().putLong(seqKey, next.sequence).putString(hashKey, hash)
+                .putString("cache_file", name).putString("cache_index", indexName).commit()) throw new IOException("Cannot persist trusted index sequence");
         index = next;
         error = null;
         // Keep only the snapshot that is now trusted; every refresh would otherwise leave a new file behind.
@@ -132,6 +131,32 @@ public final class PluginRepository {
             if (old != null) for (File f : old) if (!f.getName().equals(name)) f.delete();
         } catch (Throwable ignored) { }
         return next;
+    }
+
+    private static String seqKey(String indexName) { return "v2".equals(indexName) ? "highest_sequence_v2" : "highest_sequence"; }
+    private static String hashKey(String indexName) { return "v2".equals(indexName) ? "highest_hash_v2" : "highest_hash"; }
+
+    private static final class Fetched {
+        final byte[] raw, sig;
+        final PluginIndex index;
+        Fetched(byte[] raw, byte[] sig, PluginIndex index) { this.raw = raw; this.sig = sig; this.index = index; }
+    }
+
+    /** Fetches and verifies one signed index file from the primary host, then the mirror (same signature checks). */
+    private static Fetched fetchSigned(String file) throws Exception {
+        try {
+            byte[] raw = fetch(BASE + file, MAX_INDEX_BYTES);
+            byte[] sig = fetch(BASE + file + ".sig", 1024);
+            return new Fetched(raw, sig, verifySignedIndex(raw, sig, PUBLIC_KEYS));
+        } catch (Exception primary) {
+            FileLog.w("PluginRepository: primary fetch of " + file + " failed, trying fallback: " + primary.getClass().getName());
+            // Fallback mirror; the signature is verified exactly the same way, so the CDN is untrusted transport only.
+            try {
+                byte[] raw = fetch(FALLBACK_BASE + file, MAX_INDEX_BYTES);
+                byte[] sig = fetch(FALLBACK_BASE + file + ".sig", 1024);
+                return new Fetched(raw, sig, verifySignedIndex(raw, sig, PUBLIC_KEYS));
+            } catch (Exception fallback) { throw primary; }
+        }
     }
 
     private void loadCacheLocked() {
@@ -145,8 +170,9 @@ public final class PluginRepository {
             byte[] raw = Base64.decode(envelope.getString("index"), Base64.DEFAULT);
             byte[] sig = Base64.decode(envelope.getString("signature"), Base64.DEFAULT);
             PluginIndex cached = verifySignedIndex(raw, sig, PUBLIC_KEYS);
-            if (cached.sequence != prefs().getLong("highest_sequence", -1)
-                    || !sha256(raw).equals(prefs().getString("highest_hash", ""))) {
+            String cachedName = "v2".equals(prefs().getString("cache_index", "v1")) ? "v2" : "v1";
+            if (cached.sequence != prefs().getLong(seqKey(cachedName), -1)
+                    || !sha256(raw).equals(prefs().getString(hashKey(cachedName), ""))) {
                 throw new IOException("Saved plugin index does not match trusted sequence");
             }
             index = cached;

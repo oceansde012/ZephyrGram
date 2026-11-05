@@ -97,7 +97,7 @@ public final class PluginRuntime implements PluginHost {
             int count;
             while ((count = in.read(buffer)) != -1) {
                 if (out.size() + count > PluginManifest.MAX_SOURCE_BYTES) {
-                    throw new IllegalArgumentException("Plugin is larger than 512 KB");
+                    throw new IllegalArgumentException("Plugin is larger than 2 MB");
                 }
                 out.write(buffer, 0, count);
             }

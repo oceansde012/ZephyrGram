@@ -21,7 +21,7 @@ Ghost mode by intercepting requests in `ConnectionsManager.sendRequestInternal` 
 Drop Huawei, HockeyApp, Standalone and Tests modules; build only `TMessagesProj` and `TMessagesProj_App` (`afdc54a`). Reason in log: resolve offline-friendly. Status: accepted.
 
 ## ADR-007 Plugins in Python via Chaquopy, signed index, single file (2026-10-30)
-Plugin system with a Chaquopy runtime, Ed25519-signed store index and manager UI (`0234b49`); manifest read from dunder constants without executing Python; one `.plugin` source of at most 512 KB. Status: accepted; the single-file limit is a known constraint (see BACKLOG).
+Plugin system with a Chaquopy runtime, Ed25519-signed store index and manager UI (`0234b49`); manifest read from dunder constants without executing Python; one `.plugin` source of at most 512 KB (raised to 2 MiB by ADR-019). Status: accepted.
 
 ## ADR-008 Release by tag, arm64-v8a only, on GitHub Actions (2026-10-30)
 Tag `v*` builds and publishes a signed arm64 APK; the in-app updater reads `releases/latest` (`0234b49`). SDK taken from the runner image because `setup-android` runs a removed `sdkmanager tools` (`8476386`). Status: accepted.
@@ -55,3 +55,6 @@ Plugin chat picker preserves the source account and owner across settings naviga
 
 ## ADR-018 Releases are cut from release branches; `main` is not used (2026-10-31 onward)
 Observed practice: `main` stays at the initial commit, PR #1/#2 stay open, and 0.2.3/0.2.4 are built from `release/*` branches that are not merged back. Whether this is deliberate is **unknown**. Status: de facto.
+
+## ADR-019 Raise the plugin size limit to 2 MiB and publish `index-v2` instead of multi-file plugins (2026-11-05, 0.2.5)
+`MAX_SOURCE_BYTES` and the Python host check go from 512 KB to 2 MiB. Apps <= 0.2.4 reject the whole signed index if any version exceeds 512 KB, so the plugin store publishes `index-v2.json` + `index-v2.json.sig` (same Ed25519 key, same schema) with versions up to 2 MiB, and `index.json` keeps only <= 512 KB versions for old apps. 0.2.5 tries `index-v2.json` (BASE, then mirror), then falls back to `index.json`; rollback sequence/hash are tracked separately per index (`highest_sequence_v2`, `highest_hash_v2`) because the two files can share a sequence number with different bytes. Why: simple, no new attack surface from multiple files, old apps keep working. Rejected: multi-file plugin bundles (size L, new package format and signing/hash scheme, path-traversal review) and splitting one plugin into two plugins. Status: accepted.
