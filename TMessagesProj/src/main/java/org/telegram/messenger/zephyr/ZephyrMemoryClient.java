@@ -236,9 +236,55 @@ public final class ZephyrMemoryClient {
             JSONObject sourceFeatures = response.optJSONObject("features");
             boolean legacyImport = sourceFeatures != null && sourceFeatures.has("legacyImport") && bool(sourceFeatures, "legacyImport");
             if (legacyImport) limits.put("maxLegacySummaryChars", integer(sourceLimits, "maxLegacySummaryChars", 1, 8000));
-            return base.put("limits", limits).put("features", new JSONObject().put("legacyImport", legacyImport));
+            return base.put("limits", limits).put("features", new JSONObject().put("legacyImport", legacyImport))
+                    .put("usage", safeUsage(response.opt("usage")));
         } catch (ZephyrAiClient.AiException e) { throw e; }
         catch (Exception e) { throw error(ERR_UNSUPPORTED, "memory_invalid_response"); }
+    }
+
+    /**
+     * Counters for the memory gauge, copied field by field: only numbers and ISO dates, never text. Any wrong shape
+     * gives JSONObject.NULL (the plugin then shows no cloud line) instead of failing the whole status.
+     */
+    static Object safeUsage(Object raw) {
+        try {
+            if (!(raw instanceof JSONObject)) return JSONObject.NULL;
+            JSONObject usage = (JSONObject) raw, safe = new JSONObject();
+            safe.put("scopes", integer(usage, "scopes", 0, 1000000));
+            JSONArray source = usage.getJSONArray("chats"), chats = new JSONArray();
+            if (source.length() > 100) return JSONObject.NULL;
+            for (int i = 0; i < source.length(); i++) {
+                JSONObject c = source.getJSONObject(i);
+                chats.put(new JSONObject()
+                        .put("dialogId", usageDialog(c.get("dialogId")))
+                        .put("topicId", c.isNull("topicId") ? 0 : integer(c, "topicId", 0, Integer.MAX_VALUE))
+                        .put("messages", integer(c, "messages", 0, 1000000))
+                        .put("messagesUntil", usageDate(c.get("messagesUntil")))
+                        .put("summaryChars", integer(c, "summaryChars", 0, 1000000))
+                        .put("summaryUntil", usageDate(c.get("summaryUntil"))));
+            }
+            safe.put("chats", chats);
+            JSONObject style = usage.getJSONObject("style");
+            safe.put("style", new JSONObject().put("examples", integer(style, "examples", 0, 1000000))
+                    .put("feedback", integer(style, "feedback", 0, 1000000))
+                    .put("factsSelf", integer(style, "factsSelf", 0, 1000000))
+                    .put("factsPeer", integer(style, "factsPeer", 0, 1000000)));
+            return safe;
+        } catch (Throwable t) {
+            return JSONObject.NULL;
+        }
+    }
+    private static long usageDialog(Object value) throws Exception {
+        if (!(value instanceof Integer) && !(value instanceof Long)) throw new IllegalArgumentException();
+        return ((Number) value).longValue();
+    }
+    /** ISO-8601 timestamp (at most 40 chars of digits, - : T Z . + ) or null. */
+    private static Object usageDate(Object value) throws Exception {
+        if (value == null || value == JSONObject.NULL) return JSONObject.NULL;
+        if (!(value instanceof String)) throw new IllegalArgumentException();
+        String date = (String) value;
+        if (date.length() > 40 || !date.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]{1,20})?(Z|[+-][0-9]{2}:?[0-9]{2})?")) throw new IllegalArgumentException();
+        return date;
     }
 
     /** Fields shared by the v1 and style status: protocol, verified owner, binding, storage, collection switch. */
