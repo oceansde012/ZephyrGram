@@ -507,6 +507,40 @@ def get_recent_messages(dialog_id, limit=20, account=None):
     return [_public_message(m) for m in json.loads(str(raw))]
 
 
+def get_user_profile(user_id, account=None):
+    """Cached profile of a user (chat.read). Never waits for the network, so it is safe on any thread.
+    Returns None if the user is unknown to this account, else a dict: id, first_name, last_name, username (or None),
+    bio (str; None while not loaded), bio_loaded, is_premium, has_photo, is_bot, is_self. When the bio is not cached
+    yet, one background load starts (at most every 10 minutes per user); call again a bit later."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    raw = _call(ChatApi.getUserProfile, plugin.id, int(user_id), _account(account))
+    if raw is None:
+        return None
+    d = json.loads(str(raw))
+    return {"id": int(d.get("id") or 0), "first_name": d.get("first_name") or "",
+            "last_name": d.get("last_name") or "", "username": d.get("username") or None,
+            "bio": d.get("bio"), "bio_loaded": bool(d.get("bio_loaded")),
+            "is_premium": bool(d.get("is_premium")), "has_photo": bool(d.get("has_photo")),
+            "is_bot": bool(d.get("is_bot")), "is_self": bool(d.get("is_self"))}
+
+
+def download_profile_photo(user_id, small=True, account=None, timeout_s=20):
+    """Download the user's current profile photo (chat.read) and return the JPEG file path, or None if there is no
+    photo or it did not arrive within timeout_s (clamped to 1..60). small=True is 160 px, False is 640 px.
+    Blocking: worker thread only (run_in_bg). The file lives in the app cache and may be removed by cache cleanup."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    try:
+        raw = _call(ChatApi.downloadProfilePhoto, plugin.id, int(user_id), bool(small), _account(account),
+                    int(timeout_s))
+    except PermissionError:
+        raise
+    except Exception:
+        return None
+    return None if raw is None else str(raw)
+
+
 def get_message_media(dialog_id, message_id, account=None, max_side=768, timeout_s=20):
     """Describe the media of a cached message for vision models (chat.read). Blocking: worker thread only.
     Returns None if the message/media is not found or on any failure, else a dict:
@@ -722,6 +756,7 @@ INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_resu
 SEND_MEDIA = True           # send_media (media.send)
 NOTIFY = True               # notify (Android notification, 0.2.6)
 HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat header, 0.2.7)
+USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
 
 _MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024

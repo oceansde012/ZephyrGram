@@ -553,6 +553,104 @@ public final class PluginChatApi {
         }) > 0;
     }
 
+    // ------------------------------------------------------------------ user profile
+
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> FULL_USER_REQUESTED = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long FULL_USER_RETRY_MS = 10 * 60 * 1000L;
+
+    /** Runs {@code r} on the UI thread (directly when already there) and waits up to 5 s. */
+    private static void onUiAndWait(Runnable r) throws Exception {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+            return;
+        }
+        final CountDownLatch latch = new CountDownLatch(1);
+        AndroidUtilities.runOnUIThread(() -> {
+            try { r.run(); } finally { latch.countDown(); }
+        });
+        if (!latch.await(5, TimeUnit.SECONDS)) throw new java.io.IOException("UI thread is busy");
+    }
+
+    /**
+     * Cached profile of a user as JSON, or null if the user is unknown to this account. Never waits for the network:
+     * if UserFull (bio) is not cached, one background load is started (again at most every 10 minutes) and
+     * bio is null with bio_loaded=false; ask again later.
+     */
+    public static String getUserProfile(String id, long userId, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+        checkAccount(account);
+        if (userId <= 0) return null;
+        final MessagesController mc = MessagesController.getInstance(account);
+        final TLRPC.User[] user = new TLRPC.User[1];
+        final TLRPC.UserFull[] full = new TLRPC.UserFull[1];
+        // fullUsers is a LongSparseArray owned by the UI thread: read it there.
+        onUiAndWait(() -> {
+            user[0] = mc.getUser(userId);
+            full[0] = mc.getUserFull(userId);
+        });
+        TLRPC.User u = user[0];
+        if (u == null || u instanceof TLRPC.TL_userEmpty) return null;
+        if (full[0] == null) {
+            String key = account + ":" + userId;
+            long now = System.currentTimeMillis();
+            final boolean[] due = new boolean[1];
+            FULL_USER_REQUESTED.compute(key, (k, last) -> {
+                if (last == null || now - last > FULL_USER_RETRY_MS) { due[0] = true; return now; }
+                return last;
+            });
+            if (due[0]) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    try { mc.loadFullUser(u, 0, false); } catch (Throwable t) { FileLog.e(t); }
+                });
+            }
+        }
+        JSONObject o = new JSONObject();
+        o.put("id", u.id);
+        o.put("first_name", u.first_name == null ? "" : u.first_name);
+        o.put("last_name", u.last_name == null ? "" : u.last_name);
+        String username = UserObject.getPublicUsername(u);
+        o.put("username", username == null ? JSONObject.NULL : username);
+        o.put("bio", full[0] == null ? JSONObject.NULL : (full[0].about == null ? "" : full[0].about));
+        o.put("bio_loaded", full[0] != null);
+        o.put("is_premium", u.premium);
+        o.put("has_photo", u.photo != null && !(u.photo instanceof TLRPC.TL_userProfilePhotoEmpty) && u.photo.photo_small != null);
+        o.put("is_bot", u.bot);
+        o.put("is_self", u.self || u.id == UserConfig.getInstance(account).getClientUserId());
+        return o.toString();
+    }
+
+    /**
+     * Downloads the current profile photo of a user (small 160px or big 640px JPEG) into the app cache and returns
+     * its absolute path, or null if there is no photo, the user is unknown or the download did not finish in time.
+     * Blocking: worker thread only.
+     */
+    public static String downloadProfilePhoto(String id, long userId, boolean small, int account, int timeoutS) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+        checkAccount(account);
+        notMainThread();
+        if (userId <= 0) return null;
+        timeoutS = Math.max(1, Math.min(60, timeoutS));
+        final long deadline = System.currentTimeMillis() + timeoutS * 1000L;
+        final MessagesController mc = MessagesController.getInstance(account);
+        final TLRPC.User[] user = new TLRPC.User[1];
+        onUiAndWait(() -> user[0] = mc.getUser(userId));
+        TLRPC.User u = user[0];
+        if (u == null || u.photo == null || u.photo instanceof TLRPC.TL_userProfilePhotoEmpty) return null;
+        TLRPC.FileLocation location = small ? u.photo.photo_small : u.photo.photo_big;
+        if (location == null) return null;
+        FileLoader fl = FileLoader.getInstance(account);
+        File f = fl.getPathToAttach(location, true);
+        if (fileReady(f)) return f.getAbsolutePath();
+        ImageLocation loc = ImageLocation.getForUser(u, small ? ImageLocation.TYPE_SMALL : ImageLocation.TYPE_BIG);
+        if (loc == null) return null;
+        final ImageLocation fLoc = loc;
+        AndroidUtilities.runOnUIThread(() -> {
+            try { fl.loadFile(fLoc, u, null, FileLoader.PRIORITY_NORMAL, 1); } catch (Throwable t) { FileLog.e(t); }
+        });
+        File ready = waitForFile(deadline, f);
+        return ready == null ? null : ready.getAbsolutePath();
+    }
+
     // ------------------------------------------------------------------ stickers
 
     /** Snapshot of recent -> favorite -> (optionally) installed-set stickers, taken on the UI thread. */
