@@ -721,6 +721,7 @@ def http_get(url, headers=None, timeout=15):
 INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_result_send / InlineAction (inline.hook)
 SEND_MEDIA = True           # send_media (media.send)
 NOTIFY = True               # notify (Android notification, 0.2.6)
+HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat header, 0.2.7)
 
 _MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024

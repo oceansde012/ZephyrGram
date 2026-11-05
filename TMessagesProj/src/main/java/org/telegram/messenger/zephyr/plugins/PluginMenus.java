@@ -29,6 +29,8 @@ public final class PluginMenus {
     public static final int TYPE_MESSAGE_CONTEXT = 1;
     public static final int TYPE_CHAT_ACTION = 2;
     public static final int TYPE_PROFILE_ACTION = 3;
+    /** Icon button in the chat header; see {@link PluginHeaderButton}. */
+    public static final int TYPE_CHAT_HEADER_BUTTON = 4;
 
     public static final int ID_BASE = 0x5A000;
     public static final int ID_MAX = ID_BASE + 0xFFF;

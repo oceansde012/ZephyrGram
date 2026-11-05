@@ -461,6 +461,12 @@ public class ChatActivity extends BaseFragment implements
     private ActionBarMenuItem.Item translateItem;
     private ActionBarMenuItem searchIconItem;
     private ActionBarMenu.LazyItem audioCallIconItem;
+    // Plugin icon button in the header (PluginMenus.TYPE_CHAT_HEADER_BUTTON).
+    private ActionBarMenuItem pluginHeaderButton;
+    private int pluginHeaderButtonItemId;
+    private boolean pluginHeaderButtonSuppressed;
+    private int avatarBaseRightMarginDp = 52;
+    private org.telegram.messenger.zephyr.plugins.PluginMenus.Listener pluginMenusListener;
     private boolean searchItemVisible;
     private RadialProgressView progressBar;
     private ActionBarMenuItem.Item addContactItem;
@@ -1713,6 +1719,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int zephyr_members = 3003;
     private final static int zephyr_recent_actions = 3004;
     private final static int zephyr_plugins = 3005;
+    private final static int zephyr_plugin_header_button = 3006;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3428,6 +3435,10 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        if (pluginMenusListener != null) {
+            org.telegram.messenger.zephyr.plugins.PluginMenus.removeListener(pluginMenusListener);
+            pluginMenusListener = null;
+        }
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -3978,6 +3989,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id >= zephyr_permissions && id <= zephyr_recent_actions) {
                     openZephyrAdminShortcut(id);
+                } else if (id == zephyr_plugin_header_button) {
+                    org.telegram.messenger.zephyr.plugins.PluginHeaderButton.onClick(pluginHeaderButtonItemId, currentAccount, getDialogId(), ChatActivity.this);
                 } else if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(id)) {
                     org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.onClick(id, currentAccount, getDialogId(), ChatActivity.this);
                 } else if (id == zephyr_plugins) {
@@ -4350,6 +4363,15 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         }
+        if (chatMode == 0 && (threadMessageId == 0 || isTopic) && currentEncryptedChat == null && !UserObject.isReplyUser(currentUser) && !isReport() && !inPreviewMode) {
+            pluginHeaderButton = menu.addItem(zephyr_plugin_header_button, R.drawable.ai_chat, themeDelegate);
+            pluginHeaderButton.setVisibility(View.GONE);
+            if (pluginMenusListener == null) {
+                pluginMenusListener = this::updatePluginHeaderButton;
+                org.telegram.messenger.zephyr.plugins.PluginMenus.addListener(pluginMenusListener);
+            }
+            updatePluginHeaderButton();
+        }
         /*
         Choreographer60FpsContent.getInstance().addFrameCallback(justForTest = () -> {
             if (audioCallIconItem != null) {
@@ -4382,7 +4404,8 @@ public class ChatActivity extends BaseFragment implements
                     updateScrimSourceBitmap();
                     if (chatMode == MODE_DEFAULT) {
                         org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.sync(headerItem,
-                                org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_CHAT_ACTION, currentAccount, getDialogId(), ChatActivity.this);
+                                org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_CHAT_ACTION, currentAccount, getDialogId(), ChatActivity.this,
+                                pluginHeaderButton != null ? pluginHeaderButtonItemId : -1);
                     }
                 }
 
@@ -18571,11 +18594,13 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (showSearchAsIcon || showAudioCallAsIcon || UserObject.isBotForumWithEditableTopics(currentUser)) {
                     if (avatarContainer != null && avatarContainer.getLayoutParams() != null) {
-                        ((ViewGroup.MarginLayoutParams) avatarContainer.getLayoutParams()).rightMargin = AndroidUtilities.dp(chatMode == MODE_SAVED ? 52 : 92);
+                        avatarBaseRightMarginDp = chatMode == MODE_SAVED ? 52 : 92;
+                        ((ViewGroup.MarginLayoutParams) avatarContainer.getLayoutParams()).rightMargin = AndroidUtilities.dp(avatarBaseRightMarginDp + pluginHeaderButtonMarginDp());
                     }
                 } else {
                     if (avatarContainer != null && avatarContainer.getLayoutParams() != null) {
-                        ((ViewGroup.MarginLayoutParams) avatarContainer.getLayoutParams()).rightMargin = AndroidUtilities.dp(52);
+                        avatarBaseRightMarginDp = 52;
+                        ((ViewGroup.MarginLayoutParams) avatarContainer.getLayoutParams()).rightMargin = AndroidUtilities.dp(avatarBaseRightMarginDp + pluginHeaderButtonMarginDp());
                     }
                 }
                 if (showSearchAsIcon) {
@@ -30168,10 +30193,51 @@ public class ChatActivity extends BaseFragment implements
 
     Bulletin.Delegate bulletinDelegate;
 
+    /** Re-evaluates the plugin header button (conditions run here, not per frame). UI thread. */
+    private void updatePluginHeaderButton() {
+        if (pluginHeaderButton == null) {
+            return;
+        }
+        try {
+            org.telegram.messenger.zephyr.plugins.PluginMenus.Item item = org.telegram.messenger.zephyr.plugins.PluginHeaderButton.pick(currentAccount, getDialogId(), this);
+            pluginHeaderButtonItemId = org.telegram.messenger.zephyr.plugins.PluginHeaderButton.apply(pluginHeaderButton, item, getParentActivity());
+            if (pluginHeaderButtonSuppressed) {
+                pluginHeaderButton.setVisibility(View.GONE);
+            }
+            applyAvatarRightMargin();
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+    }
+
+    private void setPluginHeaderButtonSuppressed(boolean suppressed) {
+        pluginHeaderButtonSuppressed = suppressed;
+        if (pluginHeaderButton != null) {
+            pluginHeaderButton.setVisibility(!suppressed && pluginHeaderButtonItemId != 0 ? View.VISIBLE : View.GONE);
+            applyAvatarRightMargin();
+        }
+    }
+
+    private int pluginHeaderButtonMarginDp() {
+        return pluginHeaderButton != null && pluginHeaderButton.getVisibility() == View.VISIBLE ? 48 : 0;
+    }
+
+    private void applyAvatarRightMargin() {
+        if (avatarContainer != null && avatarContainer.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) avatarContainer.getLayoutParams();
+            int margin = AndroidUtilities.dp(avatarBaseRightMarginDp + pluginHeaderButtonMarginDp());
+            if (lp.rightMargin != margin) {
+                lp.rightMargin = margin;
+                avatarContainer.requestLayout();
+            }
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         checkShowBlur(false);
+        updatePluginHeaderButton();
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
             ImportingAlert alert = new ImportingAlert(getParentActivity(), null, this, themeDelegate);
@@ -35592,6 +35658,7 @@ public class ChatActivity extends BaseFragment implements
             if (audioCallIconItem != null && showAudioCallAsIcon) {
                 audioCallIconItem.setVisibility(View.GONE);
             }
+            setPluginHeaderButtonSuppressed(true);
             if (topicCreateItem != null) {
                 topicCreateItem.setVisibility(View.GONE);
             }
@@ -35662,6 +35729,7 @@ public class ChatActivity extends BaseFragment implements
             if (audioCallIconItem != null && showAudioCallAsIcon) {
                 audioCallIconItem.setVisibility(View.GONE);
             }
+            setPluginHeaderButtonSuppressed(true);
             if (topicCreateItem != null) {
                 topicCreateItem.setVisibility(View.GONE);
             }
@@ -35756,6 +35824,7 @@ public class ChatActivity extends BaseFragment implements
             if (audioCallIconItem != null && showAudioCallAsIcon) {
                 audioCallIconItem.setVisibility(View.GONE);
             }
+            setPluginHeaderButtonSuppressed(true);
             if (topicCreateItem != null) {
                 topicCreateItem.setVisibility(View.GONE);
             }
@@ -35815,6 +35884,7 @@ public class ChatActivity extends BaseFragment implements
             if (audioCallIconItem != null && showAudioCallAsIcon) {
                 audioCallIconItem.setVisibility(View.GONE);
             }
+            setPluginHeaderButtonSuppressed(true);
             if (topicCreateItem != null) {
                 topicCreateItem.setVisibility(View.GONE);
             }
@@ -39082,6 +39152,7 @@ public class ChatActivity extends BaseFragment implements
                 if (audioCallIconItem != null && showAudioCallAsIcon) {
                     audioCallIconItem.setVisibility(View.GONE);
                 }
+                setPluginHeaderButtonSuppressed(true);
                 if (topicCreateItem != null) {
                     topicCreateItem.setVisibility(View.GONE);
                 }
@@ -39104,6 +39175,7 @@ public class ChatActivity extends BaseFragment implements
                 if (audioCallIconItem != null && showAudioCallAsIcon) {
                     audioCallIconItem.setVisibility(View.GONE);
                 }
+                setPluginHeaderButtonSuppressed(true);
                 if (topicCreateItem != null) {
                     topicCreateItem.setVisibility(View.GONE);
                 }
@@ -39114,6 +39186,7 @@ public class ChatActivity extends BaseFragment implements
                 if (audioCallIconItem != null && showAudioCallAsIcon) {
                     audioCallIconItem.setVisibility(View.VISIBLE);
                 }
+                setPluginHeaderButtonSuppressed(false);
                 if (topicCreateItem != null) {
                     topicCreateItem.setVisibility(View.VISIBLE);
                 }

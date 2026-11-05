@@ -11,6 +11,7 @@ import org.telegram.ui.ActionBar.ActionBarMenuSubItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.BaseFragment;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -28,6 +29,15 @@ public final class PluginHeaderMenu {
 
     /** Adds, updates and hides the plugin sub-items of {@code type} in {@code menuItem}'s popup. UI thread only. */
     public static void sync(ActionBarMenuItem menuItem, int type, int account, long dialogId, BaseFragment fragment) {
+        sync(menuItem, type, account, dialogId, fragment, -1);
+    }
+
+    /**
+     * Same as {@link #sync(ActionBarMenuItem, int, int, long, BaseFragment)}; for {@link PluginMenus#TYPE_CHAT_ACTION}
+     * with {@code shownHeaderButtonId >= 0} it also lists the accepted chat header buttons except the one shown in the
+     * header ({@code shownHeaderButtonId}, 0 when none is shown), so no plugin button is lost.
+     */
+    public static void sync(ActionBarMenuItem menuItem, int type, int account, long dialogId, BaseFragment fragment, int shownHeaderButtonId) {
         if (menuItem == null) {
             return;
         }
@@ -37,7 +47,13 @@ public final class PluginHeaderMenu {
                 return;
             }
             Context context = fragment != null && fragment.getParentActivity() != null ? fragment.getParentActivity() : ApplicationLoader.applicationContext;
+            final boolean withHeaderButtons = type == PluginMenus.TYPE_CHAT_ACTION && shownHeaderButtonId >= 0;
             List<PluginMenus.Item> all = PluginMenus.getItems(type);
+            if (withHeaderButtons && PluginMenus.hasItems(PluginMenus.TYPE_CHAT_HEADER_BUTTON)) {
+                ArrayList<PluginMenus.Item> merged = new ArrayList<>(all);
+                merged.addAll(PluginMenus.getItems(PluginMenus.TYPE_CHAT_HEADER_BUTTON));
+                all = merged;
+            }
             HashSet<Integer> known = new HashSet<>();
             for (PluginMenus.Item item : all) {
                 known.add(item.id);
@@ -56,6 +72,15 @@ public final class PluginHeaderMenu {
                 return;
             }
             List<PluginMenus.Item> accepted = PluginMenus.getItems(type, account, dialogId, null, fragment);
+            if (withHeaderButtons && PluginMenus.hasItems(PluginMenus.TYPE_CHAT_HEADER_BUTTON)) {
+                ArrayList<PluginMenus.Item> merged = new ArrayList<>(accepted);
+                for (PluginMenus.Item b : PluginMenus.getItems(PluginMenus.TYPE_CHAT_HEADER_BUTTON, account, dialogId, null, fragment)) {
+                    if (b.id != shownHeaderButtonId) {
+                        merged.add(b);
+                    }
+                }
+                accepted = merged;
+            }
             // Compare by id: a plugin re-registering a key swaps in a new Item object.
             HashSet<Integer> acceptedIds = new HashSet<>();
             for (PluginMenus.Item a : accepted) {

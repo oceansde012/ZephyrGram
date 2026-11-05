@@ -69,6 +69,7 @@ class MenuType(IntEnum):
     MESSAGE_CONTEXT = 1
     CHAT_ACTION = 2
     PROFILE_ACTION = 3
+    CHAT_HEADER_BUTTON = 4  # icon button in the chat header (0.2.7); extra buttons go to the "three dots" menu
 
 
 class MenuItem:
@@ -180,9 +181,17 @@ class BasePlugin:
 
     def add_menu_item(self, item):
         self._check_owner()
-        require(self, "ui.menu")
         if not isinstance(item, MenuItem):
             raise TypeError("Expected a MenuItem")
+        if item.menu_type == MenuType.CHAT_HEADER_BUTTON:
+            try:
+                require(self, "ui.menu")
+            except PermissionError as exc:
+                # A header button is optional UI: skip it instead of failing the plugin load.
+                self.log("Header button not added: " + str(exc))
+                return None
+        else:
+            require(self, "ui.menu")
         if item.key is None:
             self._menu_sequence += 1
             item.key = "menu_" + str(self._menu_sequence)
