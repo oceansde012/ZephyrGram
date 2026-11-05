@@ -24,8 +24,8 @@ def load_plugin(plugin_id, path, data_dir):
     sys.modules[module_name] = module
     try:
         source = Path(path).read_bytes()
-        if len(source) > 512 * 1024:
-            raise ValueError("Plugin is larger than 512 KB")
+        if len(source) > 2 * 1024 * 1024:
+            raise ValueError("Plugin is larger than 2 MB")
         exec(compile(source.decode("utf-8"), path, "exec"), module.__dict__)
         plugin_class = module.__dict__.get("Plugin")
         if not isinstance(plugin_class, type) or not issubclass(plugin_class, BasePlugin):
