@@ -5,8 +5,9 @@ exception raised there used to travel back into the calling Java code as a PyExc
 host replaces java.dynamic_proxy with a version whose classes wrap every interface method: an exception is logged
 to the plugin log (exception class and method name only, no data) and a safe value for the Java return type is
 returned instead (void -> None, boolean -> False, numbers -> 0, char -> NUL, objects -> None). The wrapper also
-runs the method inside its plugin's context, so zephyr APIs work from Java-initiated calls, and skips the call
-once the plugin is unloaded.
+runs the method as its plugin: the Python context and, through an owner token issued by the app when the class
+was created inside the plugin's callback, the app-side caller identity, so client.* works in Java-initiated calls.
+Once that load of the plugin is gone, the method is not run at all.
 """
 import functools
 
@@ -44,12 +45,32 @@ def _report(plugin_id, method, exc):
         pass
 
 
-def _guard(fn, method, default, plugin_id):
+def _owner_token(plugin_id):
+    """App-issued token for this plugin load, or None (old app, or the class was made outside a callback)."""
+    if not plugin_id:
+        return None
+    try:
+        from zephyr._bridge import Runtime
+        return int(Runtime.proxyToken(str(plugin_id)))
+    except Exception:
+        return None
+
+
+def _guard(fn, method, default, plugin_id, owner_token):
     @functools.wraps(fn)
     def guarded(*args, **kwargs):
         plugin = _state.plugins.get(plugin_id) if plugin_id else None
         if plugin_id and plugin is None:
             return default  # plugin unloaded: its code must not run any more
+        entered = False
+        if owner_token is not None:
+            try:
+                from zephyr._bridge import Runtime
+                entered = bool(Runtime.proxyEnter(owner_token))
+            except Exception:
+                entered = False
+            if not entered:
+                return default  # that load of the plugin is gone
         token = None
         if plugin is not None and _state.current.get() is not plugin:
             token = _state.current.set(plugin)
@@ -61,6 +82,12 @@ def _guard(fn, method, default, plugin_id):
         finally:
             if token is not None:
                 _state.current.reset(token)
+            if entered:
+                try:
+                    from zephyr._bridge import Runtime
+                    Runtime.proxyExit(owner_token)
+                except Exception:
+                    pass
     guarded._zephyr_guarded = True
     return guarded
 
@@ -77,9 +104,10 @@ def _safe_meta(meta):
                 defaults = _return_defaults(implements)
                 current = _state.current.get()
                 plugin_id = getattr(current, "id", None)
+                owner_token = _owner_token(plugin_id)
                 for name, value in list(cls_dict.items()):
                     if name in defaults and callable(value) and not getattr(value, "_zephyr_guarded", False):
-                        cls_dict[name] = _guard(value, name, defaults[name], plugin_id)
+                        cls_dict[name] = _guard(value, name, defaults[name], plugin_id, owner_token)
             return super().__new__(metacls, cls_name, bases, cls_dict)
 
     SafeProxyClass.__name__ = meta.__name__

@@ -291,6 +291,59 @@ public final class PluginRuntime implements PluginHost {
         logImpl(id, message);
     }
 
+    // ------------------------------------------------------------------ dynamic_proxy owner tokens
+
+    private static final class ProxyOwner {
+        final String id;
+        final PluginManifest generation;
+        ProxyOwner(String id, PluginManifest generation) { this.id = id; this.generation = generation; }
+    }
+
+    private final ConcurrentHashMap<Long, ProxyOwner> proxyOwners = new ConcurrentHashMap<>();
+    private final java.security.SecureRandom proxyRandom = new java.security.SecureRandom();
+    private static final ThreadLocal<java.util.ArrayDeque<String>> proxyStack = ThreadLocal.withInitial(java.util.ArrayDeque::new);
+
+    /**
+     * Owner token for a dynamic_proxy class, issued only inside the plugin's own callback (identity checked here).
+     * Java later calls the proxy's methods outside any plugin callback; {@link #proxyEnter} with this token gives
+     * that call the plugin's identity, so client.* works there. Valid for this load of the plugin only.
+     */
+    public long proxyToken(String id) {
+        PluginHooks.requireCaller(id);
+        PluginManifest generation = loaded.get(id);
+        if (generation == null) throw new IllegalStateException("Plugin is not loaded");
+        long token;
+        do {
+            token = proxyRandom.nextLong();
+        } while (token == 0 || proxyOwners.putIfAbsent(token, new ProxyOwner(id, generation)) != null);
+        return token;
+    }
+
+    /** Enters the token owner's identity on this thread; returns false (and does nothing) if the token is stale. */
+    public boolean proxyEnter(long token) {
+        ProxyOwner owner = proxyOwners.get(token);
+        if (owner == null) return false;
+        if (loaded.get(owner.id) != owner.generation) {
+            proxyOwners.remove(token, owner); // that load of the plugin is gone
+            return false;
+        }
+        String previous = PluginHooks.getCurrentPlugin();
+        proxyStack.get().push(previous == null ? "" : previous);
+        PluginHooks.setCurrentPlugin(owner.id);
+        return true;
+    }
+
+    /** Restores the identity saved by the matching successful {@link #proxyEnter} on this thread. */
+    public void proxyExit(long token) {
+        ProxyOwner owner = proxyOwners.get(token);
+        java.util.ArrayDeque<String> stack = proxyStack.get();
+        if (stack.isEmpty()) return;
+        // Only the owner that is current may leave: Python cannot use exit to switch to an arbitrary identity.
+        if (owner != null && !owner.id.equals(PluginHooks.getCurrentPlugin())) return;
+        String previous = stack.pop();
+        PluginHooks.setCurrentPlugin(previous.isEmpty() ? null : previous);
+    }
+
     /**
      * Called by the host's dynamic_proxy guard when a plugin proxy method raised (the call usually comes from Java,
      * outside any plugin callback, so there is no caller identity to check). Only names reach the log, sanitised

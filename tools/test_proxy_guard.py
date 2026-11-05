@@ -115,9 +115,38 @@ class ProxyGuard(unittest.TestCase):
         runtime = java.jclass("org.telegram.messenger.zephyr.plugins.PluginRuntime").INSTANCE
         cls.proxy_logs = []
         runtime.logProxyError = lambda pid, method, err: cls.proxy_logs.append((pid, method, err))
+        # Owner tokens like PluginRuntime: issued only to the current caller, enter/exit switch the Java identity.
+        cls.tokens = {}
+        cls.token_issuing = True
+
+        def proxy_token(pid):
+            cls.side.check(pid, "proxyToken")
+            if not cls.token_issuing:
+                raise RuntimeError("old app")
+            token = 1000 + len(cls.tokens)
+            cls.tokens[token] = pid
+            return token
+
+        def proxy_enter(token):
+            pid = cls.tokens.get(token)
+            if pid is None or pid not in cls.side.host_loaded():
+                return False
+            stack = cls.side.__dict__.setdefault("stack", [])
+            stack.append(cls.side.current())
+            cls.side.local.id = pid
+            return True
+
+        def proxy_exit(token):
+            cls.side.local.id = cls.side.stack.pop()
+
+        runtime.proxyToken = proxy_token
+        runtime.proxyEnter = proxy_enter
+        runtime.proxyExit = proxy_exit
         sys.path.insert(0, str(PYTHON_ROOT))
         import zephyr_host
         cls.side.host = zephyr_host
+        from zephyr import _state as _st
+        cls.side.host_loaded = lambda: set(_st.plugins)
         cls.java = java
         cls.tmp = tempfile.TemporaryDirectory()
         cls.path = Path(cls.tmp.name) / "proxy_test.plugin"
@@ -176,8 +205,27 @@ class ProxyGuard(unittest.TestCase):
         self.assertIsNone(_state.current.get())  # restored after the call
         self.assertEqual(self.proxy_logs, [])
 
-    def test_bridge_refusal_without_java_identity_is_contained(self):
-        self.assertIsNone(self.click.onClick(None, 99))
+    def test_client_api_works_in_java_initiated_calls(self):
+        self.side.permissions["proxy_test"] = set()
+        self.assertIsNone(self.side.current())          # Java thread: no caller identity
+        self.assertIsNone(self.click.onClick(None, 99))  # client.run_in_bg inside the proxy
+        self.assertEqual(self.proxy_logs, [])
+        self.assertFalse(self.side.queue.empty())        # the call went through as proxy_test
+        self.assertIsNone(self.side.current())          # identity restored after the call
+        self.side.drain()
+
+    def test_without_owner_token_the_refusal_is_contained(self):
+        type(self).token_issuing = False
+        try:
+            from zephyr import _state
+            token = _state.current.set(self.plugin)
+            try:
+                click, _ = self.side.with_identity("proxy_test", self.plugin.make, ON_CLICK, CALLBACKS)
+            finally:
+                _state.current.reset(token)
+        finally:
+            type(self).token_issuing = True
+        self.assertIsNone(click.onClick(None, 99))      # old app: run_in_bg refused, contained and logged
         self.assertEqual(len(self.proxy_logs), 1)
         self.assertEqual(self.proxy_logs[0][:2], ("proxy_test", "onClick"))
 
@@ -212,6 +260,13 @@ class JavaSideChecks(unittest.TestCase):
         body = s[s.index("public static void logProxyError("):s.index("private static String sanitizeName(")]
         self.assertIn("loaded.containsKey(id)", body)
         self.assertIn("sanitizeName(method)", body)
+        tok = s[s.index("public long proxyToken("):s.index("public boolean proxyEnter(")]
+        self.assertIn("PluginHooks.requireCaller(id);", tok)
+        self.assertIn("SecureRandom", s)
+        enter = s[s.index("public boolean proxyEnter("):s.index("public void proxyExit(")]
+        self.assertIn("loaded.get(owner.id) != owner.generation", enter)
+        exit_ = s[s.index("public void proxyExit("):s.index("public static void logProxyError(")]
+        self.assertIn("owner.id.equals(PluginHooks.getCurrentPlugin())", exit_)
         host = (root / "TMessagesProj/src/main/python/zephyr_host.py").read_text("utf-8")
         self.assertIn("_proxy.install(_java)", host)
 
