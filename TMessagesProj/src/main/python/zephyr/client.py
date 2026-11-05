@@ -101,6 +101,29 @@ def get_recent_stickers(limit=30, account=None):
             for s in json.loads(str(raw))]
 
 
+def get_sticker_sets(account=None):
+    """Installed sticker packs in the user's order (chat.read): [{id: int, title: str, short_name: str, count: int}].
+    Served from the in-memory cache and never waits for the network; if the list is not loaded yet a background load
+    starts once and the result may be empty (retry shortly)."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    raw = _call(ChatApi.getStickerSets, plugin.id, _account(account))
+    return [{"id": int(s["id"]), "title": s.get("title") or "", "short_name": s.get("short_name") or "",
+             "count": int(s.get("count") or 0)} for s in json.loads(str(raw))]
+
+
+def get_set_stickers(set_id, limit=200, account=None):
+    """Stickers of a pack in pack order (chat.read), same items as get_recent_stickers: [{id, emoji, set_title, mime,
+    is_animated}]; ids work with send_sticker for installed packs. Never waits for the network: if the pack is not
+    cached, [] is returned and one background load starts (installed packs only). limit is clamped to 1..200."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    raw = _call(ChatApi.getSetStickers, plugin.id, int(set_id), int(limit), _account(account))
+    return [{"id": int(s["id"]), "emoji": s.get("emoji") or "", "set_title": s.get("set_title") or "",
+             "mime": s.get("mime") or "", "is_animated": bool(s.get("is_animated"))}
+            for s in json.loads(str(raw))]
+
+
 def send_sticker(dialog_id, sticker_id, account=None, reply_to=None):
     """Send a sticker by document id (messages.send) from recent/favorite/installed stickers.
     Returns True if queued, False if the sticker was not found or the chat is secret. Like send_text it
@@ -777,6 +800,7 @@ NOTIFY = True               # notify (Android notification, 0.2.6)
 HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat header, 0.2.7)
 USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
 VIDEO_FRAME = True          # video_frame (0.2.7)
+STICKER_SETS = True         # get_sticker_sets, get_set_stickers (0.2.7)
 
 _MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024

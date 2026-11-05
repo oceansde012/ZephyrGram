@@ -717,14 +717,121 @@ public final class PluginChatApi {
         java.util.HashSet<Long> seen = new java.util.HashSet<>();
         for (TLRPC.Document d : all) {
             if (d == null || d instanceof TLRPC.TL_documentEmpty || d.id == 0 || !seen.add(d.id)) continue;
-            array.put(new JSONObject()
-                    .put("id", d.id)
-                    .put("emoji", mdc.getEmojiForSticker(d.id))
-                    .put("set_title", stickerSetTitle(account, d))
-                    .put("mime", d.mime_type == null ? "" : d.mime_type)
-                    .put("is_animated", MessageObject.isAnimatedStickerDocument(d, true) || MessageObject.isVideoSticker(d)));
+            array.put(stickerJson(account, mdc, d));
             if (array.length() >= limit) break;
         }
+        return array.toString();
+    }
+
+    private static JSONObject stickerJson(int account, MediaDataController mdc, TLRPC.Document d) throws Exception {
+        return new JSONObject()
+                .put("id", d.id)
+                .put("emoji", mdc.getEmojiForSticker(d.id))
+                .put("set_title", stickerSetTitle(account, d))
+                .put("mime", d.mime_type == null ? "" : d.mime_type)
+                .put("is_animated", MessageObject.isAnimatedStickerDocument(d, true) || MessageObject.isVideoSticker(d));
+    }
+
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> STICKER_LOAD_REQUESTED = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long STICKER_LOAD_RETRY_MS = 10 * 60 * 1000L;
+    private static final int MAX_SET_STICKERS = 200;
+
+    /** True at most once per key and 10 minutes: background loads are started once, not on every plugin call. */
+    private static boolean stickerLoadDue(String key) {
+        final long now = System.currentTimeMillis();
+        final boolean[] due = new boolean[1];
+        STICKER_LOAD_REQUESTED.compute(key, (k, last) -> {
+            if (last == null || now - last > STICKER_LOAD_RETRY_MS) { due[0] = true; return now; }
+            return last;
+        });
+        return due[0];
+    }
+
+    /**
+     * Installed sticker packs from the MediaDataController cache, in the user's order: JSON array of
+     * {id, title, short_name, count}. Never waits for the network; if the list is not loaded yet, one background load
+     * starts and the result may be empty.
+     */
+    public static String getStickerSets(String id, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+        checkAccount(account);
+        final MediaDataController mdc = MediaDataController.getInstance(account);
+        final JSONArray array = new JSONArray();
+        final Exception[] error = new Exception[1];
+        // Sticker lists are owned by the UI thread.
+        onUiAndWait(() -> {
+            try {
+                if (!mdc.areStickersLoaded(MediaDataController.TYPE_IMAGE) && stickerLoadDue(account + ":sets")) {
+                    mdc.checkStickers(MediaDataController.TYPE_IMAGE);
+                }
+                ArrayList<TLRPC.TL_messages_stickerSet> sets = mdc.getStickerSets(MediaDataController.TYPE_IMAGE);
+                if (sets == null) return;
+                for (TLRPC.TL_messages_stickerSet s : sets) {
+                    if (s == null || s.set == null) continue;
+                    int count = s.documents != null && !s.documents.isEmpty() ? s.documents.size() : s.set.count;
+                    array.put(new JSONObject()
+                            .put("id", s.set.id)
+                            .put("title", s.set.title == null ? "" : s.set.title)
+                            .put("short_name", s.set.short_name == null ? "" : s.set.short_name)
+                            .put("count", count));
+                }
+            } catch (Exception e) {
+                error[0] = e;
+            }
+        });
+        if (error[0] != null) throw error[0];
+        return array.toString();
+    }
+
+    /**
+     * Stickers of a pack (installed or otherwise cached), in pack order, same items as getRecentStickers. Never waits
+     * for the network; if the pack's stickers are not cached, one background load starts (installed packs only, they
+     * carry the access hash) and the result is empty. limit is clamped to 1..200.
+     */
+    public static String getSetStickers(String id, long setId, int limit, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+        checkAccount(account);
+        final int max = Math.max(1, Math.min(MAX_SET_STICKERS, limit));
+        final MediaDataController mdc = MediaDataController.getInstance(account);
+        final ArrayList<TLRPC.Document> docs = new ArrayList<>();
+        final Exception[] error = new Exception[1];
+        onUiAndWait(() -> {
+            try {
+                TLRPC.TL_messages_stickerSet set = mdc.getStickerSetById(setId);
+                if (set == null || set.documents == null || set.documents.isEmpty()) {
+                    TLRPC.StickerSet installed = null;
+                    ArrayList<TLRPC.TL_messages_stickerSet> sets = mdc.getStickerSets(MediaDataController.TYPE_IMAGE);
+                    if (sets != null) {
+                        for (TLRPC.TL_messages_stickerSet s : sets) {
+                            if (s != null && s.set != null && s.set.id == setId) {
+                                if (s.documents != null && !s.documents.isEmpty()) set = s;
+                                installed = s.set;
+                                break;
+                            }
+                        }
+                    }
+                    if ((set == null || set.documents == null || set.documents.isEmpty()) && installed != null
+                            && stickerLoadDue(account + ":set:" + setId)) {
+                        TLRPC.TL_inputStickerSetID input = new TLRPC.TL_inputStickerSetID();
+                        input.id = installed.id;
+                        input.access_hash = installed.access_hash;
+                        mdc.getStickerSet(input, false);
+                    }
+                }
+                if (set != null && set.documents != null) {
+                    for (TLRPC.Document d : set.documents) {
+                        if (d == null || d instanceof TLRPC.TL_documentEmpty || d.id == 0) continue;
+                        docs.add(d);
+                        if (docs.size() >= max) break;
+                    }
+                }
+            } catch (Exception e) {
+                error[0] = e;
+            }
+        });
+        if (error[0] != null) throw error[0];
+        JSONArray array = new JSONArray();
+        for (TLRPC.Document d : docs) array.put(stickerJson(account, mdc, d));
         return array.toString();
     }
 
