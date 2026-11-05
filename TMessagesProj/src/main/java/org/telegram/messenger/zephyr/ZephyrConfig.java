@@ -20,7 +20,7 @@ public class ZephyrConfig {
     public static volatile boolean saveDeleted = false;
     public static volatile boolean saveEdited = false;
     public static volatile boolean localPremium = false;
-    public static volatile boolean disableAds = false;
+    public static volatile boolean disableAds = true;
     public static volatile boolean autoUpdateCheck = true;
     public static volatile long lastUpdateCheck = 0;
 
@@ -426,7 +426,7 @@ public class ZephyrConfig {
         saveDeleted = p.getBoolean("saveDeleted", false);
         saveEdited = p.getBoolean("saveEdited", false);
         localPremium = p.getBoolean("localPremium", false);
-        disableAds = p.getBoolean("disableAds", false);
+        disableAds = p.getBoolean("disableAds", true);
         autoUpdateCheck = p.getBoolean("autoUpdateCheck", true);
         lastUpdateCheck = p.getLong("lastUpdateCheck", 0);
         loadExtera(p);

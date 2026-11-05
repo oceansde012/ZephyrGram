@@ -45,5 +45,13 @@ class LocalPremiumLimits(unittest.TestCase):
         self.assertEqual(read("ui/Components/BulletinFactory.java").count("isLocalPremiumError("), 3)
 
 
+class DisableAdsDefault(unittest.TestCase):
+    def test_ads_hidden_by_default(self):
+        cfg = read("messenger/zephyr/ZephyrConfig.java")
+        self.assertIn("public static volatile boolean disableAds = true;", cfg)
+        self.assertIn('p.getBoolean("disableAds", true)', cfg)
+        self.assertIn("setChecked(ZephyrConfig.disableAds)", read("ui/ZephyrOtherSettingsActivity.java"))
+
+
 if __name__ == "__main__":
     unittest.main()
