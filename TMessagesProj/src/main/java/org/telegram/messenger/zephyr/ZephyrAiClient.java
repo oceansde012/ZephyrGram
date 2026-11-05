@@ -38,6 +38,18 @@ public class ZephyrAiClient {
         return ZephyrMemoryClient.requestBlocking(account, operation, dialogId, topicId, body, timeoutSec, expectedBinding, guard);
     }
 
+    /** Memory stage 2 (style examples, reply feedback, facts, digests). Same token/account binding as v1. */
+    public static final int MEMORY_STYLE_API_VERSION = ZephyrMemoryClient.STYLE_API_VERSION;
+
+    public static JSONObject memoryStyleStatusBlocking(int account, int timeoutSec, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.styleStatusBlocking(account, timeoutSec, guard);
+    }
+
+    public static JSONObject memoryStyleRequestBlocking(int account, String operation, String area, JSONObject body,
+                                                       int timeoutSec, String expectedBinding, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.styleRequestBlocking(account, operation, area, body, timeoutSec, expectedBinding, guard);
+    }
+
     public static final int ERR_NOT_CONFIGURED = 1;
     public static final int ERR_UNAUTHORIZED = 2;
     public static final int ERR_RATE_LIMIT = 3;
