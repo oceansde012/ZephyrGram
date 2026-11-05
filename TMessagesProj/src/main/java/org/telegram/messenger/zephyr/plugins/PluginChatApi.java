@@ -1027,7 +1027,12 @@ public final class PluginChatApi {
     }
 
     private static String encodeVideoFrame(File file, int maxSide) {
-        if (file == null || !file.exists() || file.length() <= 0 || file.length() > MAX_VIDEO_FRAME_FILE) return null;
+        return encodeVideoFrame(file, maxSide, -1, MAX_VIDEO_FRAME_FILE);
+    }
+
+    /** Frame at {@code atMs} (clamped to the duration; negative = middle) of a local video file, as JPEG base64. */
+    private static String encodeVideoFrame(File file, int maxSide, long atMs, long maxBytes) {
+        if (file == null || !file.exists() || file.length() <= 0 || file.length() > maxBytes) return null;
         android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
         try {
             r.setDataSource(file.getAbsolutePath());
@@ -1036,7 +1041,8 @@ public final class PluginChatApi {
                 String s = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
                 if (s != null) durMs = Long.parseLong(s);
             } catch (Throwable ignore) { }
-            android.graphics.Bitmap bmp = r.getFrameAtTime(durMs * 1000L / 2, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            long at = atMs < 0 ? durMs / 2 : (durMs > 0 ? Math.min(atMs, durMs) : atMs);
+            android.graphics.Bitmap bmp = r.getFrameAtTime(at * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
             if (bmp == null) return null;
             try {
                 return encodeJpeg(bmp, maxSide);
@@ -1279,6 +1285,92 @@ public final class PluginChatApi {
         } catch (Throwable t) {
             FileLog.e(t);
             return null;
+        }
+    }
+
+    // ------------------------------------------------------------------ video frame
+
+    private static final int VIDEO_FRAME_SIDE = 512;
+    /** MediaMetadataRetriever seeks inside the file, so a cached video of any practical size is fine. */
+    private static final long MAX_CACHED_VIDEO_FILE = 4L * 1024 * 1024 * 1024;
+    private static final String FRAMES_DIR = "zephyr_frames";
+    private static final int FRAMES_KEEP = 20;
+
+    /**
+     * One frame of a video, GIF or round video message as a JPEG file (longest side <= 512); returns its absolute
+     * path or null. A cached/local video file gives the frame at {@code atMs} (negative = middle of the video);
+     * otherwise the message thumbnail is used (a small download at most), the video itself is never downloaded.
+     * Secret chats return null. Blocking, worker thread only.
+     */
+    public static String videoFrame(String id, long dialogId, int messageId, int account, long atMs, int timeoutS) {
+        try {
+            PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+            checkAccount(account);
+            notMainThread();
+            if (DialogObject.isEncryptedDialog(dialogId)) return null;
+            timeoutS = Math.max(1, Math.min(60, timeoutS));
+            final long deadline = System.currentTimeMillis() + timeoutS * 1000L;
+            ArrayList<TLRPC.Message> found = loadFromStorage(account, dialogId, 1, messageId);
+            if (found.isEmpty()) return null;
+            TLRPC.Message msg = found.get(0);
+            if (!(msg.media instanceof TLRPC.TL_messageMediaDocument)) return null;
+            TLRPC.Document doc = ((TLRPC.TL_messageMediaDocument) msg.media).document;
+            if (!(doc instanceof TLRPC.TL_document)) return null;
+            if (!(MessageObject.isVideoDocument(doc) || MessageObject.isRoundVideoDocument(doc)
+                    || MessageObject.isGifDocument(doc) || MessageObject.isNewGifDocument(doc))) return null;
+            MessageObject mo = null;
+            try { mo = new MessageObject(account, msg, false, false); } catch (Throwable t) { FileLog.e(t); }
+            final Object parent = mo != null ? mo : msg;
+            FileLoader fl = FileLoader.getInstance(account);
+            String b64 = null;
+            File vf = fl.getPathToAttach(doc, null, false, false);
+            if (!fileReady(vf)) vf = fl.getPathToAttach(doc, null, true, false);
+            if (!fileReady(vf) && msg.attachPath != null && !msg.attachPath.isEmpty()) vf = new File(msg.attachPath);
+            if (fileReady(vf)) b64 = encodeVideoFrame(vf, VIDEO_FRAME_SIDE, atMs, MAX_CACHED_VIDEO_FILE);
+            if (b64 == null && doc.thumbs != null) {
+                TLRPC.PhotoSize thumb = pickSize(doc.thumbs, VIDEO_FRAME_SIDE, true);
+                if (thumb != null) b64 = sizeToJpeg(account, thumb, null, doc, parent, VIDEO_FRAME_SIDE, deadline);
+                if (b64 == null) {
+                    for (TLRPC.PhotoSize ps : doc.thumbs) {
+                        if (ps instanceof TLRPC.TL_photoStrippedSize) { b64 = encodeStripped(ps, VIDEO_FRAME_SIDE); if (b64 != null) break; }
+                    }
+                }
+            }
+            if (b64 == null) return null;
+            File dir = new File(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE), FRAMES_DIR);
+            if (!dir.isDirectory() && !dir.mkdirs()) return null;
+            pruneFrames(dir);
+            File out = new File(dir, "frame_" + account + "_" + dialogId + "_" + messageId + "_" + Math.max(-1, atMs) + ".jpg");
+            // Unique temp name per thread; rename replaces an older frame atomically (POSIX).
+            File tmp = new File(dir, out.getName() + "." + android.os.Process.myTid() + ".tmp");
+            try (java.io.FileOutputStream os = new java.io.FileOutputStream(tmp)) {
+                os.write(android.util.Base64.decode(b64, android.util.Base64.NO_WRAP));
+            } catch (Throwable t) {
+                tmp.delete();
+                throw t;
+            }
+            if (!tmp.renameTo(out)) {
+                tmp.delete();
+                return null;
+            }
+            return out.getAbsolutePath();
+        } catch (SecurityException e) {
+            throw e;
+        } catch (Throwable t) {
+            FileLog.e(t);
+            return null;
+        }
+    }
+
+    /** Keeps the newest frames only, so the frames folder does not grow without bound. */
+    private static void pruneFrames(File dir) {
+        try {
+            File[] files = dir.listFiles();
+            if (files == null || files.length < FRAMES_KEEP) return;
+            java.util.Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+            for (int i = FRAMES_KEEP - 1; i < files.length; i++) files[i].delete();
+        } catch (Throwable t) {
+            FileLog.e(t);
         }
     }
 

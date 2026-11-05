@@ -571,6 +571,25 @@ def get_message_media(dialog_id, message_id, account=None, max_side=768, timeout
             "image_kind": d.get("image_kind") or None}
 
 
+def video_frame(dialog_id, message_id, account=None, at_ms=None, timeout_s=20):
+    """One frame of a video, GIF or round video message as a JPEG file for vision models (chat.read).
+    Returns the file path (longest side <= 512 px) or None. If the video is already on the device the frame is taken
+    at at_ms (None or negative = middle of the video, clamped to its length); otherwise the message thumbnail is used
+    and the video itself is never downloaded. Secret chats give None. Blocking: worker thread only (run_in_bg).
+    The file lives in the app cache; only the newest 20 frames are kept."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    at = -1 if at_ms is None else max(-1, int(at_ms))
+    try:
+        raw = _call(ChatApi.videoFrame, plugin.id, int(dialog_id), int(message_id), _account(account), at,
+                    int(timeout_s))
+    except PermissionError:
+        raise
+    except Exception:
+        return None
+    return None if raw is None else str(raw)
+
+
 def get_voice(dialog_id, message_id, account=None, timeout_s=30, max_seconds=300):
     """Fetch a voice/audio message for speech-to-text (chat.read). Blocking: worker thread only. Returns None if the
     message is not found or on failure; otherwise a dict: {type: 'voice'|'audio', is_voice, duration, mime, size,
@@ -757,6 +776,7 @@ SEND_MEDIA = True           # send_media (media.send)
 NOTIFY = True               # notify (Android notification, 0.2.6)
 HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat header, 0.2.7)
 USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
+VIDEO_FRAME = True          # video_frame (0.2.7)
 
 _MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024
