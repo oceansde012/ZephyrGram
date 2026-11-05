@@ -26,7 +26,7 @@ def load_plugin(plugin_id, path, data_dir):
         source = Path(path).read_bytes()
         if len(source) > 2 * 1024 * 1024:
             raise ValueError("Plugin is larger than 2 MB")
-        exec(compile(source.decode("utf-8"), path, "exec"), module.__dict__)
+        exec(_compiled(source, path), module.__dict__)
         plugin_class = module.__dict__.get("Plugin")
         if not isinstance(plugin_class, type) or not issubclass(plugin_class, BasePlugin):
             raise TypeError("Plugin must subclass zephyr.BasePlugin")
@@ -48,6 +48,37 @@ def load_plugin(plugin_id, path, data_dir):
         raise
     finally:
         _state.current.reset(token)
+
+
+def _compiled(source, path):
+    """Code object of a plugin, cached next to its file by the source's SHA-256 and the interpreter's magic.
+
+    compile() is one C call that holds the GIL for its whole run (a 500 KB plugin takes hundreds of ms on a phone),
+    so every UI-thread plugin call (send hook, menu condition, settings tap) waited for it at app start and after
+    each plugin update. Loading the cached bytecode takes a few ms. Any cache problem falls back to compile().
+    """
+    import hashlib
+    import importlib.util
+    import marshal
+    import os
+    header = importlib.util.MAGIC_NUMBER + hashlib.sha256(source).digest()
+    cache = Path(str(path) + ".pyc")
+    try:
+        data = cache.read_bytes()
+        if data[:len(header)] == header:
+            code = marshal.loads(data[len(header):])
+            if isinstance(code, types.CodeType) and code.co_filename == str(path):
+                return code
+    except Exception:
+        pass
+    code = compile(source.decode("utf-8"), path, "exec")
+    try:
+        tmp = Path(str(cache) + ".tmp")
+        tmp.write_bytes(header + marshal.dumps(code))
+        os.replace(str(tmp), str(cache))
+    except Exception:
+        pass
+    return code
 
 
 def unload_plugin(plugin_id):
