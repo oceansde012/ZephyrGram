@@ -22,8 +22,8 @@
     <string name="ZephyrNavAppearanceInfo">Folder tabs, button, avatars, fonts</string>
     <string name="ZephyrNavChatsInfo">Double tap, menus, channels, archive</string>
     <string name="ZephyrNavMediaInfo">Stickers, photos, video messages, player</string>
-    <string name="ZephyrNavPrivacyGhostOn">Ghost mode on, ID and DC in profile</string>
-    <string name="ZephyrNavPrivacyGhostOff">Ghost mode off, ID and DC in profile</string>
+    <string name="ZephyrNavPrivacyGhostOn">%1$s, %2$s</string>
+    <string name="ZephyrNavPrivacyGhostOff">%1$s, %2$s</string>
     <string name="ZephyrNavFiltersState">Rules: %1$d</string>
     <string name="ZephyrNavAssistantInfo">Server, model, modes</string>
     <string name="ZephyrNavLogOn">Log is on</string>
@@ -38,4 +38,9 @@
     <string name="ZephyrTileOffN">Off</string>
     <string name="ZephyrTileOnM">On</string>
     <string name="ZephyrTileOffM">Off</string>
+    <string name="ZephyrNavGhostStateOn">Ghost on</string>
+    <string name="ZephyrNavGhostStateOff">Ghost off</string>
+    <string name="ZephyrNavIdHidden">ID hidden</string>
+    <string name="ZephyrNavIdOnly">ID in profile</string>
+    <string name="ZephyrNavIdAndDc">ID and DC in profile</string>
 </resources>

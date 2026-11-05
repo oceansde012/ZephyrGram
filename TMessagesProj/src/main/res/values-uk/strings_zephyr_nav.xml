@@ -22,8 +22,8 @@
     <string name="ZephyrNavAppearanceInfo">Вкладки папок, кнопка, аватарки, шрифти</string>
     <string name="ZephyrNavChatsInfo">Подвійний дотик, меню, канали, архів</string>
     <string name="ZephyrNavMediaInfo">Стікери, фото, відеоповідомлення, плеєр</string>
-    <string name="ZephyrNavPrivacyGhostOn">Привид увімкнено, ID та DC у профілі</string>
-    <string name="ZephyrNavPrivacyGhostOff">Привид вимкнено, ID та DC у профілі</string>
+    <string name="ZephyrNavPrivacyGhostOn">%1$s, %2$s</string>
+    <string name="ZephyrNavPrivacyGhostOff">%1$s, %2$s</string>
     <string name="ZephyrNavFiltersState">Правил: %1$d</string>
     <string name="ZephyrNavAssistantInfo">Сервер, модель, режими</string>
     <string name="ZephyrNavLogOn">Журнал увімкнено</string>
@@ -38,4 +38,9 @@
     <string name="ZephyrTileOffN">Вимкнено</string>
     <string name="ZephyrTileOnM">Увімкнено</string>
     <string name="ZephyrTileOffM">Вимкнено</string>
+    <string name="ZephyrNavGhostStateOn">Привид увімкнено</string>
+    <string name="ZephyrNavGhostStateOff">Привид вимкнено</string>
+    <string name="ZephyrNavIdHidden">ID приховано</string>
+    <string name="ZephyrNavIdOnly">у профілі ID</string>
+    <string name="ZephyrNavIdAndDc">у профілі ID і DC</string>
 </resources>

@@ -31,7 +31,7 @@ class MainScreen(unittest.TestCase):
         for cls in ("ZephyrAppearanceSettingsActivity", "ZephyrChatsSettingsActivity", "ZephyrHistorySettingsActivity",
                     "ZephyrFiltersActivity", "ZephyrPluginsActivity", "ZephyrAutoReplyChatsActivity",
                     "ZephyrAssistantSettingsActivity", "ZephyrPushSettingsActivity", "ZephyrUpdatesSettingsActivity",
-                    "ZephyrDiagnosticsActivity", "ZephyrGhostSettingsActivity"):
+                    "ZephyrDiagnosticsActivity", "ZephyrPrivacySettingsActivity", "ZephyrMediaSettingsActivity"):
             self.assertIn("new %s()" % cls, s)
 
     def test_diagnostics_has_all_log_items(self):

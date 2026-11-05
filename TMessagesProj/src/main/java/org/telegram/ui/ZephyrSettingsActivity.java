@@ -111,9 +111,9 @@ public class ZephyrSettingsActivity extends BaseFragment {
         } else if (position == ROW_CHATS) {
             presentFragment(new ZephyrChatsSettingsActivity());
         } else if (position == ROW_MEDIA) {
-            presentFragment(new ZephyrChatsSettingsActivity());          // replaced by the Media screen in redesign step 3
+            presentFragment(new ZephyrMediaSettingsActivity());
         } else if (position == ROW_PRIVACY) {
-            presentFragment(new ZephyrGhostSettingsActivity());          // replaced by the Privacy screen in redesign step 3
+            presentFragment(new ZephyrPrivacySettingsActivity());
         } else if (position == ROW_HISTORY) {
             presentFragment(new ZephyrHistorySettingsActivity());
         } else if (position == ROW_FILTERS) {
@@ -161,7 +161,11 @@ public class ZephyrSettingsActivity extends BaseFragment {
             case ROW_APPEARANCE: return LocaleController.getString(R.string.ZephyrNavAppearanceInfo);
             case ROW_CHATS: return LocaleController.getString(R.string.ZephyrNavChatsInfo);
             case ROW_MEDIA: return LocaleController.getString(R.string.ZephyrNavMediaInfo);
-            case ROW_PRIVACY: return LocaleController.getString(ghostOn() ? R.string.ZephyrNavPrivacyGhostOn : R.string.ZephyrNavPrivacyGhostOff);
+            case ROW_PRIVACY: {
+                int idDc = ZephyrConfig.showIdAndDc;
+                String id = LocaleController.getString(idDc == 2 ? R.string.ZephyrNavIdAndDc : idDc == 1 ? R.string.ZephyrNavIdOnly : R.string.ZephyrNavIdHidden);
+                return LocaleController.formatString(R.string.ZephyrNavPrivacyGhostOn, LocaleController.getString(ghostOn() ? R.string.ZephyrNavGhostStateOn : R.string.ZephyrNavGhostStateOff), id);
+            }
             case ROW_HISTORY: return LocaleController.formatString(R.string.ZephyrNavHistoryState, onOff(ZephyrConfig.saveDeleted), onOff(ZephyrConfig.saveEdited));
             case ROW_FILTERS: return LocaleController.formatString(R.string.ZephyrNavFiltersState, filtersCount());
             case ROW_PLUGINS: return pluginsSubtitle();
@@ -358,7 +362,7 @@ public class ZephyrSettingsActivity extends BaseFragment {
 
         private void openSettings(int index) {
             if (index == 0) {
-                presentFragment(new ZephyrGhostSettingsActivity());
+                presentFragment(new ZephyrPrivacySettingsActivity());
             } else {
                 org.telegram.ui.Components.BulletinFactory.of(ZephyrSettingsActivity.this).createSimpleBulletin(R.raw.info,
                         LocaleController.getString(index == 1 ? R.string.ZephyrDisableAds : R.string.ZephyrUxLocalPremiumInfo)).show();

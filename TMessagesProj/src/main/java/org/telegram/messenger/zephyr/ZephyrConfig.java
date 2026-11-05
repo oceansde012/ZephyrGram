@@ -118,6 +118,8 @@ public class ZephyrConfig {
             case "ghostNoTyping": return ghostNoTyping;
             case "ghostAlwaysOffline": return ghostAlwaysOffline;
             case "ghostNoStoryViews": return ghostNoStoryViews;
+            case "hideViaBot": return hideViaBot;
+            case "settingsCards": return settingsCards;
             case "saveDeleted": return saveDeleted;
             case "saveEdited": return saveEdited;
             default: return getChat3Bool(key);
@@ -142,6 +144,8 @@ public class ZephyrConfig {
             case "ghostNoTyping": setGhostNoTyping(value); return;
             case "ghostAlwaysOffline": setGhostAlwaysOffline(value); return;
             case "ghostNoStoryViews": setGhostNoStoryViews(value); return;
+            case "hideViaBot": setHideViaBot(value); return;
+            case "settingsCards": setSettingsCards(value); return;
             case "saveDeleted": setSaveDeleted(value); return;
             case "saveEdited": setSaveEdited(value); return;
             case "forceSnow": forceSnow = value; break;

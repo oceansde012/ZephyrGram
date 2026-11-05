@@ -102,6 +102,16 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         }
     }
 
+    /** Switch with a ready-made second line (null = none). */
+    protected void addSwitchWithInfo(ArrayList<UItem> items, String key, int titleRes, CharSequence info) {
+        UItem item = UItem.asCheck(key.hashCode(), LocaleController.getString(titleRes)).setChecked(ZephyrConfig.getBool(key));
+        if (info != null) {
+            item.subtext = info.toString();
+        }
+        item.object = key;
+        items.add(item);
+    }
+
     /** Switch that shows the opposite of a stored key (no negations on screen, keys stay as they are). */
     protected void addInvertedSwitch(ArrayList<UItem> items, String key, int titleRes, int infoRes) {
         UItem item = UItem.asCheck(("inv:" + key).hashCode(), LocaleController.getString(titleRes)).setChecked(!ZephyrConfig.getBool(key));
