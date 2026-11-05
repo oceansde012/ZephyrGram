@@ -36,6 +36,8 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
         if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
             items.add(UItem.asButton(ID_SHARE_LOGS, LocaleController.getString(R.string.ZephyrShareLogs)));
         }
+        // Always available: the freeze journal is written even with logging off.
+        items.add(UItem.asButton(ID_FREEZE_LOG, LocaleController.getString(R.string.ZephyrCopyFreezeLog)));
         items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrLogsInfo)));
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrUxHeaderBackground)));
         items.add(UItem.asButton(ID_PUSH, LocaleController.getString(R.string.ZephyrPushTitle), org.telegram.messenger.zephyr.ZephyrPush.isServiceEnabled() ? LocaleController.getString(R.string.ZephyrPushOn) : LocaleController.getString(R.string.ZephyrPushOff)));
@@ -52,6 +54,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
     private static final int ID_DISABLE_ADS = 4;
     private static final int ID_PUSH = 9102;
     private static final int ID_SHARE_LOGS = 9103;
+    private static final int ID_FREEZE_LOG = 9104;
 
     @Override
     protected void onCustomClick(UItem item, android.view.View view) {
@@ -73,7 +76,16 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
                 listView.adapter.update(true);
             }
         } else if (item.id == ID_SHARE_LOGS) {
-            org.telegram.ui.ProfileActivity.sendLogs(getParentActivity(), false);        } else if (item.id == ID_PUSH) {
+            org.telegram.ui.ProfileActivity.sendLogs(getParentActivity(), false);
+        } else if (item.id == ID_FREEZE_LOG) {
+            String journal = org.telegram.messenger.zephyr.plugins.MainThreadWatchdog.readJournal();
+            if (journal.trim().isEmpty()) {
+                org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(R.raw.info, LocaleController.getString(R.string.ZephyrFreezeLogEmpty)).show();
+            } else {
+                org.telegram.messenger.AndroidUtilities.addToClipboard(journal);
+                org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(R.raw.copy, LocaleController.getString(R.string.ZephyrFreezeLogCopied)).show();
+            }
+        } else if (item.id == ID_PUSH) {
             presentFragment(new ZephyrPushSettingsActivity());
         } else if (item.id == ID_RESET) {
             confirmReset(this, null);
