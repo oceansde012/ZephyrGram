@@ -114,6 +114,12 @@ public class ZephyrConfig {
             case "pauseOnMinimize": return pauseOnMinimize;
             case "forceSnow": return forceSnow;
             case "forceBlur": return forceBlur;
+            case "ghostNoRead": return ghostNoRead;
+            case "ghostNoTyping": return ghostNoTyping;
+            case "ghostAlwaysOffline": return ghostAlwaysOffline;
+            case "ghostNoStoryViews": return ghostNoStoryViews;
+            case "saveDeleted": return saveDeleted;
+            case "saveEdited": return saveEdited;
             default: return getChat3Bool(key);
         }
     }
@@ -132,6 +138,12 @@ public class ZephyrConfig {
             case "hideStickerTime": hideStickerTime = value; break;
             case "unlimitedRecentStickers": unlimitedRecentStickers = value; break;
             case "pauseOnMinimize": pauseOnMinimize = value; break;
+            case "ghostNoRead": setGhostNoRead(value); return;
+            case "ghostNoTyping": setGhostNoTyping(value); return;
+            case "ghostAlwaysOffline": setGhostAlwaysOffline(value); return;
+            case "ghostNoStoryViews": setGhostNoStoryViews(value); return;
+            case "saveDeleted": setSaveDeleted(value); return;
+            case "saveEdited": setSaveEdited(value); return;
             case "forceSnow": forceSnow = value; break;
             case "forceBlur": forceBlur = value; break;
             default:

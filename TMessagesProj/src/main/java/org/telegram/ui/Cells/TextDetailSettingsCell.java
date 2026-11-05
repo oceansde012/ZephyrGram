@@ -27,6 +27,10 @@ import org.telegram.ui.Components.LayoutHelper;
 
 public class TextDetailSettingsCell extends FrameLayout {
 
+    public void setTitleColor(int color) {
+        textView.setTextColor(color);
+    }
+
     private TextView textView;
     private TextView valueTextView;
     private ImageView imageView;

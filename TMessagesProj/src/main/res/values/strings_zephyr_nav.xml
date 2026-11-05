@@ -17,4 +17,25 @@
     <string name="ZephyrNavArOff">Auto-reply is paused in this chat</string>
     <string name="ZephyrNavArPluginOff">On for this chat, but the auto-reply plugin is disabled</string>
     <string name="ZephyrNavArMasterOff">On for this chat, but auto-reply is turned off for all chats</string>
+    <string name="ZephyrNavMedia">Media</string>
+    <string name="ZephyrNavPrivacy">Privacy</string>
+    <string name="ZephyrNavAppearanceInfo">Folder tabs, button, avatars, fonts</string>
+    <string name="ZephyrNavChatsInfo">Double tap, menus, channels, archive</string>
+    <string name="ZephyrNavMediaInfo">Stickers, photos, video messages, player</string>
+    <string name="ZephyrNavPrivacyGhostOn">Ghost mode on, ID and DC in profile</string>
+    <string name="ZephyrNavPrivacyGhostOff">Ghost mode off, ID and DC in profile</string>
+    <string name="ZephyrNavFiltersState">Rules: %1$d</string>
+    <string name="ZephyrNavAssistantInfo">Server, model, modes</string>
+    <string name="ZephyrNavLogOn">Log is on</string>
+    <string name="ZephyrNavLogOff">Log is off</string>
+    <string name="ZephyrNavHeaderInterface">Interface</string>
+    <string name="ZephyrNavHeaderPrivacy">Privacy and data</string>
+    <string name="ZephyrNavHeaderExtensions">Extensions</string>
+    <string name="ZephyrNavHeaderSystem">System</string>
+    <string name="ZephyrNavTilesInfo">Tap toggles. Long press opens the settings.</string>
+    <string name="ZephyrDisableAdsTile">Hide ads</string>
+    <string name="ZephyrTileOnN">On</string>
+    <string name="ZephyrTileOffN">Off</string>
+    <string name="ZephyrTileOnM">On</string>
+    <string name="ZephyrTileOffM">Off</string>
 </resources>

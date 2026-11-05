@@ -17,4 +17,25 @@
     <string name="ZephyrNavArOff">Автовідповідь у цьому чаті призупинено</string>
     <string name="ZephyrNavArPluginOff">Увімкнено для цього чату, але плагін автовідповідача вимкнено</string>
     <string name="ZephyrNavArMasterOff">Увімкнено для цього чату, але автовідповідь вимкнено для всіх чатів</string>
+    <string name="ZephyrNavMedia">Медіа</string>
+    <string name="ZephyrNavPrivacy">Приватність</string>
+    <string name="ZephyrNavAppearanceInfo">Вкладки папок, кнопка, аватарки, шрифти</string>
+    <string name="ZephyrNavChatsInfo">Подвійний дотик, меню, канали, архів</string>
+    <string name="ZephyrNavMediaInfo">Стікери, фото, відеоповідомлення, плеєр</string>
+    <string name="ZephyrNavPrivacyGhostOn">Привид увімкнено, ID та DC у профілі</string>
+    <string name="ZephyrNavPrivacyGhostOff">Привид вимкнено, ID та DC у профілі</string>
+    <string name="ZephyrNavFiltersState">Правил: %1$d</string>
+    <string name="ZephyrNavAssistantInfo">Сервер, модель, режими</string>
+    <string name="ZephyrNavLogOn">Журнал увімкнено</string>
+    <string name="ZephyrNavLogOff">Журнал вимкнено</string>
+    <string name="ZephyrNavHeaderInterface">Інтерфейс</string>
+    <string name="ZephyrNavHeaderPrivacy">Приватність і дані</string>
+    <string name="ZephyrNavHeaderExtensions">Розширення</string>
+    <string name="ZephyrNavHeaderSystem">Система</string>
+    <string name="ZephyrNavTilesInfo">Дотик вмикає й вимикає. Утримання відкриває налаштування.</string>
+    <string name="ZephyrDisableAdsTile">Приховувати рекламу</string>
+    <string name="ZephyrTileOnN">Увімкнено</string>
+    <string name="ZephyrTileOffN">Вимкнено</string>
+    <string name="ZephyrTileOnM">Увімкнено</string>
+    <string name="ZephyrTileOffM">Вимкнено</string>
 </resources>

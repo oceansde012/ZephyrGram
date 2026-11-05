@@ -17,4 +17,25 @@
     <string name="ZephyrNavArOff">Автоответ в этом чате приостановлен</string>
     <string name="ZephyrNavArPluginOff">Включён для этого чата, но плагин автоответчика выключен</string>
     <string name="ZephyrNavArMasterOff">Включён для этого чата, но автоответ выключен для всех чатов</string>
+    <string name="ZephyrNavMedia">Медиа</string>
+    <string name="ZephyrNavPrivacy">Приватность</string>
+    <string name="ZephyrNavAppearanceInfo">Вкладки папок, кнопка, аватарки, шрифты</string>
+    <string name="ZephyrNavChatsInfo">Двойное касание, меню, каналы, архив</string>
+    <string name="ZephyrNavMediaInfo">Стикеры, фото, видеосообщения, плеер</string>
+    <string name="ZephyrNavPrivacyGhostOn">Призрак включён, ID и DC в профиле</string>
+    <string name="ZephyrNavPrivacyGhostOff">Призрак выключен, ID и DC в профиле</string>
+    <string name="ZephyrNavFiltersState">Правил: %1$d</string>
+    <string name="ZephyrNavAssistantInfo">Сервер, модель, режимы</string>
+    <string name="ZephyrNavLogOn">Журнал включён</string>
+    <string name="ZephyrNavLogOff">Журнал выключен</string>
+    <string name="ZephyrNavHeaderInterface">Интерфейс</string>
+    <string name="ZephyrNavHeaderPrivacy">Приватность и данные</string>
+    <string name="ZephyrNavHeaderExtensions">Расширения</string>
+    <string name="ZephyrNavHeaderSystem">Система</string>
+    <string name="ZephyrNavTilesInfo">Нажатие включает и выключает. Удержание открывает настройки.</string>
+    <string name="ZephyrDisableAdsTile">Скрывать рекламу</string>
+    <string name="ZephyrTileOnN">Включено</string>
+    <string name="ZephyrTileOffN">Выключено</string>
+    <string name="ZephyrTileOnM">Включён</string>
+    <string name="ZephyrTileOffM">Выключен</string>
 </resources>
