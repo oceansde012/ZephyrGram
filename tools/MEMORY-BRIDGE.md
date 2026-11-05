@@ -59,4 +59,6 @@ JVM transport tests compile the actual production `ZephyrMemoryClient.java` agai
 powershell -File tools/run_memory_jvm_tests.ps1 -JsonJar <json-20240303.jar> -BuildDirectory <temporary-output-directory>
 ```
 
+The memory style layer (permission `memory.style`, `client.MEMORY_STYLE`) uses the same transport and binding; its plugin API is described in `docs/plugin-memory-style-api.md` and tested by `tools/test_memory_style_bridge.py` and `MemoryStyleBridgeTest` (run both JVM suites with `tools/run_memory_jvm_tests.sh <json.jar>`).
+
 Full APK compilation and phone/native lifecycle verification are still required. The fixtures under `tools/memory_bridge_test` are not part of Gradle's production source set and contain only synthetic data.
