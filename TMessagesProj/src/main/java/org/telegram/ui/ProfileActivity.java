@@ -2591,6 +2591,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         return;
                     }
                     finishFragment();
+                } else if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(id)) {
+                    org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.onClick(id, currentAccount, getDialogId(), ProfileActivity.this);
                 } else if (id == block_contact) {
                     onBlockContactClicked(false);
                 } else if (id == add_contact) {
@@ -4097,6 +4099,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             @Override
             public void onShowSubMenu() {
                 updateScrimSourceBitmap();
+                org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.sync(otherItem,
+                        org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_PROFILE_ACTION, currentAccount, getDialogId(), ProfileActivity.this);
             }
 
             @Override

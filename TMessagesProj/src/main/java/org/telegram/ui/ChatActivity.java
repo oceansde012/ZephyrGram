@@ -3978,6 +3978,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id >= zephyr_permissions && id <= zephyr_recent_actions) {
                     openZephyrAdminShortcut(id);
+                } else if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(id)) {
+                    org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.onClick(id, currentAccount, getDialogId(), ChatActivity.this);
                 } else if (id == zephyr_plugins) {
                     openZephyrPluginsMenu();
                 } else if (id == report) {
@@ -4378,6 +4380,10 @@ public class ChatActivity extends BaseFragment implements
                 @Override
                 public void onShowSubMenu() {
                     updateScrimSourceBitmap();
+                    if (chatMode == MODE_DEFAULT) {
+                        org.telegram.messenger.zephyr.plugins.PluginHeaderMenu.sync(headerItem,
+                                org.telegram.messenger.zephyr.plugins.PluginMenus.TYPE_CHAT_ACTION, currentAccount, getDialogId(), ChatActivity.this);
+                    }
                 }
 
                 @Override

@@ -69,11 +69,14 @@ Chaquopy Python runtime, single-file `.plugin` modules (dunder metadata parsed i
 
 Python side: `MenuType.DRAWER=0, MESSAGE_CONTEXT=1, CHAT_ACTION=2, PROFILE_ACTION=3` (`TMessagesProj/src/main/python/zephyr/__init__.py:41-45`), registered with `BasePlugin.add_menu_item` (`__init__.py:143`). Java mirrors the types in `PluginMenus.java:28-31`.
 
-**Wired in the app: only `MESSAGE_CONTEXT`.** Verified by grep across all `*.java`, `*.py`, `*.kt` (identical on `release/0.2.4`):
+**Wired in the app: `MESSAGE_CONTEXT`, `CHAT_ACTION`, `PROFILE_ACTION` (0.2.5); `DRAWER` has no consumer yet.**
 
-- `ChatActivity.java:46334-46341`: builds the message long-press menu from `PluginMenus.getItems(TYPE_MESSAGE_CONTEXT, ...)`.
-- `ChatActivity.java:33773-33774`: routes clicks of plugin item ids to `PluginMenus.onClick`.
-- `TYPE_DRAWER`, `TYPE_CHAT_ACTION`, `TYPE_PROFILE_ACTION` have **no consumer** anywhere: they appear only as constants (`PluginMenus.java:28,30,31`) and in the Python enum (`__init__.py:42,44,45`). Items registered with them are stored but never rendered. `PluginMenus.hasItems(type)` has no callers either.
+- `MESSAGE_CONTEXT`: `ChatActivity.java` builds the message long-press menu from `PluginMenus.getItems(TYPE_MESSAGE_CONTEXT, ...)` and routes clicks of plugin item ids to `PluginMenus.onClick` (`processSelectedOption`).
+- `CHAT_ACTION`: rendered in the chat header "three dots" menu (private chats, groups, supergroups, channels; `chatMode == MODE_DEFAULT`). `ChatActivity` sub-menu delegate `onShowSubMenu` calls `PluginHeaderMenu.sync(headerItem, TYPE_CHAT_ACTION, ...)` every time the menu opens, so conditions and texts (for example an on/off toggle) are re-evaluated; clicks go through the header `onItemClick` to `PluginHeaderMenu.onClick`.
+- `PROFILE_ACTION`: the same in `ProfileActivity` (`otherItem` sub-menu delegate and `onItemClick`).
+- Shared helper `messenger/zephyr/plugins/PluginHeaderMenu.java`: adds a sub-item per item (ids from the reserved plugin range `PluginMenus.ID_BASE..ID_MAX`), hides items whose condition is false or whose plugin was removed/disabled, never throws.
+- Context dict given to Python `condition(ctx)` / `on_click(ctx)` (built in `zephyr_host.py::_context`): `account` (int), `dialog_id` (int; user id for private chats, negative id for groups/channels; for profiles the profile's user id or `-chat_id`), `message` (`None` for CHAT_ACTION/PROFILE_ACTION, the `MessageObject` for MESSAGE_CONTEXT), `fragment`, `context`.
+- `TYPE_DRAWER` still has no consumer: it appears only as a constant (`PluginMenus.java`) and in the Python enum. `PluginMenus.hasItems(type)` has no callers.
 - Unrelated to `PluginMenus`: the chat header "Plugins" entry (`ChatActivity.java:4533`, handler `:3981`, `openZephyrPluginsMenu` `:46277`) opens `ZephyrPluginsQuickMenu`, which lists plugins from `PluginManager`, not menu items.
 
 Other API (details in the 0.2.4 docs): `client.*` chat/AI calls, settings pages (`create_settings(page)`, `client.SETTINGS_PAGES`), `add_inline_result_hook` / `InlineAction` / `client.send_media` (0.2.4), `memory.style` client (0.2.4), `ai_memory_*` (0.2.2).
