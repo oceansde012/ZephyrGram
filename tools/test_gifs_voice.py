@@ -35,6 +35,14 @@ class GifsAndVoice(unittest.TestCase):
             return cls.gifs_json
 
         api.getSavedGifs = get_saved_gifs
+
+        def send_saved_gif(plugin_id, dialog, gif, reply, account):
+            cls.side.require(plugin_id, "messages.send")
+            cls.side.calls.append(("sendSavedGif", plugin_id, dialog, gif, reply, account))
+            return cls.gif_refusal
+
+        cls.gif_refusal = None
+        api.sendSavedGif = send_saved_gif
         sys.path.insert(0, str(PYTHON_ROOT))
         import zephyr_host
         from zephyr import client
@@ -54,7 +62,7 @@ class GifsAndVoice(unittest.TestCase):
 
     def setUp(self):
         self.side.calls.clear()
-        self.side.permissions["media_test"] = {"chat.read", "media.send"}
+        self.side.permissions["media_test"] = {"chat.read", "media.send", "messages.send"}
         type(self).gifs_json = "[]"
         self.side.load("media_test", self.path, self.tmp.name)
 
@@ -93,6 +101,29 @@ class GifsAndVoice(unittest.TestCase):
             {"id": 1, "mime": "", "w": 0, "h": 0, "duration": 2.5},
             {"id": 2, "mime": "video/mp4", "w": 320, "h": 240, "duration": 3.0}])
 
+    def test_send_saved_gif(self):
+        self.assertTrue(self.client.SEND_GIF)
+        results = []
+        self.call("send_saved_gif", 777, "42", reply_to=9, account=2, on_done=lambda ok, err: results.append((ok, err)))
+        self.side.drain()
+        self.assertEqual([c for c in self.side.calls if c[0] == "sendSavedGif"],
+                         [("sendSavedGif", "media_test", 777, 42, 9, 2)])
+        self.assertEqual(results, [(True, None)])
+
+    def test_send_saved_gif_refusal_and_permission(self):
+        type(self).gif_refusal = "gif_not_found"
+        results = []
+        self.call("send_saved_gif", 777, 1, on_done=lambda ok, err: results.append((ok, err)))
+        self.side.drain()
+        self.assertEqual(results, [(False, "gif_not_found")])
+        type(self).gif_refusal = None
+        self.side.permissions["media_test"] = {"chat.read"}
+        with self.assertRaises(PermissionError):
+            self.call("send_saved_gif", 777, 1)
+        with self.assertRaises(ValueError):
+            self.side.permissions["media_test"] = {"messages.send"}
+            self.call("send_saved_gif", 0, 1)
+
     def test_send_voice_passes_kind(self):
         (Path(self.tmp.name) / "reply.ogg").write_bytes(b"OggS" + b"\0" * 60)
         self.call("send_media", 777, "reply.ogg", kind="VOICE", reply_to=5)
@@ -117,6 +148,10 @@ class JavaSideChecks(unittest.TestCase):
         gifs = s[s.index("public static String getSavedGifs("):][:2000]
         self.assertIn('requirePermission(id, "chat.read")', gifs)
         self.assertIn('stickerLoadDue(account + ":gifs")', gifs)
+        gif = s[s.index("public static String sendSavedGif("):][:1500]
+        self.assertIn('requirePermission(id, "messages.send")', gif)
+        self.assertIn('return "secret_chat"', gif)
+        self.assertIn('return "gif_not_found"', gif)
         voice = s[s.index("private static TLRPC.TL_documentAttributeAudio voiceAttribute("):][:1800]
         self.assertIn("MediaController.isOpusFile(path) != 1", voice)
         self.assertIn("MediaController.getWaveform(path)", voice)

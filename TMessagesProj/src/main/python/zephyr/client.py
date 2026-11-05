@@ -145,6 +145,38 @@ def send_sticker(dialog_id, sticker_id, account=None, reply_to=None):
                       0 if reply_to is None else int(reply_to), _account(account)))
 
 
+def send_saved_gif(dialog_id, gif_id, reply_to=None, account=None, on_done=None):
+    """Send a GIF from client.get_saved_gifs() as an ordinary outgoing message (messages.send; hooks skipped like
+    send_sticker). Non-blocking: the work runs in the background and on_done(ok: bool, error: str | None) is called
+    afterwards (worker thread). error is 'gif_not_found' (id not among the saved GIFs), 'secret_chat' or a message
+    text; queued is not delivered. Without on_done, failures go to the plugin log."""
+    plugin = _state.owner()
+    require(plugin, "messages.send")
+    dialog, gif = int(dialog_id), int(gif_id)
+    if not dialog:
+        raise ValueError("Invalid dialog id")
+    reply = 0 if reply_to is None else int(reply_to)
+    if reply < 0 or reply > 2147483647:
+        raise ValueError("reply_to must be a positive message id")
+    acc = _account(account)
+    done = None if on_done is None else _state.bound_callback(on_done)
+
+    def work():
+        error = None
+        try:
+            refusal = _call(ChatApi.sendSavedGif, plugin.id, dialog, gif, reply, acc)
+            error = None if refusal is None else str(refusal)
+        except Exception as exc:  # reported to the plugin, never raised into the worker
+            getter = getattr(exc, "getMessage", None)
+            error = str(getter() if callable(getter) else exc) or type(exc).__name__
+        if done is not None:
+            done(error is None, error)
+        elif error is not None:
+            Runtime.log(plugin.id, "send_saved_gif failed: " + error)
+
+    run_in_bg(work)
+
+
 def set_draft(dialog_id, text, account=None):
     """Put text into the chat input draft (messages.send). Empty text clears the draft."""
     plugin = _state.owner()
@@ -813,6 +845,7 @@ HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat head
 USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
 VIDEO_FRAME = True          # video_frame (0.2.7)
 STICKER_SETS = True         # get_sticker_sets, get_set_stickers (0.2.7)
+SEND_GIF = True            # send_saved_gif (0.2.7)
 SAVED_GIFS = True           # get_saved_gifs (0.2.7)
 SEND_VOICE = True           # send_media(kind="voice") for OGG/Opus (0.2.7)
 

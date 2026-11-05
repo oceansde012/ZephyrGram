@@ -1131,6 +1131,35 @@ public final class PluginChatApi {
         return array.toString();
     }
 
+    /**
+     * Sends a saved GIF (id from getSavedGifs) as an ordinary outgoing message, marked like send_text (hooks skipped).
+     * Returns null when queued, else a short refusal: "secret_chat", "gif_not_found". Blocks on the UI thread while it
+     * reads the cache: call from a worker thread. Never throws for an unknown id.
+     */
+    public static String sendSavedGif(String id, long dialogId, long gifId, int replyTo, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "messages.send");
+        checkAccount(account);
+        if (DialogObject.isEncryptedDialog(dialogId)) return "secret_chat";
+        final MediaDataController mdc = MediaDataController.getInstance(account);
+        final ArrayList<TLRPC.Document> gifs = new ArrayList<>();
+        onUiAndWait(() -> gifs.addAll(mdc.getRecentGifs()));
+        TLRPC.TL_document found = null;
+        for (TLRPC.Document d : gifs) {
+            if (d instanceof TLRPC.TL_document && d.id == gifId) { found = (TLRPC.TL_document) d; break; }
+        }
+        if (found == null) return "gif_not_found";
+        final TLRPC.TL_document doc = found;
+        final MessageObject reply = replyObject(account, dialogId, replyTo);
+        AndroidUtilities.runOnUIThread(() -> {
+            if (!PluginRuntime.INSTANCE.isLoaded(id)) return;
+            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
+                    doc, null, null, dialogId, reply, null, null, null, null, null, true, 0, 0, 0, null, null, false);
+            PluginHooks.skipHooks(params);
+            SendMessagesHelper.getInstance(account).sendMessage(params);
+        });
+        return null;
+    }
+
     // ------------------------------------------------------------------ media for vision
 
     private static final int MAX_MEDIA_B64 = 400 * 1024;
