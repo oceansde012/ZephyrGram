@@ -2,7 +2,7 @@
 class _Item:
     def _data(self, key):
         value = {"type": self.type, "key": key, "text": self.text}
-        for name in ("subtext", "default", "options", "hint", "icon", "accent", "red", "multiline"):
+        for name in ("subtext", "default", "options", "hint", "icon", "accent", "red", "multiline", "kind", "multiple"):
             if hasattr(self, name):
                 value[name] = getattr(self, name)
         return value
@@ -74,6 +74,21 @@ class Page(_Item):
     type = 8
     def __init__(self, key, text, subtext=None, icon=None):
         self.key, self.text, self.subtext, self.icon = str(key), str(text), subtext, icon
+
+
+class FilePicker(_Item):
+    """Button that opens the system file chooser (client.FILE_PICKER, 0.2.7+). The chosen files are copied into this
+    plugin's data_dir/picked/ (at most 20 files, 50 MB each) and on_pick(paths) runs on the UI thread with a list of
+    paths relative to data_dir, which client.send_media accepts as they are. kind: "any" | "image" | "video" | "audio"."""
+    type = 9
+    def __init__(self, key, text, on_pick, subtext=None, kind="any", multiple=False):
+        if not callable(on_pick):
+            raise ValueError("on_pick must be callable")
+        kind = str(kind).lower()
+        if kind not in ("any", "image", "video", "audio"):
+            raise ValueError("kind must be any, image, video or audio")
+        self.key, self.text, self.on_pick, self.subtext = str(key), str(text), on_pick, subtext
+        self.kind, self.multiple = kind, bool(multiple)
 
 
 class Divider(_Item):

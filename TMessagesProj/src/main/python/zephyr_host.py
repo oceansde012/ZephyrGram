@@ -179,6 +179,12 @@ def invoke(plugin_id, method, arguments):
                     data = json.loads(str(value))
                     return callback(int(data["id"]), str(data.get("title") or ""))
                 return None
+            if event == "files":
+                callback = getattr(item, "on_pick", None)
+                if callback:
+                    paths = [str(path) for path in json.loads(str(value)) if isinstance(path, str)]
+                    return callback(paths)
+                return None
             callback = getattr(item, "on_change" if event == "change" else "on_click", None)
             if callback:
                 return callback(json.loads(str(value))) if event == "change" else callback()

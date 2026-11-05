@@ -31,6 +31,8 @@ public final class PluginSettingsModel {
     public static final int TYPE_USERNAME_INPUT = 7;
     /** Navigation row: opens a sub-screen built from create_settings(page = key). */
     public static final int TYPE_PAGE = 8;
+    /** Button that opens the system file chooser; chosen files are copied into the plugin's data folder (picked/) and on_pick(paths) gets them. */
+    public static final int TYPE_FILE_PICKER = 9;
 
     public static final class Item {
         public int type;
@@ -45,6 +47,9 @@ public final class PluginSettingsModel {
         public boolean accent;
         public boolean red;
         public boolean multiline;
+        /** TYPE_FILE_PICKER: "any" | "image" | "video" | "audio" and whether several files may be chosen. */
+        public String kind = "any";
+        public boolean multiple;
         public Object defaultValue;
     }
 
@@ -79,6 +84,8 @@ public final class PluginSettingsModel {
                 it.accent = o.optBoolean("accent");
                 it.red = o.optBoolean("red");
                 it.multiline = o.optBoolean("multiline");
+                it.kind = o.has("kind") && !o.isNull("kind") ? o.optString("kind", "any") : "any";
+                it.multiple = o.optBoolean("multiple");
                 JSONArray opts = o.optJSONArray("options");
                 if (opts != null) {
                     it.options = new String[opts.length()];
@@ -141,6 +148,15 @@ public final class PluginSettingsModel {
         try {
             String json = new JSONObject().put("id", dialogId).put("title", title == null ? "" : title).toString();
             PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "pick", json);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+    }
+
+    /** TYPE_FILE_PICKER: files were copied into the plugin's data folder; paths are relative to it (call on the UI thread). */
+    public void filesPicked(Item it, java.util.List<String> paths) {
+        try {
+            PluginRuntime.INSTANCE.callSettingsEvent(pluginId, it.key, "files", new JSONArray(paths).toString());
         } catch (Throwable t) {
             FileLog.e(t);
         }

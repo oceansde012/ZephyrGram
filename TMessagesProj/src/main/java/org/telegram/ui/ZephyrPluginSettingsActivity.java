@@ -1,6 +1,11 @@
 package org.telegram.ui;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import java.io.File;
+import org.telegram.messenger.zephyr.plugins.PluginRuntime;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
@@ -174,6 +179,7 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
             case PluginSettingsModel.TYPE_TEXT: model.click(setting); reloadSoon(); break;
             case PluginSettingsModel.TYPE_DIALOG_PICKER: openPicker(setting); break;
             case PluginSettingsModel.TYPE_USERNAME_INPUT: askUsername(setting); break;
+            case PluginSettingsModel.TYPE_FILE_PICKER: openFilePicker(setting); break;
         }
     }
     /**
@@ -250,6 +256,78 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
                 else ZephyrPluginsActivity.error(this,message);
             });
         });
+    }
+    private static final int PICK_PLUGIN_FILES=0x5A11;
+    private static final int MAX_PICKED_FILES=20;
+    private static final long MAX_PICKED_BYTES=50L*1024*1024;
+    private PluginSettingsModel.Item pendingFilePicker;
+    private void openFilePicker(PluginSettingsModel.Item setting) {
+        try {
+            String type="*/*";
+            if ("image".equals(setting.kind)) type="image/*"; else if ("video".equals(setting.kind)) type="video/*"; else if ("audio".equals(setting.kind)) type="audio/*";
+            Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType(type).addCategory(Intent.CATEGORY_OPENABLE);
+            if (setting.multiple) intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+            pendingFilePicker=setting;
+            startActivityForResult(intent,PICK_PLUGIN_FILES);
+        } catch (Throwable t) { pendingFilePicker=null; ZephyrPluginsActivity.error(this,t.getMessage()); }
+    }
+    @Override public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        super.onActivityResultFragment(requestCode,resultCode,data);
+        if (requestCode!=PICK_PLUGIN_FILES) return;
+        final PluginSettingsModel.Item setting=pendingFilePicker; pendingFilePicker=null;
+        if (setting==null || resultCode!=Activity.RESULT_OK || data==null) return;
+        final ArrayList<Uri> uris=new ArrayList<>();
+        if (data.getClipData()!=null) {
+            for (int i=0; i<data.getClipData().getItemCount() && uris.size()<MAX_PICKED_FILES; i++) uris.add(data.getClipData().getItemAt(i).getUri());
+        } else if (data.getData()!=null) uris.add(data.getData());
+        if (uris.isEmpty()) return;
+        Utilities.globalQueue.postRunnable(() -> {
+            final ArrayList<String> paths=new ArrayList<>(); String error=null;
+            try {
+                File dir=new File(PluginRuntime.getDataDirectory(pluginId),"picked");
+                if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException(ZephyrPluginsActivity.s(R.string.ZephyrUxPluginErrCreateDir));
+                for (Uri uri : uris) {
+                    try { paths.add("picked/"+copyPicked(uri,dir)); }
+                    catch (Throwable t) { error=t.getMessage(); }
+                }
+            } catch (Throwable t) { error=t.getMessage(); }
+            final String message=error;
+            AndroidUtilities.runOnUIThread(() -> {
+                if (message!=null && paths.isEmpty()) { ZephyrPluginsActivity.error(this,message); return; }
+                if (message!=null) ZephyrPluginsActivity.error(this,message);
+                if (model!=null && !paths.isEmpty()) { model.filesPicked(setting,paths); reloadSoon(); }
+            });
+        });
+    }
+    /** Copies one chosen document into dir under a safe, unique name and returns that name. */
+    private static String copyPicked(Uri uri, File dir) throws java.io.IOException {
+        String name=null;
+        try (android.database.Cursor c=ApplicationLoader.applicationContext.getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)) {
+            if (c!=null && c.moveToFirst()) name=c.getString(0);
+        } catch (Throwable ignore) { }
+        if (name==null || name.isEmpty()) name="file";
+        name=name.replaceAll("[^\\p{L}\\p{N}._-]+","_");
+        if (name.length()>80) name=name.substring(name.length()-80);
+        if (name.startsWith(".")) name="_"+name;
+        File file=new File(dir,name);
+        int n=1;
+        while (file.exists()) {
+            int dot=name.lastIndexOf('.');
+            String candidate=dot>0 ? name.substring(0,dot)+"_"+(n++)+name.substring(dot) : name+"_"+(n++);
+            file=new File(dir,candidate);
+        }
+        long total=0;
+        try (java.io.InputStream in=ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
+             java.io.FileOutputStream out=new java.io.FileOutputStream(file)) {
+            if (in==null) throw new java.io.IOException(ZephyrPluginsActivity.s(R.string.ZephyrUxPluginErrRead));
+            byte[] buffer=new byte[16384]; int count;
+            while ((count=in.read(buffer))!=-1) {
+                total+=count;
+                if (total>MAX_PICKED_BYTES) throw new java.io.IOException(ZephyrPluginsActivity.s(R.string.ZephyrPluginPickedTooBig));
+                out.write(buffer,0,count);
+            }
+        } catch (java.io.IOException e) { file.delete(); throw e; }
+        return file.getName();
     }
     private void pickerAccountChanged() {
         ZephyrPluginsActivity.error(this,ZephyrPluginsActivity.s(R.string.ZephyrPluginPickerAccountChanged));

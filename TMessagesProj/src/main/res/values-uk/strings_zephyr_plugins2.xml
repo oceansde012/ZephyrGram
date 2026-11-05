@@ -3,4 +3,5 @@
     <string name="ZephyrPluginUninstallArchiveText">\"%1$s\" буде вимкнено та видалено. Його налаштування стираються; файл плагіна і папка даних зберігаються в архіві на цьому пристрої.</string>
     <string name="ZephyrPluginRawJavaTitle">Небезпечний дозвіл: повний доступ до застосунку</string>
     <string name="ZephyrPluginNotifyChannel">Плагіни ZephyrGram</string>
+    <string name="ZephyrPluginPickedTooBig">Вибраний файл більший за 50 МБ</string>
 </resources>
