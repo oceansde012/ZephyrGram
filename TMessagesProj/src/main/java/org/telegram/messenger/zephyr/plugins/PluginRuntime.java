@@ -219,12 +219,17 @@ public final class PluginRuntime implements PluginHost {
             String previous = PluginHooks.getCurrentPlugin();
             PluginHooks.setCurrentPlugin(id);
             long started = SystemClock.elapsedRealtime();
+            // Tells the UI-thread watchdog which plugin call a freeze happened in (restored for nested calls).
+            final boolean onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
+            final String previousMainCall = onMain ? MainThreadWatchdog.mainCall : null;
+            if (onMain) MainThreadWatchdog.mainCall = id + " " + method;
             try {
                 return host.callAttr("invoke", id, method, arguments);
             } catch (Throwable t) {
                 reportErrorImpl(id, t.toString());
                 return null;
             } finally {
+                if (onMain) MainThreadWatchdog.mainCall = previousMainCall;
                 long elapsed = SystemClock.elapsedRealtime() - started;
                 if (elapsed > 200) {
                     logImpl(id, "Slow callback " + method + ": " + elapsed + " ms");
@@ -372,9 +377,12 @@ public final class PluginRuntime implements PluginHost {
             if (host == null || !loaded.containsKey(id)) return;
             String previous = PluginHooks.getCurrentPlugin();
             PluginHooks.setCurrentPlugin(id);
+            final boolean onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
+            final String previousMainCall = onMain ? MainThreadWatchdog.mainCall : null;
+            if (onMain) MainThreadWatchdog.mainCall = id + " run_on_ui";
             try { host.callAttr("run_callback", id, callback, args); }
             catch (Throwable t) { reportErrorImpl(id, t.toString()); }
-            finally { PluginHooks.setCurrentPlugin(previous); }
+            finally { if (onMain) MainThreadWatchdog.mainCall = previousMainCall; PluginHooks.setCurrentPlugin(previous); }
         }
     }
 

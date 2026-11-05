@@ -99,16 +99,23 @@ def invoke(plugin_id, method, arguments):
                     raise ValueError("Duplicate setting key: " + key)
                 built[key] = item
                 data.append(item._data(key))
-            if page:
-                # A sub-screen is open above the main one: keep the callbacks of both (main-screen rows are Page
-                # rows only, so merging never hides a callback).
-                plugin._settings.update(built)
-            else:
-                plugin._settings = built
+            # Always merge, never replace: the main screen stays open under its sub-screens and rebuilds on its
+            # own (a chat switch, a plugin update). Replacing the map there dropped the callbacks of the
+            # sub-screens still on top of it, so their buttons, switches and pickers silently did nothing.
+            # A key rebuilt later takes the newest callback; a row that is gone is never shown, so its old
+            # callback can never fire.
+            plugin._settings.update(built)
             return json.dumps(data, allow_nan=False)
         if method == "__settings_event__":
             key, event, value = args
             item = plugin._settings.get(str(key))
+            if item is None:
+                # Should not happen any more; say so in the plugin log instead of dropping the tap silently.
+                try:
+                    plugin.log("Settings: no callback for '%s' (%s)" % (key, event))
+                except Exception:
+                    pass
+                return None
             if event == "pick":
                 callback = getattr(item, "on_pick_context", None) or getattr(item, "on_resolved_context", None)
                 if callback:
