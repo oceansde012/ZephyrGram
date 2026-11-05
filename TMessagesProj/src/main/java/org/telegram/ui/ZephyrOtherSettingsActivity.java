@@ -26,6 +26,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
         items.add(UItem.asCheck(ID_LOCAL_PREMIUM, LocaleController.getString(R.string.ZephyrLocalPremium)).setChecked(ZephyrConfig.localPremium));
         items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxLocalPremiumInfo);
         items.add(UItem.asCheck(ID_DISABLE_ADS, LocaleController.getString(R.string.ZephyrDisableAds)).setChecked(ZephyrConfig.disableAds));
+        items.add(UItem.asCheck(ID_HIDE_VIA_BOT, LocaleController.getString(R.string.ZephyrHideViaBot)).setChecked(ZephyrConfig.hideViaBot));
         items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrLocalPremiumInfo)));
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrFiltersHeader)));
         items.add(UItem.asButton(ID_FILTERS, R.drawable.msg_block, LocaleController.getString(R.string.ZephyrMessageFilters),
@@ -52,6 +53,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
     private static final int ID_CREDITS = 2;
     private static final int ID_LOCAL_PREMIUM = 3;
     private static final int ID_DISABLE_ADS = 4;
+    private static final int ID_HIDE_VIA_BOT = 9105;
     private static final int ID_PUSH = 9102;
     private static final int ID_SHARE_LOGS = 9103;
     private static final int ID_FREEZE_LOG = 9104;
@@ -91,6 +93,14 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
             confirmReset(this, null);
         } else if (item.id == ID_CREDITS) {
             showCredits(this);
+        } else if (item.id == ID_HIDE_VIA_BOT) {
+            final boolean value = !ZephyrConfig.hideViaBot;
+            ZephyrConfig.setHideViaBot(value);
+            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
+                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
+            }
+            item.checked = value;
+            org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.reloadInterface);
         } else if (item.id == ID_LOCAL_PREMIUM || item.id == ID_DISABLE_ADS) {
             final boolean value;
             if (item.id == ID_LOCAL_PREMIUM) {

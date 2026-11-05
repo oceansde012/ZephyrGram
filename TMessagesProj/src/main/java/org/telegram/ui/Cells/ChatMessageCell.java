@@ -18875,6 +18875,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             viaWidth = (int) Math.ceil(Theme.chat_replyNamePaint.measureText(viaString, 0, viaString.length()));
         }
 
+        if (org.telegram.messenger.zephyr.ZephyrConfig.hideViaBot) {
+            // Settings > Other > "Hide via @bot": no "via @bot" label in the bubble header.
+            viaUsername = null;
+            viaString = null;
+            viaWidth = 0;
+            currentViaBotUser = null;
+        }
+
         boolean needAuthorName = isNeedAuthorName();
         boolean viaBot = (messageObject.messageOwner.fwd_from == null || messageObject.type == MessageObject.TYPE_MUSIC) && viaUsername != null;
         boolean viaGuestBot = messageObject.messageOwner.guestchat_via_from != null;

@@ -79,4 +79,5 @@
     <string name="ZephyrUxAiEmptyResponse">AI-сервер вернул пустой ответ</string>
     <string name="ZephyrUxAiTimeout">Время ожидания ответа AI истекло</string>
     <string name="ZephyrUxAiNoToken">Сервер не вернул токен</string>
+    <string name="ZephyrHideViaBot">Скрывать «via @bot»</string>
 </resources>

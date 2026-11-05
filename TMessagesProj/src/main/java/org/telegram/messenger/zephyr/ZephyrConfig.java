@@ -21,6 +21,7 @@ public class ZephyrConfig {
     public static volatile boolean saveEdited = false;
     public static volatile boolean localPremium = false;
     public static volatile boolean disableAds = true;
+    public static volatile boolean hideViaBot = false;
     public static volatile boolean autoUpdateCheck = true;
     public static volatile long lastUpdateCheck = 0;
 
@@ -427,6 +428,7 @@ public class ZephyrConfig {
         saveEdited = p.getBoolean("saveEdited", false);
         localPremium = p.getBoolean("localPremium", false);
         disableAds = p.getBoolean("disableAds", true);
+        hideViaBot = p.getBoolean("hideViaBot", false);
         autoUpdateCheck = p.getBoolean("autoUpdateCheck", true);
         lastUpdateCheck = p.getLong("lastUpdateCheck", 0);
         loadExtera(p);
@@ -514,6 +516,11 @@ public class ZephyrConfig {
     public static void setDisableAds(boolean value) {
         disableAds = value;
         prefs().edit().putBoolean("disableAds", value).apply();
+    }
+
+    public static void setHideViaBot(boolean value) {
+        hideViaBot = value;
+        prefs().edit().putBoolean("hideViaBot", value).apply();
     }
 
     public static void setAutoUpdateCheck(boolean value) {
