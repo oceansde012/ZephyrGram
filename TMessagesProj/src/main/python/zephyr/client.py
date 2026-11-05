@@ -1,11 +1,15 @@
 """Helpers execute as the current plugin; async work retains its owner."""
 import ipaddress
 import json
+import os
 import re
+import secrets
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from . import _state
 from ._bridge import ChatApi, Runtime, require
 
@@ -517,6 +521,141 @@ def http_get(url, headers=None, timeout=15):
     except urllib.error.HTTPError as response:
         with response:
             return response.code, _read_limited(response)
+
+
+# Feature detection for plugins that also run on older apps (these names are missing there).
+INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_result_send / InlineAction (inline.hook)
+SEND_MEDIA = True           # send_media (media.send)
+
+_MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
+_DOWNLOAD_MAX = 50 * 1024 * 1024
+_DOWNLOAD_DIR = "send_media"
+_DOWNLOAD_KEEP_S = 6 * 3600  # Telegram uploads from the file after send_media returns; clean up later.
+_MIME_EXT = {"image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png", "image/gif": ".gif",
+             "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "image/webp": ".webp",
+             "application/pdf": ".pdf", "audio/mpeg": ".mp3", "audio/ogg": ".ogg", "application/zip": ".zip"}
+
+
+def _download_extension(content_type, url):
+    ext = _MIME_EXT.get((content_type or "").split(";", 1)[0].strip().lower())
+    if ext:
+        return ext
+    match = re.search(r"\.([A-Za-z0-9]{1,5})$", urllib.parse.urlsplit(str(url)).path)
+    return "." + match.group(1).lower() if match else ".bin"
+
+
+def _cleanup_downloads(folder):
+    now = time.time()
+    try:
+        for entry in folder.iterdir():
+            try:
+                if entry.is_file() and now - entry.stat().st_mtime > _DOWNLOAD_KEEP_S:
+                    entry.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _download_media(plugin, url, max_bytes, timeout):
+    """Streams an HTTPS URL (public hosts only, also on redirects) into <data_dir>/send_media; returns the path."""
+    _check_public_https(url)
+    folder = Path(plugin.data_dir) / _DOWNLOAD_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    _cleanup_downloads(folder)
+    request = urllib.request.Request(str(url), headers={"User-Agent": "ZephyrGram"}, method="GET")
+    opener = urllib.request.build_opener(_PublicHttpsRedirects())
+    try:
+        response = opener.open(request, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        exc.close()
+        raise ValueError("HTTP " + str(exc.code)) from None
+    with response:
+        if response.status != 200:
+            raise ValueError("HTTP " + str(response.status))
+        length = response.headers.get("Content-Length")
+        if length is not None and length.strip().isdigit() and int(length) > max_bytes:
+            raise ValueError("Download is larger than %d MB" % (max_bytes // (1024 * 1024)))
+        target = folder / (secrets.token_hex(8) + _download_extension(response.headers.get("Content-Type"), url))
+        partial = target.with_name(target.name + ".part")
+        size = 0
+        try:
+            with open(partial, "wb") as out:
+                while True:
+                    chunk = response.read(64 * 1024)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise ValueError("Download is larger than %d MB" % (max_bytes // (1024 * 1024)))
+                    out.write(chunk)
+            if size == 0:
+                raise ValueError("Empty download")
+            os.replace(partial, target)
+        except BaseException:
+            try:
+                partial.unlink()
+            except OSError:
+                pass
+            raise
+    return str(target)
+
+
+def send_media(dialog_id, source, caption=None, reply_to=None, kind=None, account=None, on_done=None,
+               max_bytes=None, timeout=30):
+    """Send a photo, video, GIF or file as an ordinary outgoing message of the user (media.send) - no "via @bot".
+
+    source: a local path inside this plugin's data_dir (relative paths are taken from there) or Telegram's media cache (e.g. info["file_path"] from
+    on_inline_result_send), or an https:// URL (needs the internet permission too): it is downloaded into
+    data_dir/send_media first, public hosts only (also on redirects), at most max_bytes (default and maximum 50 MB).
+    kind: 'photo' | 'video' | 'gif' | 'document' | None/'auto' (by file extension); an explicit kind must match the
+    file content. Size limits: photo 10 MB, gif 20 MB, video/document 100 MB. Secret chats are refused.
+    Non-blocking: work runs in the background and on_done(ok: bool, error: str | None) is called afterwards (on a
+    worker thread). Queued is not delivered; the message goes through Telegram's normal media pipeline (and through
+    on_send_message hooks like a message the user composed). Errors without on_done go to the plugin log."""
+    plugin = _state.owner()
+    require(plugin, "media.send")
+    text = str(source or "")
+    is_url = text.lower().startswith(("https://", "http://"))
+    if is_url:
+        require(plugin, "internet")
+        if not text.lower().startswith("https://"):
+            raise ValueError("Only HTTPS URLs are supported")
+    elif not text:
+        raise ValueError("source must be a file path or an https:// URL")
+    media_kind = "auto" if kind is None else str(kind).lower()
+    if media_kind not in _MEDIA_KINDS:
+        raise ValueError("kind must be photo, video, gif, document or auto")
+    dialog = int(dialog_id)
+    if not dialog:
+        raise ValueError("Invalid dialog id")
+    reply = 0 if reply_to is None else int(reply_to)
+    if reply < 0 or reply > 2147483647:
+        raise ValueError("reply_to must be a positive message id")
+    limit = _DOWNLOAD_MAX if max_bytes is None else max(1, min(int(max_bytes), _DOWNLOAD_MAX))
+    seconds = min(max(float(timeout), 1.0), 120.0)
+    text_caption = None if caption is None else str(caption)
+    acc = _account(account)
+    done = None if on_done is None else _state.bound_callback(on_done)
+
+    def work():
+        error = None
+        try:
+            if is_url:
+                path = _download_media(plugin, text, limit, seconds)
+            else:
+                path = text if os.path.isabs(text) else os.path.join(str(plugin.data_dir), text)
+            _call(ChatApi.sendMedia, plugin.id, dialog, path, None if media_kind == "auto" else media_kind,
+                  text_caption, reply, acc)
+        except Exception as exc:  # reported to the plugin, never raised into the worker
+            getter = getattr(exc, "getMessage", None)
+            error = str(getter() if callable(getter) else exc) or type(exc).__name__
+        if done is not None:
+            done(error is None, error)
+        elif error is not None:
+            Runtime.log(plugin.id, "send_media failed: " + error)
+
+    run_in_bg(work)
 
 
 def app_version():

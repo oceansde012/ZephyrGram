@@ -8,6 +8,7 @@ from zephyr._bridge import Runtime
 
 _HOOKS = frozenset(("pre_request_hook", "post_request_hook", "on_update_hook",
                     "on_updates_hook", "on_send_message_hook"))
+_INLINE_RESULT_SEND = "on_inline_result_send"
 
 
 def load_plugin(plugin_id, path, data_dir):
@@ -131,6 +132,14 @@ def invoke(plugin_id, method, arguments):
         callback = getattr(plugin, method, None)
         if callback is None:
             return None
+        if method == _INLINE_RESULT_SEND:
+            account, info = args
+            value = callback(int(account), json.loads(str(info)))
+            if value is None:
+                return None
+            if not isinstance(value, HookResult):
+                raise TypeError("on_inline_result_send must return an InlineAction value (HookResult) or None")
+            return value._java()
         value = callback(*args)
         if method in _HOOKS:
             if value is None:
