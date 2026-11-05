@@ -167,7 +167,8 @@ final class PluginInlineResults {
         }
         boolean replace = caption != null && !(source instanceof TLRPC.TL_botInlineMessageText && caption.isEmpty());
         message.message = replace ? caption : (source.message == null ? "" : source.message);
-        message.entities = replace || source.entities == null ? new ArrayList<>() : new ArrayList<>(source.entities);
+        message.entities = new ArrayList<TLRPC.MessageEntity>();
+        if (!replace && source.entities != null) message.entities.addAll(source.entities);
         message.reply_markup = null;
         int flags = source.flags & ~4; // FLAG_2: reply_markup
         flags = message.entities.isEmpty() ? (flags & ~2) : (flags | 2); // FLAG_1: entities
