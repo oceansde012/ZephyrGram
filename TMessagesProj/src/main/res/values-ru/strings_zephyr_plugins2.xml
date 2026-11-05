@@ -4,4 +4,5 @@
     <string name="ZephyrPluginRawJavaTitle">Опасное разрешение: полный доступ к приложению</string>
     <string name="ZephyrPluginNotifyChannel">Плагины ZephyrGram</string>
     <string name="ZephyrPluginPickedTooBig">Выбранный файл больше 50 МБ</string>
+    <string name="ZephyrPluginErrorSendLog">Отправить лог</string>
 </resources>

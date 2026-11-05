@@ -37,9 +37,14 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     static String s(int id) { return LocaleController.getString(id); }
     static void error(BaseFragment fragment, String message) {
         if (message == null || fragment.getParentActivity() == null) return;
-        fragment.showDialog(new AlertDialog.Builder(fragment.getParentActivity())
+        final android.app.Activity activity = fragment.getParentActivity();
+        // "Send log" sits right under the error text: it shares the same app log as Settings > Other > Diagnostics.
+        fragment.showDialog(new AlertDialog.Builder(activity)
                 .setTitle(s(R.string.ZephyrPlugins)).setMessage(message)
-                .setPositiveButton(s(R.string.OK), null).create());
+                .setPositiveButton(s(R.string.OK), null)
+                .setNeutralButton(s(R.string.ZephyrPluginErrorSendLog), (d, w) -> {
+                    try { ProfileActivity.sendLogs(activity, false); } catch (Throwable ignore) { }
+                }).create());
     }
     static String permissions(java.util.List<String> permissions) {
         if (permissions.isEmpty()) return s(R.string.ZephyrPluginNoPermissions);
