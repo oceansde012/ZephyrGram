@@ -47,16 +47,22 @@ class Text(_Item):
 class DialogPicker(_Item):
     """Button that opens Telegram's own chat picker. on_pick(dialog_id, title) runs on the UI thread."""
     type = 6
-    def __init__(self, key, text, on_pick, subtext=None):
+    def __init__(self, key, text, on_pick=None, subtext=None, *, on_pick_context=None):
+        if (callable(on_pick) + callable(on_pick_context)) != 1:
+            raise ValueError("Provide exactly one picker callback")
         self.key, self.text, self.on_pick, self.subtext = str(key), str(text), on_pick, subtext
+        self.on_pick_context = on_pick_context
 
 
 class UsernameInput(_Item):
     """Button that asks for a @username / t.me link, resolves it (cache, then network) and calls
     on_resolved(dialog_id, title) on the UI thread; an error is shown if nothing is found."""
     type = 7
-    def __init__(self, key, text, on_resolved, subtext=None, hint=None):
+    def __init__(self, key, text, on_resolved=None, subtext=None, hint=None, *, on_resolved_context=None):
+        if (callable(on_resolved) + callable(on_resolved_context)) != 1:
+            raise ValueError("Provide exactly one username callback")
         self.key, self.text, self.on_resolved, self.subtext = str(key), str(text), on_resolved, subtext
+        self.on_resolved_context = on_resolved_context
         if hint is not None:
             self.hint = str(hint)
 
@@ -73,3 +79,4 @@ class Page(_Item):
 class Divider(_Item):
     type = 5
     text = ""
+

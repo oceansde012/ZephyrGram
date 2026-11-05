@@ -1,8 +1,15 @@
 """Helpers execute as the current plugin; async work retains its owner."""
+import ipaddress
 import json
+import os
 import re
+import secrets
+import socket
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from pathlib import Path
 from . import _state
 from ._bridge import ChatApi, Runtime, require
 
@@ -14,6 +21,19 @@ try:
     MEMORY_API_VERSION = int(Runtime.memoryApiVersion())
 except Exception:
     MEMORY_API_VERSION = 0
+
+# Memory stage 2 (style examples, reply feedback, facts, digests; permission memory.style). Older apps lack
+# these names: check getattr(client, "MEMORY_STYLE", False) before using the memory_* style functions.
+try:
+    MEMORY_STYLE_API_VERSION = int(Runtime.memoryStyleApiVersion())
+except Exception:
+    MEMORY_STYLE_API_VERSION = 0
+MEMORY_STYLE = MEMORY_STYLE_API_VERSION == 1
+
+try:
+    PICKER_CONTEXT_API_VERSION = int(Runtime.pickerContextApiVersion())
+except Exception:
+    PICKER_CONTEXT_API_VERSION = 0
 
 
 def _account(account):
@@ -181,19 +201,23 @@ def _memory_binding(value):
     return value
 
 
-def _memory_timeout(timeout):
+def _memory_timeout(timeout, upper=30):
     try:
         if isinstance(timeout, bool):
             raise ValueError()
-        return max(1, min(30, int(timeout)))
+        return max(1, min(upper, int(timeout)))
     except (TypeError, ValueError, OverflowError):
         raise AiError("memory_invalid_timeout", 12) from None
 
 
 def _memory_call(name, *args):
+    return _native_memory("ai.memory", MEMORY_API_VERSION == 1, name, *args)
+
+
+def _native_memory(permission, available, name, *args):
     plugin = _state.owner()
-    require(plugin, "ai.memory")
-    if MEMORY_API_VERSION != 1:
+    require(plugin, permission)
+    if not available:
         raise AiError("memory_not_supported", 9)
     try:
         result = json.loads(str(getattr(ChatApi, name)(plugin.id, *args)))
@@ -202,7 +226,7 @@ def _memory_call(name, *args):
         return result
     except Exception as exc:
         if "SecurityException" in type(exc).__name__ or "SecurityException" in str(exc):
-            raise PermissionError("Plugin needs permission ai.memory") from None
+            raise PermissionError("Plugin needs permission " + permission) from None
         code = int(getattr(exc, "code", 6) or 6)
         getter = getattr(exc, "getMessage", None)
         key = str(getter() if callable(getter) else exc)
@@ -302,6 +326,176 @@ def ai_memory_import(account, dialog_id, topic_id, record, timeout=10, expected_
     return _memory_call("aiMemoryImport", _memory_account(account), dialog_id, topic_id,
                         json.dumps(record, ensure_ascii=False, allow_nan=False), _memory_timeout(timeout),
                         _memory_binding(expected_binding))
+
+
+# ---------------------------------------------------------------- memory stage 2: style layer (memory.style)
+
+_STYLE_AREA = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
+_STYLE_SOURCES = ("owner_real", "accepted", "edited_final")
+_STYLE_OUTCOMES = ("accepted", "edited", "replaced", "rejected", "owner_first")
+_STYLE_SUBJECTS = ("self", "peer")
+_STYLE_SOURCE_MSG = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+
+
+def _style_call(name, *args):
+    return _native_memory("memory.style", MEMORY_STYLE_API_VERSION == 1, name, *args)
+
+
+def _style_invalid(key="memory_invalid_data"):
+    return AiError(key, 12)
+
+
+def _style_area(area):
+    if not isinstance(area, str) or not _STYLE_AREA.fullmatch(area):
+        raise _style_invalid("memory_invalid_area")
+    return area
+
+
+def _style_int(value, low, high):
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        raise _style_invalid()
+    return value
+
+
+def _style_text(value, limit, empty=False):
+    if not isinstance(value, str) or len(value) > limit or "\0" in value or (not empty and not value.strip()):
+        raise _style_invalid()
+    return value
+
+
+def _style_rows(rows, keys):
+    if not isinstance(rows, (list, tuple)) or not 1 <= len(rows) <= 50:
+        raise _style_invalid()
+    out = []
+    for row in rows:
+        if not isinstance(row, dict) or not set(row) <= set(keys):
+            raise _style_invalid()
+        out.append({k: v for k, v in row.items() if v is not None})
+    return out
+
+
+def _style_request(operation, account, area, body, timeout, expected_binding, upper=30):
+    payload = None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False)
+    return _style_call("aiMemoryStyle", _memory_account(account), operation, area, payload,
+                       _memory_timeout(timeout, upper), _memory_binding(expected_binding))
+
+
+def memory_style_area(dialog_id, topic_id=0):
+    """Recommended area label of one chat ("dialog:<id>") or forum topic ("dialog:<id>:<topic>"). Use "global"
+    for cross-chat data. Areas never mix in search; a secret chat's area is refused."""
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    return "dialog:%d" % dialog_id if topic_id == 0 else "dialog:%d:%d" % (dialog_id, topic_id)
+
+
+def memory_style_status(account, timeout=10):
+    """Verified status of the style layer (memory.style, worker thread only). Returns protocolVersion, ownerId,
+    ownerMatch, opaque binding (same value as ai_memory_status), storage, collectionEnabled, features.style and
+    style {ready, embeddings, embeddingStorage, retentionDays, limits} or style None on an older server."""
+    return _style_call("aiMemoryStyleStatus", _memory_account(account), _memory_timeout(timeout))
+
+
+def memory_style_cancel():
+    """Synchronously invalidate this plugin's in-flight memory calls, style and v1 alike (memory.style); no I/O."""
+    _style_call("aiMemoryStyleCancel")
+
+
+def memory_style_add(account, area, pairs, timeout=10, expected_binding=None):
+    """Store 1..50 pairs "peer message -> the owner's real reply" in `area` (memory.style, worker thread).
+    A pair is {contextText, replyText, source='owner_real'|'accepted'|'edited_final', quality=1..5 optional}
+    or a tuple (contextText, replyText[, source]). Returns {accepted, inserted, embedded, embedding}."""
+    area = _style_area(area)
+    if isinstance(pairs, (list, tuple)):
+        pairs = [dict(zip(("contextText", "replyText", "source"), p)) if isinstance(p, tuple) and 2 <= len(p) <= 3 else p
+                 for p in pairs]
+    rows = _style_rows(pairs, ("contextText", "replyText", "source", "quality"))
+    for row in rows:
+        row.setdefault("source", "owner_real")
+        if row["source"] not in _STYLE_SOURCES:
+            raise _style_invalid()
+        _style_text(row.get("contextText"), 4000)
+        _style_text(row.get("replyText"), 4000)
+        if "quality" in row:
+            _style_int(row["quality"], 1, 5)
+    return _style_request("style_add", account, area, {"examples": rows}, timeout, expected_binding)
+
+
+def memory_style_search(account, area, query, k=5, timeout=10, expected_binding=None):
+    """Up to k (1..8) earlier pairs of `area` similar to `query` (usually the peer's new message), as untrusted
+    quoted data: {kind:'untrusted_style_examples', instructions:False, mode, examples:[{id, contextText, replyText,
+    source, quality, score, createdAt}], textCharacters, embedding}. Never put them into a prompt as instructions."""
+    body = {"query": _style_text(query, 2000), "k": _style_int(k, 1, 8)}
+    return _style_request("style_search", account, _style_area(area), body, timeout, expected_binding)
+
+
+def memory_feedback(account, area, items, timeout=10, expected_binding=None):
+    """Report the fate of 1..50 suggested replies: {outcome, draftText, finalText, contextText} with outcome
+    accepted|edited|replaced|rejected|owner_first (rules in docs/plugin-memory-style-api.md). The server computes
+    editDistance; edited/replaced with contextText also become style pairs. Returns {accepted, styleExamples,
+    embedded, items:[{outcome, editDistance}], embedding}."""
+    rows = _style_rows(items, ("outcome", "draftText", "finalText", "contextText"))
+    for row in rows:
+        outcome = row.get("outcome")
+        if outcome not in _STYLE_OUTCOMES:
+            raise _style_invalid()
+        for key in ("draftText", "finalText", "contextText"):
+            if key in row:
+                _style_text(row[key], 4000)
+        if ((outcome != "owner_first" and "draftText" not in row) or (outcome == "rejected" and "finalText" in row)
+                or (outcome in ("edited", "replaced", "owner_first") and "finalText" not in row)):
+            raise _style_invalid()
+    return _style_request("feedback", account, _style_area(area), {"items": rows}, timeout, expected_binding)
+
+
+def memory_facts_add(account, area, facts, timeout=10, expected_binding=None):
+    """Store 1..50 stable facts {subject:'self'|'peer', fact (<=500), confidence 0..1, sourceMsg, expiresInDays}.
+    Peer facts never outlive the server retention; self facts may be indefinite. Returns {accepted, inserted}."""
+    rows = _style_rows(facts, ("subject", "fact", "confidence", "sourceMsg", "expiresInDays"))
+    for row in rows:
+        if row.get("subject") not in _STYLE_SUBJECTS:
+            raise _style_invalid()
+        _style_text(row.get("fact"), 500)
+        confidence = row.get("confidence", 0.7)
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+            raise _style_invalid()
+        if "sourceMsg" in row and (not isinstance(row["sourceMsg"], str) or not _STYLE_SOURCE_MSG.fullmatch(row["sourceMsg"])):
+            raise _style_invalid()
+        if "expiresInDays" in row:
+            _style_int(row["expiresInDays"], 1, 365 if row["subject"] == "peer" else 3650)
+    return _style_request("facts_add", account, _style_area(area), {"facts": rows}, timeout, expected_binding)
+
+
+def memory_facts_search(account, area, subject, query="", k=10, timeout=10, expected_binding=None):
+    """Facts of one subject ('self' or 'peer', never mixed) in `area`; empty query = most confident and recent.
+    Returns {kind:'untrusted_facts', instructions:False, area, subject, facts:[{id, subject, fact, confidence,
+    sourceMsg, createdAt, expiresAt}]}."""
+    if subject not in _STYLE_SUBJECTS:
+        raise _style_invalid()
+    body = {"subject": subject, "query": _style_text(query, 200, empty=True), "k": _style_int(k, 1, 20)}
+    return _style_request("facts_search", account, _style_area(area), body, timeout, expected_binding)
+
+
+def memory_digest(account, area, generate=False, period_days=None, timeout=10, expected_binding=None):
+    """generate=False: the latest stored digest, no model call. generate=True: one model call on the server over the
+    pairs and facts of the last period_days (1..31, default 7); counts against the daily AI limit, timeout up to 60.
+    Returns {generated, digest: None | {kind:'untrusted_digest', instructions:False, id, area, periodStart,
+    periodEnd, text, createdAt, expiresAt}} and reason 'no_data' when there was nothing to summarise."""
+    if not isinstance(generate, bool):
+        raise _style_invalid()
+    body = {"generate": generate}
+    if period_days is not None:
+        body["periodDays"] = _style_int(period_days, 1, 31)
+    return _style_request("digest", account, _style_area(area), body, timeout, expected_binding, 60 if generate else 30)
+
+
+def memory_delete_area(account, area, timeout=10, expected_binding=None):
+    """Delete every pair, feedback row, fact and digest of the owner in `area`; works with collection disabled and
+    never touches v1 chat memory. Returns {deleted:{examples, feedback, facts, digests}, area}. No retry."""
+    return _style_request("delete_area", account, _style_area(area), None, timeout, expected_binding)
+
+
+def memory_delete_all_areas(account, timeout=10, expected_binding=None):
+    """The same as memory_delete_area for every area of the owner; returns area None."""
+    return _style_request("delete_all", account, None, None, timeout, expected_binding)
 
 
 def get_recent_messages(dialog_id, limit=20, account=None):
@@ -463,19 +657,187 @@ def _read_limited(response):
     return body
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _check_public_https(url):
+    """https only, and the host must resolve exclusively to public (globally routable) addresses."""
+    parts = urllib.parse.urlsplit(str(url))
+    if parts.scheme != "https" or not parts.hostname:
+        raise ValueError("Only HTTPS URLs are supported")
+    try:
+        infos = socket.getaddrinfo(parts.hostname, parts.port or 443, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise ValueError("Cannot resolve host") from exc
+    if not infos:
+        raise ValueError("Cannot resolve host")
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
+        if getattr(address, "ipv4_mapped", None) is not None:
+            address = address.ipv4_mapped
+        elif address.version == 6 and address in _NAT64:
+            # DNS64 answers on IPv6-only mobile networks: judge the embedded IPv4 address
+            address = ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
+        if not address.is_global or address.is_multicast:
+            raise ValueError("Private, loopback and link-local addresses are not allowed")
+
+
+class _PublicHttpsRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _check_public_https(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def http_get(url, headers=None, timeout=15):
+    """HTTPS GET (internet). Refuses http:// and hosts resolving to private/loopback/link-local addresses, also on
+    redirects. (A host that changes its DNS answer between this check and the connection is not covered.)"""
     plugin = _state.owner()
     require(plugin, "internet")
-    if not str(url).startswith(("https://", "http://")):
-        raise ValueError("Only HTTP(S) URLs are supported")
+    _check_public_https(url)
     req = urllib.request.Request(str(url), headers=headers or {}, method="GET")
     timeout = min(max(float(timeout), 1.0), 60.0)
+    opener = urllib.request.build_opener(_PublicHttpsRedirects())
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with opener.open(req, timeout=timeout) as response:
             return response.status, _read_limited(response)
     except urllib.error.HTTPError as response:
         with response:
             return response.code, _read_limited(response)
+
+
+# Feature detection for plugins that also run on older apps (these names are missing there).
+INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_result_send / InlineAction (inline.hook)
+SEND_MEDIA = True           # send_media (media.send)
+
+_MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
+_DOWNLOAD_MAX = 50 * 1024 * 1024
+_DOWNLOAD_DIR = "send_media"
+_DOWNLOAD_KEEP_S = 6 * 3600  # Telegram uploads from the file after send_media returns; clean up later.
+_MIME_EXT = {"image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png", "image/gif": ".gif",
+             "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "image/webp": ".webp",
+             "application/pdf": ".pdf", "audio/mpeg": ".mp3", "audio/ogg": ".ogg", "application/zip": ".zip"}
+
+
+def _download_extension(content_type, url):
+    ext = _MIME_EXT.get((content_type or "").split(";", 1)[0].strip().lower())
+    if ext:
+        return ext
+    match = re.search(r"\.([A-Za-z0-9]{1,5})$", urllib.parse.urlsplit(str(url)).path)
+    return "." + match.group(1).lower() if match else ".bin"
+
+
+def _cleanup_downloads(folder):
+    now = time.time()
+    try:
+        for entry in folder.iterdir():
+            try:
+                if entry.is_file() and now - entry.stat().st_mtime > _DOWNLOAD_KEEP_S:
+                    entry.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _download_media(plugin, url, max_bytes, timeout):
+    """Streams an HTTPS URL (public hosts only, also on redirects) into <data_dir>/send_media; returns the path."""
+    _check_public_https(url)
+    folder = Path(plugin.data_dir) / _DOWNLOAD_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    _cleanup_downloads(folder)
+    request = urllib.request.Request(str(url), headers={"User-Agent": "ZephyrGram"}, method="GET")
+    opener = urllib.request.build_opener(_PublicHttpsRedirects())
+    try:
+        response = opener.open(request, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        exc.close()
+        raise ValueError("HTTP " + str(exc.code)) from None
+    with response:
+        if response.status != 200:
+            raise ValueError("HTTP " + str(response.status))
+        length = response.headers.get("Content-Length")
+        if length is not None and length.strip().isdigit() and int(length) > max_bytes:
+            raise ValueError("Download is larger than %d MB" % (max_bytes // (1024 * 1024)))
+        target = folder / (secrets.token_hex(8) + _download_extension(response.headers.get("Content-Type"), url))
+        partial = target.with_name(target.name + ".part")
+        size = 0
+        try:
+            with open(partial, "wb") as out:
+                while True:
+                    chunk = response.read(64 * 1024)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise ValueError("Download is larger than %d MB" % (max_bytes // (1024 * 1024)))
+                    out.write(chunk)
+            if size == 0:
+                raise ValueError("Empty download")
+            os.replace(partial, target)
+        except BaseException:
+            try:
+                partial.unlink()
+            except OSError:
+                pass
+            raise
+    return str(target)
+
+
+def send_media(dialog_id, source, caption=None, reply_to=None, kind=None, account=None, on_done=None,
+               max_bytes=None, timeout=30):
+    """Send a photo, video, GIF or file as an ordinary outgoing message of the user (media.send) - no "via @bot".
+
+    source: a local path inside this plugin's data_dir (relative paths are taken from there) or Telegram's media cache (e.g. info["file_path"] from
+    on_inline_result_send), or an https:// URL (needs the internet permission too): it is downloaded into
+    data_dir/send_media first, public hosts only (also on redirects), at most max_bytes (default and maximum 50 MB).
+    kind: 'photo' | 'video' | 'gif' | 'document' | None/'auto' (by file extension); an explicit kind must match the
+    file content. Size limits: photo 10 MB, gif 20 MB, video/document 100 MB. Secret chats are refused.
+    Non-blocking: work runs in the background and on_done(ok: bool, error: str | None) is called afterwards (on a
+    worker thread). Queued is not delivered; the message goes through Telegram's normal media pipeline (and through
+    on_send_message hooks like a message the user composed). Errors without on_done go to the plugin log."""
+    plugin = _state.owner()
+    require(plugin, "media.send")
+    text = str(source or "")
+    is_url = text.lower().startswith(("https://", "http://"))
+    if is_url:
+        require(plugin, "internet")
+        if not text.lower().startswith("https://"):
+            raise ValueError("Only HTTPS URLs are supported")
+    elif not text:
+        raise ValueError("source must be a file path or an https:// URL")
+    media_kind = "auto" if kind is None else str(kind).lower()
+    if media_kind not in _MEDIA_KINDS:
+        raise ValueError("kind must be photo, video, gif, document or auto")
+    dialog = int(dialog_id)
+    if not dialog:
+        raise ValueError("Invalid dialog id")
+    reply = 0 if reply_to is None else int(reply_to)
+    if reply < 0 or reply > 2147483647:
+        raise ValueError("reply_to must be a positive message id")
+    limit = _DOWNLOAD_MAX if max_bytes is None else max(1, min(int(max_bytes), _DOWNLOAD_MAX))
+    seconds = min(max(float(timeout), 1.0), 120.0)
+    text_caption = None if caption is None else str(caption)
+    acc = _account(account)
+    done = None if on_done is None else _state.bound_callback(on_done)
+
+    def work():
+        error = None
+        try:
+            if is_url:
+                path = _download_media(plugin, text, limit, seconds)
+            else:
+                path = text if os.path.isabs(text) else os.path.join(str(plugin.data_dir), text)
+            _call(ChatApi.sendMedia, plugin.id, dialog, path, None if media_kind == "auto" else media_kind,
+                  text_caption, reply, acc)
+        except Exception as exc:  # reported to the plugin, never raised into the worker
+            getter = getattr(exc, "getMessage", None)
+            error = str(getter() if callable(getter) else exc) or type(exc).__name__
+        if done is not None:
+            done(error is None, error)
+        elif error is not None:
+            Runtime.log(plugin.id, "send_media failed: " + error)
+
+    run_in_bg(work)
 
 
 def app_version():
@@ -490,4 +852,5 @@ def app_locale():
 
 def api_version():
     return 1
+
 

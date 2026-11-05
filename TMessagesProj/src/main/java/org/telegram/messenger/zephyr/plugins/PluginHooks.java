@@ -51,6 +51,8 @@ public final class PluginHooks {
     public static volatile boolean hasUpdateHooks;
     public static volatile boolean hasSendHooks;
     public static volatile boolean hasNewMessageHooks;
+    /** Gate for onInlineResultSend (inline.hook). */
+    public static volatile boolean hasInlineResultHooks;
 
     /** Value filled by Python (zephyr_host) and read here. */
     public static final class Result {
@@ -61,6 +63,8 @@ public final class PluginHooks {
         public TLRPC.Update update;
         public TLRPC.Updates updates;
         public SendMessagesHelper.SendMessageParams params;
+        /** on_inline_result_send with MODIFY: replacement caption/text, or null to keep the original. */
+        public String caption;
     }
 
     /** Outcome of onRequest. Call site: if (call.cancel) { call.deliverCancel(); return; } use call.request / call.onComplete. */
@@ -116,8 +120,20 @@ public final class PluginHooks {
         return currentPlugin.get();
     }
 
-    public static void setCurrentPlugin(String id) {
+    /** Package-private on purpose: only PluginRuntime may set the identity, never Python through the bridge. */
+    static void setCurrentPlugin(String id) {
         currentPlugin.set(id);
+    }
+
+    /**
+     * Native identity check for every Python-facing API: the plugin id passed from Python must be the plugin whose
+     * callback (hook, timer, UI callback, load/unload) PluginRuntime is running on this thread. A mismatch, or a call
+     * from a thread outside any plugin callback, is rejected.
+     */
+    public static void requireCaller(String pluginId) {
+        if (pluginId == null || !pluginId.equals(currentPlugin.get())) {
+            throw new SecurityException("Plugin identity mismatch");
+        }
     }
 
     // ---------------------------------------------------------------- registry
@@ -245,6 +261,7 @@ public final class PluginHooks {
     private static volatile SimpleHook[] newMsgList = new SimpleHook[0];
     private static volatile SimpleHook[] editedMsgList = new SimpleHook[0];
     private static volatile SimpleHook[] deletedMsgList = new SimpleHook[0];
+    private static volatile SimpleHook[] inlineResultList = new SimpleHook[0];
     private static long seqCounter;
 
     private static long nextSeq() {
@@ -274,32 +291,51 @@ public final class PluginHooks {
     // ---------------------------------------------------------------- registration (called from Python)
 
     public static synchronized void addRequestHook(String pluginId, String name, boolean substring, int priority, boolean hasPre, boolean hasPost) {
+        requireCaller(pluginId);
         requestHooks.add(new Hook(pluginId, name, substring, priority, hasPre, hasPost, nextSeq()));
         hasRequestHooks = true;
     }
 
     public static synchronized void removeRequestHook(String pluginId, String name) {
+        requireCaller(pluginId);
         requestHooks.remove(pluginId, name);
         hasRequestHooks = !requestHooks.isEmpty();
     }
 
     public static synchronized void addUpdateHook(String pluginId, String name, boolean substring, int priority) {
+        requireCaller(pluginId);
         updateHooks.add(new Hook(pluginId, name, substring, priority, true, false, nextSeq()));
         refreshUpdateFlags();
     }
 
     public static synchronized void addUpdatesHook(String pluginId, String name, boolean substring, int priority) {
+        requireCaller(pluginId);
         updatesHooks.add(new Hook(pluginId, name, substring, priority, true, false, nextSeq()));
         refreshUpdateFlags();
     }
 
     public static synchronized void addSendMessageHook(String pluginId, int priority) {
+        requireCaller(pluginId);
         sendList = addSimple(sendList, pluginId, priority);
         hasSendHooks = true;
     }
 
+    /** on_inline_result_send (needs inline.hook, re-checked natively). */
+    public static synchronized void addInlineResultHook(String pluginId, int priority) {
+        PluginRuntime.INSTANCE.requirePermission(pluginId, "inline.hook");
+        inlineResultList = addSimple(inlineResultList, pluginId, priority);
+        hasInlineResultHooks = true;
+    }
+
+    public static synchronized void removeInlineResultHook(String pluginId) {
+        requireCaller(pluginId);
+        inlineResultList = removeSimple(inlineResultList, pluginId);
+        hasInlineResultHooks = inlineResultList.length > 0;
+    }
+
     /** kind: MSG_NEW, MSG_EDITED, MSG_DELETED */
     public static synchronized void addMessageHook(String pluginId, int kind, int priority) {
+        requireCaller(pluginId);
         switch (kind) {
             case MSG_NEW:
                 newMsgList = addSimple(newMsgList, pluginId, priority);
@@ -345,6 +381,8 @@ public final class PluginHooks {
         newMsgList = removeSimple(newMsgList, pluginId);
         editedMsgList = removeSimple(editedMsgList, pluginId);
         deletedMsgList = removeSimple(deletedMsgList, pluginId);
+        inlineResultList = removeSimple(inlineResultList, pluginId);
+        hasInlineResultHooks = inlineResultList.length > 0;
         hasRequestHooks = !requestHooks.isEmpty();
         hasSendHooks = sendList.length > 0;
         refreshUpdateFlags();
@@ -710,6 +748,51 @@ public final class PluginHooks {
         }
     }
 
+    // ---------------------------------------------------------------- inline results
+
+    /** Outcome of onInlineResultSend: cancel, or send ownResult (no via_bot) instead of the picked result. */
+    public static final class InlineDecision {
+        public final boolean cancel;
+        public final TLRPC.BotInlineResult ownResult;
+
+        InlineDecision(boolean cancel, TLRPC.BotInlineResult ownResult) {
+            this.cancel = cancel;
+            this.ownResult = ownResult;
+        }
+    }
+
+    /**
+     * Called on the UI thread from SendMessagesHelper.prepareSendingBotContextResult before an inline result the user
+     * picked is sent. Plugins run in priority order; the first CANCEL or MODIFY answer wins. MODIFY means "send the
+     * same media/text as an ordinary message of the user" (no via_bot, no bot keyboard), optionally with a new caption;
+     * it is ignored (logged) when the result cannot be re-sent that way (see PluginInlineResults.canSendAsOwn).
+     * @return null to send the result unchanged.
+     */
+    public static InlineDecision onInlineResultSend(int account, TLRPC.BotInlineResult result, HashMap<String, String> params,
+                                                    long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, int scheduleDate) {
+        if (!hasInlineResultHooks || result == null || consumeSkip(result)) return null;
+        try {
+            SimpleHook[] hooks = inlineResultList;
+            if (hooks.length == 0) return null;
+            String info = PluginInlineResults.describe(account, result, params, dialogId, replyToMsg, replyToTopMsg, scheduleDate);
+            for (SimpleHook h : hooks) {
+                Result r = PluginRuntime.callInlineResultSend(h.pluginId, account, info);
+                if (r == null || r.strategy == DEFAULT) continue;
+                if (r.strategy == CANCEL) return new InlineDecision(true, null);
+                if (!PluginInlineResults.canSendAsOwn(account, result, dialogId)) {
+                    PluginRuntime.INSTANCE.logNative(h.pluginId, "on_inline_result_send: send_as_own is not possible for this result (can_send_as_own is false); sent unchanged");
+                    continue;
+                }
+                TLRPC.BotInlineResult own = PluginInlineResults.ownCopy(result, PluginMediaPolicy.cleanCaption(r.caption));
+                skipHooks(own);
+                return new InlineDecision(false, own);
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+        return null;
+    }
+
     /** Dispatches a message obtained by other means (e.g. a locally generated incoming message). */
     public static void onNewMessage(int account, TLRPC.Message message) {
         if (!hasNewMessageHooks || message == null) return;
@@ -741,7 +824,8 @@ public final class PluginHooks {
 
     static List<String> debugDump() {
         ArrayList<String> l = new ArrayList<>();
-        l.add("requestHooks=" + hasRequestHooks + " updateHooks=" + hasUpdateHooks + " sendHooks=" + hasSendHooks);
+        l.add("requestHooks=" + hasRequestHooks + " updateHooks=" + hasUpdateHooks + " sendHooks=" + hasSendHooks
+                + " inlineResultHooks=" + hasInlineResultHooks);
         return l;
     }
 }

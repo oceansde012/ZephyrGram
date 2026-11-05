@@ -13,3 +13,5 @@ $transport = Join-Path $sourceRoot 'TMessagesProj/src/main/java/org/telegram/mes
 if ($LASTEXITCODE -ne 0) { throw 'Memory bridge JVM compilation failed' }
 & java -cp "$buildPath$([IO.Path]::PathSeparator)$jarPath" org.telegram.messenger.zephyr.MemoryBridgeTest
 if ($LASTEXITCODE -ne 0) { throw 'Memory bridge JVM tests failed' }
+& java -cp "$buildPath$([IO.Path]::PathSeparator)$jarPath" org.telegram.messenger.zephyr.MemoryStyleBridgeTest
+if ($LASTEXITCODE -ne 0) { throw 'Memory style JVM tests failed' }

@@ -14,7 +14,7 @@ class HookStrategy(IntEnum):
 
 class HookResult:
     def __init__(self, strategy=HookStrategy.DEFAULT, request=None, response=None,
-                 error=None, update=None, updates=None, params=None):
+                 error=None, update=None, updates=None, params=None, caption=None):
         self.strategy = HookStrategy(strategy)
         self.request = request
         self.response = response
@@ -22,13 +22,39 @@ class HookResult:
         self.update = update
         self.updates = updates
         self.params = params
+        # on_inline_result_send only: replacement caption/text for InlineAction.send_as_own.
+        self.caption = None if caption is None else str(caption)
 
     def _java(self):
         value = Result()
         value.strategy = int(self.strategy)
         for key in ("request", "response", "error", "update", "updates", "params"):
             setattr(value, key, getattr(self, key))
+        if self.caption is not None:
+            value.caption = self.caption
         return value
+
+
+class InlineAction:
+    """Return values for BasePlugin.on_inline_result_send(account, info) (inline.hook)."""
+
+    @staticmethod
+    def keep():
+        """Send the inline result unchanged (same as returning None)."""
+        return HookResult()
+
+    @staticmethod
+    def cancel():
+        """Do not send anything."""
+        return HookResult(HookStrategy.CANCEL)
+
+    @staticmethod
+    def send_as_own(caption=None):
+        """Send the same media/text as an ordinary message of the user: no "via @bot", no bot keyboard, not counted as
+        an inline result. caption=None keeps the bot's caption (and its formatting), "" removes it (media only), any
+        other string replaces it as plain text (max 4096 characters). Only honoured when info["can_send_as_own"] is
+        True; otherwise the result is sent unchanged and the plugin log says why."""
+        return HookResult(HookStrategy.MODIFY, caption=caption)
 
 
 class AppEvent:
@@ -125,6 +151,18 @@ class BasePlugin:
         self._check_owner()
         require(self, "messages.send")
         Hooks.addSendMessageHook(self.id, int(priority))
+
+    def add_inline_result_hook(self, priority=0):
+        """Calls self.on_inline_result_send(account, info) on the UI thread before an inline bot result the user picked
+        is sent (inline.hook). Return None / InlineAction.keep(), InlineAction.cancel() or InlineAction.send_as_own().
+        Keep it fast: no network or blocking I/O (use client.run_in_bg and client.send_media for that)."""
+        self._check_owner()
+        require(self, "inline.hook")
+        Hooks.addInlineResultHook(self.id, int(priority))
+
+    def remove_inline_result_hook(self):
+        self._check_owner()
+        Hooks.removeInlineResultHook(self.id)
 
     def add_on_new_message_hook(self, priority=0):
         self._add_message_hook(0, priority)

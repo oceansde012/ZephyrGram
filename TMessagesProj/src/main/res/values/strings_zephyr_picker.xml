@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ZephyrPluginPickerAccountChanged">The account changed while choosing a chat. Open the picker again in the intended account.</string>
+</resources>

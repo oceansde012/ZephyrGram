@@ -753,11 +753,15 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
                 showAddDialog();
                 break;
             case A_SETTINGS:
-                presentFragment(new ZephyrPluginSettingsActivity(ZephyrAutoReplyStore.PLUGIN_ID));
+                ZephyrPluginSettingsActivity settings = new ZephyrPluginSettingsActivity(ZephyrAutoReplyStore.PLUGIN_ID);
+                settings.setCurrentAccount(currentAccount);
+                presentFragment(settings);
                 break;
             case A_INSTALL:
             case A_VERSION:
-                presentFragment(new ZephyrPluginDetailsActivity(ZephyrAutoReplyStore.PLUGIN_ID));
+                ZephyrPluginDetailsActivity details = new ZephyrPluginDetailsActivity(ZephyrAutoReplyStore.PLUGIN_ID);
+                details.setCurrentAccount(currentAccount);
+                presentFragment(details);
                 break;
             case A_CHAT:
                 if (row.entry == null) break;
@@ -1010,3 +1014,4 @@ public class ZephyrAutoReplyChatsActivity extends BaseFragment implements Plugin
         }
     }
 }
+

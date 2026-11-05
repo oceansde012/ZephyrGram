@@ -19,6 +19,7 @@ import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.zephyr.ZephyrAiClient;
+import org.telegram.messenger.zephyr.ZephyrMemoryClient;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
@@ -175,6 +176,66 @@ public final class PluginChatApi {
         PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
         if (recordJson == null || recordJson.length() > 50000) throw new IllegalArgumentException("Memory record too large");
         return memoryCall(id, account, "import", dialogId, topicId, new JSONObject(recordJson), timeoutSec, expectedBinding);
+    }
+
+    // ------------------------------------------------------------------ memory style layer (memory.style)
+
+    private static final String STYLE_PERMISSION = "memory.style";
+    private static final int MAX_STYLE_BODY_CHARS = 1024 * 1024;
+
+    /** Label check only: an area named after a secret chat ("dialog:<encrypted id>[:topic]") is refused like in v1. */
+    private static void rejectSecretArea(String area) throws ZephyrAiClient.AiException {
+        if (area == null || !area.startsWith("dialog:")) return;
+        String[] parts = area.split(":", -1);
+        long dialogId;
+        try { dialogId = Long.parseLong(parts[1]); } catch (NumberFormatException e) { return; }
+        if (DialogObject.isEncryptedDialog(dialogId)) {
+            throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_secret_chat");
+        }
+    }
+
+    /** operation null = status. The body is plugin JSON; the native transport whitelists it before any upload. */
+    private static String memoryStyleCall(String id, int account, String operation, String area, String bodyJson,
+                                          int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        checkAccount(account);
+        notMainThread();
+        if (bodyJson != null && bodyJson.length() > MAX_STYLE_BODY_CHARS) {
+            throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_request_too_large");
+        }
+        rejectSecretArea(area);
+        JSONObject body;
+        try { body = bodyJson == null ? null : new JSONObject(bodyJson); }
+        catch (org.json.JSONException e) { throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_invalid_data"); }
+        final long epoch = PluginRuntime.INSTANCE.memoryEpoch(id, STYLE_PERMISSION);
+        if (!MEMORY_SLOTS.tryAcquire()) throw new ZephyrAiClient.AiException(ZephyrAiClient.ERR_RATE_LIMIT, "memory_busy");
+        try {
+            ZephyrMemoryClient.Guard guard = () -> PluginRuntime.INSTANCE.memoryEpochCurrent(id, epoch, STYLE_PERMISSION);
+            JSONObject result = operation == null
+                    ? ZephyrAiClient.memoryStyleStatusBlocking(account, timeoutSec, guard)
+                    : ZephyrAiClient.memoryStyleRequestBlocking(account, operation, area, body, timeoutSec, expectedBinding, guard);
+            if (!guard.isCurrent()) throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_CANCELLED, "memory_operation_cancelled");
+            return result.toString();
+        } finally { MEMORY_SLOTS.release(); }
+    }
+
+    public static String aiMemoryStyleStatus(String id, int account, int timeoutSec) throws Exception {
+        return memoryStyleCall(id, account, null, null, null, timeoutSec, null);
+    }
+
+    /** Synchronous local cancellation of this plugin's in-flight memory calls (style and v1); no I/O, safe on the UI thread. */
+    public static String aiMemoryStyleCancel(String id) {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        PluginRuntime.INSTANCE.invalidateMemory(id);
+        return "{}";
+    }
+
+    /** operation: style_add, style_search, feedback, facts_add, facts_search, digest, delete_area, delete_all. */
+    public static String aiMemoryStyle(String id, int account, String operation, String area, String bodyJson,
+                                       int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        if (operation == null) throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_invalid_scope");
+        return memoryStyleCall(id, account, operation, area, bodyJson, timeoutSec, expectedBinding);
     }
 
     private static long fromId(TLRPC.Message m, long dialogId, int account) {
@@ -608,6 +669,160 @@ public final class PluginChatApi {
             SendMessagesHelper.getInstance(account).sendMessage(params);
         });
         return true;
+    }
+
+    // ------------------------------------------------------------------ media sending (media.send)
+
+    private static MessageObject replyObject(int account, long dialogId, int replyTo) throws Exception {
+        if (replyTo <= 0) return null;
+        TLRPC.Message m = null;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            ArrayList<TLRPC.Message> found = loadFromStorage(account, dialogId, 1, replyTo);
+            if (!found.isEmpty()) m = found.get(0);
+        }
+        if (m == null) {
+            m = new TLRPC.TL_message();
+            m.id = replyTo;
+            m.peer_id = MessagesController.getInstance(account).getPeer(dialogId);
+            m.dialog_id = dialogId;
+        }
+        return new MessageObject(account, m, false, false);
+    }
+
+    /** Roots a plugin may send files from: its own data directory and Telegram's media/cache directories. */
+    private static File[] sendableRoots(String id) {
+        return new File[]{
+                PluginRuntime.getDataDirectory(id),
+                FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE),
+                FileLoader.checkDirectory(FileLoader.MEDIA_DIR_IMAGE),
+                FileLoader.checkDirectory(FileLoader.MEDIA_DIR_VIDEO),
+                FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT),
+                FileLoader.checkDirectory(FileLoader.MEDIA_DIR_AUDIO)};
+    }
+
+    private static byte[] readHead(File file) throws java.io.IOException {
+        byte[] head = new byte[PluginMediaPolicy.HEAD_BYTES];
+        int n = 0;
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+            while (n < head.length) {
+                int r = in.read(head, n, head.length - n);
+                if (r < 0) break;
+                n += r;
+            }
+        }
+        return n == head.length ? head : java.util.Arrays.copyOf(head, n);
+    }
+
+    /** MP4 "GIF" (silent loop): a document with the animated attribute, like Telegram's own inline GIF sending. */
+    private static TLRPC.TL_document mp4Animation(int account, String path) {
+        TLRPC.TL_document document = new TLRPC.TL_document();
+        document.mime_type = "video/mp4";
+        document.file_reference = new byte[0];
+        document.date = ConnectionsManager.getInstance(account).getCurrentTime();
+        TLRPC.TL_documentAttributeFilename name = new TLRPC.TL_documentAttributeFilename();
+        name.file_name = "animation.gif.mp4";
+        document.attributes.add(name);
+        document.attributes.add(new TLRPC.TL_documentAttributeAnimated());
+        TLRPC.TL_documentAttributeVideo video = new TLRPC.TL_documentAttributeVideo();
+        video.supports_streaming = true;
+        try {
+            SendMessagesHelper.fillVideoAttribute(path, video, null);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+        document.attributes.add(video);
+        try {
+            android.graphics.Bitmap bitmap = SendMessagesHelper.createVideoThumbnail(path, android.provider.MediaStore.Video.Thumbnails.MINI_KIND);
+            if (bitmap != null) {
+                TLRPC.PhotoSize thumb = org.telegram.messenger.ImageLoader.scaleAndSaveImage(bitmap, 320, 320, 80, false);
+                if (thumb != null) {
+                    document.thumbs.add(thumb);
+                    document.flags |= 1;
+                }
+                bitmap.recycle();
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+        if (document.thumbs.isEmpty()) {
+            TLRPC.PhotoSize thumb = new TLRPC.TL_photoSize();
+            thumb.w = video.w;
+            thumb.h = video.h;
+            thumb.location = new TLRPC.TL_fileLocationUnavailable();
+            thumb.type = "x";
+            document.thumbs.add(thumb);
+            document.flags |= 1;
+        }
+        return document;
+    }
+
+    /**
+     * Sends a local file as an ordinary outgoing message of the user (no via_bot). kind: photo | video | gif |
+     * document | auto (null). Only files inside the plugin data directory or Telegram's media/cache directories are
+     * accepted; the header must match an explicit kind; size limits per kind (PluginMediaPolicy). Secret chats are
+     * refused. Worker thread only (reads the file and the reply message). Returns the kind that was queued; throws
+     * IllegalArgumentException / SecurityException with a readable message otherwise. Queued is not delivered:
+     * Telegram's normal media pipeline (compression, upload, retries, ZephyrGhost) takes over, and the resulting
+     * message passes through on_send_message hooks like a message composed by the user.
+     */
+    public static String sendMedia(String id, long dialogId, String path, String kind, String caption, int replyTo, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "media.send");
+        checkAccount(account);
+        notMainThread();
+        if (dialogId == 0) throw new IllegalArgumentException("Invalid dialog id");
+        if (DialogObject.isEncryptedDialog(dialogId)) throw new IllegalArgumentException("Secret chats are not supported");
+        if (path == null || path.isEmpty()) throw new IllegalArgumentException("Empty path");
+        final File file = new File(path).getCanonicalFile();
+        if (!PluginMediaPolicy.isInside(file, sendableRoots(id))) {
+            throw new SecurityException("File must be inside the plugin data directory or Telegram's media cache");
+        }
+        if (!file.isFile()) throw new IllegalArgumentException("File not found");
+        final byte[] head = readHead(file);
+        final String resolved = PluginMediaPolicy.resolveKind(kind, file.getName(), head);
+        long length = file.length();
+        long limit = PluginMediaPolicy.maxBytes(resolved);
+        if (length <= 0) throw new IllegalArgumentException("File is empty");
+        if (length > limit) throw new IllegalArgumentException("File is larger than " + (limit / PluginMediaPolicy.MB) + " MB for " + resolved);
+        final String text = PluginMediaPolicy.cleanCaption(caption);
+        final MessageObject reply = replyObject(account, dialogId, replyTo);
+        final String filePath = file.getAbsolutePath();
+        final TLRPC.TL_document animation = PluginMediaPolicy.GIF.equals(resolved) && !PluginMediaPolicy.isGif(head)
+                ? mp4Animation(account, filePath) : null;
+        AndroidUtilities.runOnUIThread(() -> {
+            if (!PluginRuntime.INSTANCE.isLoaded(id)) return;
+            org.telegram.messenger.AccountInstance instance = org.telegram.messenger.AccountInstance.getInstance(account);
+            try {
+                if (animation != null) {
+                    SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
+                            animation, null, filePath, dialogId, reply, null, text, null, null, null, true, 0, 0, 0, null, null, false);
+                    PluginHooks.skipHooks(params);
+                    SendMessagesHelper.getInstance(account).sendMessage(params);
+                } else if (PluginMediaPolicy.PHOTO.equals(resolved)) {
+                    SendMessagesHelper.prepareSendingPhoto(instance, filePath, null, null, dialogId, reply, null, null, null,
+                            null, null, null, 0, null, null, true, 0, 0, false, text, null, 0, 0);
+                } else if (PluginMediaPolicy.VIDEO.equals(resolved)) {
+                    SendMessagesHelper.prepareSendingVideo(instance, filePath, null, null, null, dialogId, reply, null, null, null,
+                            null, 0, null, true, 0, 0, false, false, text, null, 0, 0);
+                } else if (PluginMediaPolicy.GIF.equals(resolved)) {
+                    // A real .gif file: the media pipeline turns it into an animation (not forced to a plain file).
+                    SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
+                    info.path = filePath;
+                    info.caption = text;
+                    ArrayList<SendMessagesHelper.SendingMediaInfo> infos = new ArrayList<>();
+                    infos.add(info);
+                    SendMessagesHelper.prepareSendingMedia(instance, infos, dialogId, reply, null, null, null, false, false, null,
+                            true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
+                } else {
+                    ArrayList<String> paths = new ArrayList<>();
+                    paths.add(filePath);
+                    SendMessagesHelper.prepareSendingDocuments(instance, paths, paths, null, text, null, dialogId, reply, null, null, null,
+                            null, true, 0, null, null, 0, false, 0);
+                }
+            } catch (Throwable t) {
+                FileLog.e(t);
+            }
+        });
+        return resolved;
     }
 
     // ------------------------------------------------------------------ media for vision

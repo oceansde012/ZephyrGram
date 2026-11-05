@@ -42,10 +42,104 @@ public final class ZephyrAiSetupParser {
                 || c == '﻿' || c == '­' || c == '‪' || c == '‬';
     }
 
+    /** True when the final ']' closes a "[...]" host literal (bare IPv6 host), so it is not trailing punctuation. */
+    private static boolean closesIpv6Literal(String s) {
+        int end = s.length() - 1;
+        if (s.charAt(end) != ']') {
+            return false;
+        }
+        int open = s.lastIndexOf('[', end);
+        return open >= 0 && s.indexOf(']', open) == end && s.indexOf(':', open) > open;
+    }
+
+    /**
+     * True only for a well-formed bracketed IPv6 literal that is loopback (::1), unique-local (fc00::/7) or link-local
+     * (fe80::/10). Anything malformed, IPv4-embedded (::ffff:a.b.c.d) or public returns false (so http is upgraded to https).
+     */
+    static boolean isLocalIpv6Literal(String h) {
+        if (h.length() < 4 || h.charAt(0) != '[' || h.charAt(h.length() - 1) != ']') {
+            return false;
+        }
+        String a = h.substring(1, h.length() - 1);
+        int zone = a.indexOf('%');
+        if (zone >= 0) {
+            a = a.substring(0, zone);
+        }
+        if (a.isEmpty() || a.indexOf('.') >= 0) {
+            return false;
+        }
+        int dbl = a.indexOf("::");
+        if (dbl >= 0 && a.indexOf("::", dbl + 1) >= 0) {
+            return false;
+        }
+        int[] head = new int[8];
+        int[] tail = new int[8];
+        int headN;
+        int tailN = 0;
+        if (dbl >= 0) {
+            headN = parseIpv6Groups(a.substring(0, dbl), head);
+            tailN = parseIpv6Groups(a.substring(dbl + 2), tail);
+            if (headN < 0 || tailN < 0 || headN + tailN > 7) {
+                return false;
+            }
+        } else {
+            headN = parseIpv6Groups(a, head);
+            if (headN != 8) {
+                return false;
+            }
+        }
+        int[] g = new int[8];
+        for (int i = 0; i < headN; i++) {
+            g[i] = head[i];
+        }
+        for (int i = 0; i < tailN; i++) {
+            g[8 - tailN + i] = tail[i];
+        }
+        boolean zeroPrefix = true;
+        for (int i = 0; i < 7; i++) {
+            if (g[i] != 0) {
+                zeroPrefix = false;
+            }
+        }
+        if (zeroPrefix && g[7] == 1) {
+            return true;
+        }
+        return (g[0] & 0xfe00) == 0xfc00 || (g[0] & 0xffc0) == 0xfe80;
+    }
+
+    /** Parses "a:b:c" hex groups (1-4 digits each) into out; returns the count, 0 for an empty string, -1 when malformed. */
+    private static int parseIpv6Groups(String s, int[] out) {
+        if (s.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        int start = 0;
+        while (true) {
+            int end = s.indexOf(':', start);
+            String part = end < 0 ? s.substring(start) : s.substring(start, end);
+            if (part.isEmpty() || part.length() > 4 || n >= 8) {
+                return -1;
+            }
+            int v = 0;
+            for (int i = 0; i < part.length(); i++) {
+                int d = Character.digit(part.charAt(i), 16);
+                if (d < 0 || part.charAt(i) > 'f') {
+                    return -1;
+                }
+                v = v * 16 + d;
+            }
+            out[n++] = v;
+            if (end < 0) {
+                return n;
+            }
+            start = end + 1;
+        }
+    }
+
     private static boolean isLocalHost(String host) {
         String h = host.toLowerCase(Locale.ROOT);
         if (h.startsWith("[")) {
-            return true;
+            return isLocalIpv6Literal(h);
         }
         if (h.equals("localhost") || h.endsWith(".local") || h.endsWith(".localhost") || h.endsWith(".lan")) {
             return true;
@@ -84,7 +178,7 @@ public final class ZephyrAiSetupParser {
         while (s.length() > 1 && "\"'`<([".indexOf(s.charAt(0)) >= 0) {
             s = s.substring(1);
         }
-        while (s.length() > 1 && "\"'`>).,;]".indexOf(s.charAt(s.length() - 1)) >= 0) {
+        while (s.length() > 1 && "\"'`>).,;]".indexOf(s.charAt(s.length() - 1)) >= 0 && !closesIpv6Literal(s)) {
             s = s.substring(0, s.length() - 1);
         }
         if (s.isEmpty()) {
@@ -209,7 +303,7 @@ public final class ZephyrAiSetupParser {
     }
 
     private static String stripTrailingPunct(String s) {
-        while (!s.isEmpty() && ".,;:)>]\"'»*".indexOf(s.charAt(s.length() - 1)) >= 0) {
+        while (!s.isEmpty() && ".,;:)>]\"'»*".indexOf(s.charAt(s.length() - 1)) >= 0 && !closesIpv6Literal(s)) {
             s = s.substring(0, s.length() - 1);
         }
         return s;

@@ -58,7 +58,11 @@ public class ZephyrPluginDetailsActivity extends UniversalFragment implements Pl
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
         PluginManager.InstalledPlugin local=manager.getInstalled(pluginId);
         if (item.id==1 && local!=null) manager.setEnabled(pluginId,!local.enabled,failure -> ZephyrPluginsActivity.error(this,failure));
-        else if (item.id==2 && local!=null && local.enabled) presentFragment(new ZephyrPluginSettingsActivity(pluginId));
+        else if (item.id==2 && local!=null && local.enabled) {
+            ZephyrPluginSettingsActivity activity=new ZephyrPluginSettingsActivity(pluginId);
+            activity.setCurrentAccount(currentAccount);
+            presentFragment(activity);
+        }
         else if (item.id==4 && local!=null && getParentActivity()!=null) {
             showDialog(new AlertDialog.Builder(getParentActivity()).setTitle(s(R.string.ZephyrPluginUninstallTitle))
                     .setMessage(String.format(s(R.string.ZephyrPluginUninstallArchiveText), local.name))
@@ -82,3 +86,4 @@ public class ZephyrPluginDetailsActivity extends UniversalFragment implements Pl
     @Override public void onPluginsChanged() { update(); }
     @Override public void onRepositoryChanged() { update(); }
 }
+
