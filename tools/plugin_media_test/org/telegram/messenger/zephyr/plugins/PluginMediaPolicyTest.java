@@ -56,6 +56,13 @@ public final class PluginMediaPolicyTest {
         kind("document", "x.exe", html, "document");
         kind("sticker", "x.webp", html, "error");
         kind("photo", "x.jpg", new byte[0], "error");
+        // voice: explicit only, must be an Ogg container; "auto" keeps .ogg a plain file
+        byte[] ogg = b('O', 'g', 'g', 'S', 0, 2, 0, 0);
+        kind("voice", "reply.ogg", ogg, "voice");
+        kind("voice", "reply.oga", ogg, "voice");
+        kind("voice", "reply.ogg", mp4, "error");
+        kind(null, "reply.ogg", ogg, "document");
+        check(PluginMediaPolicy.maxBytes("voice") == 20L * 1024 * 1024, "voice limit");
 
         check(PluginMediaPolicy.maxBytes("photo") == 10L * 1024 * 1024, "photo limit");
         check(PluginMediaPolicy.maxBytes("gif") == 20L * 1024 * 1024, "gif limit");

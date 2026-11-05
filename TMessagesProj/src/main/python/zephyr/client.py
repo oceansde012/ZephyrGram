@@ -124,6 +124,17 @@ def get_set_stickers(set_id, limit=200, account=None):
             for s in json.loads(str(raw))]
 
 
+def get_saved_gifs(limit=100, account=None):
+    """Saved GIFs of the account, newest first (chat.read): [{id: int, mime: str, w: int, h: int, duration: float}].
+    Served from the in-memory cache and never waits for the network; if the list is empty a background load starts
+    once and the result may be empty (retry shortly). limit is clamped to 1..200."""
+    plugin = _state.owner()
+    require(plugin, "chat.read")
+    raw = _call(ChatApi.getSavedGifs, plugin.id, int(limit), _account(account))
+    return [{"id": int(g["id"]), "mime": g.get("mime") or "", "w": int(g.get("w") or 0), "h": int(g.get("h") or 0),
+             "duration": float(g.get("duration") or 0)} for g in json.loads(str(raw))]
+
+
 def send_sticker(dialog_id, sticker_id, account=None, reply_to=None):
     """Send a sticker by document id (messages.send) from recent/favorite/installed stickers.
     Returns True if queued, False if the sticker was not found or the chat is secret. Like send_text it
@@ -801,8 +812,10 @@ HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat head
 USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
 VIDEO_FRAME = True          # video_frame (0.2.7)
 STICKER_SETS = True         # get_sticker_sets, get_set_stickers (0.2.7)
+SAVED_GIFS = True           # get_saved_gifs (0.2.7)
+SEND_VOICE = True           # send_media(kind="voice") for OGG/Opus (0.2.7)
 
-_MEDIA_KINDS = ("photo", "video", "gif", "document", "auto")
+_MEDIA_KINDS = ("photo", "video", "gif", "voice", "document", "auto")
 _DOWNLOAD_MAX = 50 * 1024 * 1024
 _DOWNLOAD_DIR = "send_media"
 _DOWNLOAD_KEEP_S = 6 * 3600  # Telegram uploads from the file after send_media returns; clean up later.
@@ -883,8 +896,9 @@ def send_media(dialog_id, source, caption=None, reply_to=None, kind=None, accoun
     source: a local path inside this plugin's data_dir (relative paths are taken from there) or Telegram's media cache (e.g. info["file_path"] from
     on_inline_result_send), or an https:// URL (needs the internet permission too): it is downloaded into
     data_dir/send_media first, public hosts only (also on redirects), at most max_bytes (default and maximum 50 MB).
-    kind: 'photo' | 'video' | 'gif' | 'document' | None/'auto' (by file extension); an explicit kind must match the
-    file content. Size limits: photo 10 MB, gif 20 MB, video/document 100 MB. Secret chats are refused.
+    kind: 'photo' | 'video' | 'gif' | 'voice' | 'document' | None/'auto' (by file extension); an explicit kind must
+    match the file content. 'voice' sends an OGG/Opus file as a voice message with duration and waveform (never
+    chosen by 'auto'). Size limits: photo 10 MB, gif/voice 20 MB, video/document 100 MB. Secret chats are refused.
     Non-blocking: work runs in the background and on_done(ok: bool, error: str | None) is called afterwards (on a
     worker thread). Queued is not delivered; the message goes through Telegram's normal media pipeline (and through
     on_send_message hooks like a message the user composed). Errors without on_done go to the plugin log."""
@@ -900,7 +914,7 @@ def send_media(dialog_id, source, caption=None, reply_to=None, kind=None, accoun
         raise ValueError("source must be a file path or an https:// URL")
     media_kind = "auto" if kind is None else str(kind).lower()
     if media_kind not in _MEDIA_KINDS:
-        raise ValueError("kind must be photo, video, gif, document or auto")
+        raise ValueError("kind must be photo, video, gif, voice, document or auto")
     dialog = int(dialog_id)
     if not dialog:
         raise ValueError("Invalid dialog id")

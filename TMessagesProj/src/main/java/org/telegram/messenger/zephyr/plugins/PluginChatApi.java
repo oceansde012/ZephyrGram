@@ -993,11 +993,29 @@ public final class PluginChatApi {
         final String filePath = file.getAbsolutePath();
         final TLRPC.TL_document animation = PluginMediaPolicy.GIF.equals(resolved) && !PluginMediaPolicy.isGif(head)
                 ? mp4Animation(account, filePath) : null;
+        final TLRPC.TL_documentAttributeAudio voiceAttribute = PluginMediaPolicy.VOICE.equals(resolved)
+                ? voiceAttribute(filePath) : null;
         AndroidUtilities.runOnUIThread(() -> {
             if (!PluginRuntime.INSTANCE.isLoaded(id)) return;
             org.telegram.messenger.AccountInstance instance = org.telegram.messenger.AccountInstance.getInstance(account);
             try {
-                if (animation != null) {
+                if (voiceAttribute != null) {
+                    // Same document shape as a recorded voice message (MediaController.updateAudioRecorderV2Document).
+                    TLRPC.TL_document voice = new TLRPC.TL_document();
+                    voice.file_reference = new byte[0];
+                    voice.dc_id = Integer.MIN_VALUE;
+                    voice.id = org.telegram.messenger.SharedConfig.getLastLocalId();
+                    org.telegram.messenger.SharedConfig.saveConfig();
+                    voice.user_id = UserConfig.getInstance(account).getClientUserId();
+                    voice.mime_type = "audio/ogg";
+                    voice.date = ConnectionsManager.getInstance(account).getCurrentTime();
+                    voice.size = length;
+                    voice.attributes.add(voiceAttribute);
+                    SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
+                            voice, null, filePath, dialogId, reply, null, text, null, null, null, true, 0, 0, 0, null, null, false);
+                    PluginHooks.skipHooks(params);
+                    SendMessagesHelper.getInstance(account).sendMessage(params);
+                } else if (animation != null) {
                     SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
                             animation, null, filePath, dialogId, reply, null, text, null, null, null, true, 0, 0, 0, null, null, false);
                     PluginHooks.skipHooks(params);
@@ -1028,6 +1046,89 @@ public final class PluginChatApi {
             }
         });
         return resolved;
+    }
+
+    /**
+     * Voice attribute for an OGG/Opus file: duration from MediaMetadataRetriever and the waveform Telegram draws,
+     * computed by the app's native Opus code. Worker thread (decodes the whole file).
+     */
+    private static TLRPC.TL_documentAttributeAudio voiceAttribute(String path) {
+        if (org.telegram.messenger.MediaController.isOpusFile(path) != 1) {
+            throw new IllegalArgumentException("A voice message must be an OGG file with Opus audio");
+        }
+        long durationMs = 0;
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        try {
+            r.setDataSource(path);
+            String d = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+            if (d != null) durationMs = Long.parseLong(d);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        } finally {
+            try { r.release(); } catch (Throwable ignore) { }
+        }
+        TLRPC.TL_documentAttributeAudio a = new TLRPC.TL_documentAttributeAudio();
+        a.voice = true;
+        a.duration = Math.max(1, durationMs) / 1000.0;
+        byte[] waveform = null;
+        try {
+            waveform = org.telegram.messenger.MediaController.getWaveform(path);
+        } catch (Throwable t) {
+            FileLog.e(t);
+        }
+        if (waveform != null && waveform.length > 0) {
+            a.waveform = waveform;
+            a.flags |= 4;
+        }
+        return a;
+    }
+
+    // ------------------------------------------------------------------ saved GIFs
+
+    /**
+     * Saved GIFs (recent GIFs list of the account), newest first: JSON array of {id, mime, w, h, duration}. From the
+     * in-memory cache, never waits for the network; if the list is empty a background load starts once (again at
+     * most every 10 minutes) and the result may be empty. limit is clamped to 1..200.
+     */
+    public static String getSavedGifs(String id, int limit, int account) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, "chat.read");
+        checkAccount(account);
+        final int max = Math.max(1, Math.min(200, limit));
+        final MediaDataController mdc = MediaDataController.getInstance(account);
+        final ArrayList<TLRPC.Document> gifs = new ArrayList<>();
+        onUiAndWait(() -> {
+            ArrayList<TLRPC.Document> all = mdc.getRecentGifs();
+            if (all.isEmpty() && stickerLoadDue(account + ":gifs")) {
+                mdc.loadRecents(MediaDataController.TYPE_IMAGE, true, true, false);
+            }
+            gifs.addAll(all);
+        });
+        JSONArray array = new JSONArray();
+        for (TLRPC.Document d : gifs) {
+            if (d == null || d instanceof TLRPC.TL_documentEmpty || d.id == 0) continue;
+            int w = 0, h = 0;
+            double duration = 0;
+            if (d.attributes != null) {
+                for (TLRPC.DocumentAttribute a : d.attributes) {
+                    if (a instanceof TLRPC.TL_documentAttributeVideo) {
+                        w = a.w;
+                        h = a.h;
+                        duration = a.duration;
+                    } else if (a instanceof TLRPC.TL_documentAttributeImageSize && w == 0) {
+                        w = a.w;
+                        h = a.h;
+                    }
+                }
+            }
+            array.put(new JSONObject()
+                    .put("id", d.id)
+                    .put("mime", d.mime_type == null ? "" : d.mime_type)
+                    .put("w", w)
+                    .put("h", h)
+                    .put("duration", duration));
+            if (array.length() >= max) break;
+        }
+        return array.toString();
     }
 
     // ------------------------------------------------------------------ media for vision

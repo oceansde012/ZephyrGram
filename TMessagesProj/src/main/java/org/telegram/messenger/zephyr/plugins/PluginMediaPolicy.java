@@ -18,12 +18,15 @@ public final class PluginMediaPolicy {
     public static final String VIDEO = "video";
     public static final String GIF = "gif";
     public static final String DOCUMENT = "document";
+    /** OGG/Opus sent as a voice message (with waveform); never chosen by "auto". */
+    public static final String VOICE = "voice";
 
     public static final long MB = 1024L * 1024L;
     public static final long MAX_PHOTO = 10 * MB;
     public static final long MAX_GIF = 20 * MB;
     public static final long MAX_VIDEO = 100 * MB;
     public static final long MAX_DOCUMENT = 100 * MB;
+    public static final long MAX_VOICE = 20 * MB;
     public static final int MAX_CAPTION = 4096;
     public static final int HEAD_BYTES = 16;
 
@@ -32,6 +35,7 @@ public final class PluginMediaPolicy {
             case PHOTO: return MAX_PHOTO;
             case GIF: return MAX_GIF;
             case VIDEO: return MAX_VIDEO;
+            case VOICE: return MAX_VOICE;
             default: return MAX_DOCUMENT;
         }
     }
@@ -62,10 +66,13 @@ public final class PluginMediaPolicy {
     /** ISO base media (mp4/mov/3gp): box type "ftyp" at offset 4. */
     public static boolean isIsoMedia(byte[] h) { return h != null && h.length >= 8 && h[4] == 'f' && h[5] == 't' && h[6] == 'y' && h[7] == 'p'; }
     /** Matroska / WebM: EBML magic. */
+    /** Ogg container: "OggS" capture pattern. */
+    public static boolean isOgg(byte[] h) { return h != null && h.length >= 4 && h[0] == 'O' && h[1] == 'g' && h[2] == 'g' && h[3] == 'S'; }
     public static boolean isMatroska(byte[] h) { return h != null && h.length >= 4 && (h[0] & 0xFF) == 0x1A && (h[1] & 0xFF) == 0x45 && (h[2] & 0xFF) == 0xDF && (h[3] & 0xFF) == 0xA3; }
 
     /**
-     * Resolves the media kind. requested is "photo" | "video" | "gif" | "document" | null/"" / "auto" (by extension).
+     * Resolves the media kind. requested is "photo" | "video" | "gif" | "voice" | "document" | null/"" / "auto"
+     * (by extension; "auto" never picks voice).
      * An explicit photo/video/gif must match the file header, otherwise IllegalArgumentException; "auto" falls back
      * to document when the header does not match the extension (the file is still sent, just as a file).
      */
@@ -89,8 +96,9 @@ public final class PluginMediaPolicy {
             case PHOTO: ok = isJpeg(head) || isPng(head); break;
             case GIF: ok = isGif(head) || isIsoMedia(head); break;
             case VIDEO: ok = isIsoMedia(head) || isMatroska(head); break;
+            case VOICE: ok = isOgg(head); break;
             case DOCUMENT: ok = true; break;
-            default: throw new IllegalArgumentException("kind must be photo, video, gif, document or auto");
+            default: throw new IllegalArgumentException("kind must be photo, video, gif, voice, document or auto");
         }
         if (ok) return kind;
         if (auto) return DOCUMENT;
