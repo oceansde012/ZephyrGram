@@ -182,6 +182,8 @@ public final class PluginRuntime implements PluginHost {
 
     public int memoryApiVersion() { return org.telegram.messenger.zephyr.ZephyrAiClient.MEMORY_API_VERSION; }
 
+    public int memoryStyleApiVersion() { return org.telegram.messenger.zephyr.ZephyrAiClient.MEMORY_STYLE_API_VERSION; }
+
     public int pickerContextApiVersion() { return PluginPickerContext.API_VERSION; }
 
     /** Invalidate in-flight memory synchronously; do not wait for Python callbacks or the lifecycle lock. */
@@ -190,13 +192,22 @@ public final class PluginRuntime implements PluginHost {
     }
 
     public long memoryEpoch(String id) {
-        requirePermission(id, "ai.memory");
+        return memoryEpoch(id, "ai.memory");
+    }
+
+    /** One epoch per plugin for v1 (ai.memory) and the style layer (memory.style): any invalidation cancels both. */
+    public long memoryEpoch(String id, String permission) {
+        requirePermission(id, permission);
         return memoryEpochs.getOrDefault(id, 0L);
     }
 
     public boolean memoryEpochCurrent(String id, long epoch) {
+        return memoryEpochCurrent(id, epoch, "ai.memory");
+    }
+
+    public boolean memoryEpochCurrent(String id, long epoch, String permission) {
         PluginManifest manifest = loaded.get(id);
-        return manifest != null && manifest.hasPermission("ai.memory") && memoryEpochs.getOrDefault(id, 0L) == epoch;
+        return manifest != null && manifest.hasPermission(permission) && memoryEpochs.getOrDefault(id, 0L) == epoch;
     }
 
     private PyObject invoke(String id, String method, Object... arguments) {

@@ -100,5 +100,6 @@
     <string name="ZephyrPluginsAutoUpdateLastUpdate">Updated: %1$s (%2$s)</string>
     <string name="ZephyrPluginsAutoUpdateProblem">Problem: %1$s</string>
     <string name="ZephyrPluginPermAiMemory">Save and retrieve chat memory on your AI server, including opted-in local summaries</string>
+    <string name="ZephyrPluginPermMemoryStyle">Save reply examples, feedback and facts on your AI server to imitate your writing style, and retrieve them</string>
 </resources>
 
