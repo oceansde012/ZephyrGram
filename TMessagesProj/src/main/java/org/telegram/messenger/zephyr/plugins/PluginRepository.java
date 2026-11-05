@@ -98,6 +98,9 @@ public final class PluginRepository {
         try {
             got = fetchSigned("index-v2.json");
         } catch (Exception v2Failure) {
+            // Once a v2 index was trusted, never fall back to v1: an attacker who blocks v2 could otherwise
+            // serve an older signed index.json and hide revocations (v1's rollback floor stops moving on v2).
+            if (prefs().getLong("highest_sequence_v2", -1) >= 0) throw v2Failure;
             FileLog.w("PluginRepository: index-v2 unavailable, using index.json: " + v2Failure.getClass().getName());
             indexName = "v1";
             got = fetchSigned("index.json");

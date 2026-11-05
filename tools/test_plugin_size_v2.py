@@ -41,6 +41,12 @@ class PluginSizeV2(unittest.TestCase):
         self.assertIn("seqKey(indexName)", refresh)
         self.assertIn("hashKey(indexName)", refresh)
 
+    def test_no_downgrade_to_v1_after_v2(self):
+        refresh = REPO.split("public synchronized PluginIndex refreshSync()")[1].split("private static String seqKey")[0]
+        catch = refresh.split("catch (Exception v2Failure)")[1].split('fetchSigned("index.json")')[0]
+        self.assertIn('prefs().getLong("highest_sequence_v2", -1) >= 0', catch)
+        self.assertIn("throw v2Failure", catch)
+
     def test_security_checks_kept(self):
         self.assertIn("v.size > PluginManifest.MAX_SOURCE_BYTES", REPO)
         self.assertIn("validateDownloadUrl(entry.id, v.url)", REPO)
