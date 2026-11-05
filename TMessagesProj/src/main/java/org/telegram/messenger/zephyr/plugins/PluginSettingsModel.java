@@ -49,6 +49,8 @@ public final class PluginSettingsModel {
         public boolean multiline;
         /** TYPE_FILE_PICKER: "any" | "image" | "video" | "audio" and whether several files may be chosen. */
         public String kind = "any";
+        /** Key of the switch this row is nested under (0.2.8+, null = top level). */
+        public String parent;
         public boolean multiple;
         public Object defaultValue;
     }
@@ -84,6 +86,7 @@ public final class PluginSettingsModel {
                 it.accent = o.optBoolean("accent");
                 it.red = o.optBoolean("red");
                 it.multiline = o.optBoolean("multiline");
+                it.parent = o.has("parent") && !o.isNull("parent") ? o.optString("parent") : null;
                 it.kind = o.has("kind") && !o.isNull("kind") ? o.optString("kind", "any") : "any";
                 it.multiple = o.optBoolean("multiple");
                 JSONArray opts = o.optJSONArray("options");

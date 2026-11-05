@@ -1,9 +1,13 @@
 """Declarative settings; callbacks stay in Python, display data is serialized."""
 class _Item:
+    # 0.2.8+: set item.parent = "<key of a Switch>" AFTER creating the item (older apps simply ignore the attribute,
+    # the row then shows at top level). The row is hidden under that switch until the user expands it.
+    parent = None
+
     def _data(self, key):
         value = {"type": self.type, "key": key, "text": self.text}
-        for name in ("subtext", "default", "options", "hint", "icon", "accent", "red", "multiline", "kind", "multiple"):
-            if hasattr(self, name):
+        for name in ("subtext", "default", "options", "hint", "icon", "accent", "red", "multiline", "kind", "multiple", "parent"):
+            if hasattr(self, name) and getattr(self, name) is not None:
                 value[name] = getattr(self, name)
         return value
 

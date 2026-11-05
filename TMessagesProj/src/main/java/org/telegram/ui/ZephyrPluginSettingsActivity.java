@@ -95,41 +95,135 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
             });
         });
     }
+    /** Switches whose nested rows are shown (0.2.8 "N/M" rows). UI state only, per screen. */
+    private final HashSet<String> expanded=new HashSet<>();
+    /** One entry of the screen before it is turned into list rows: a header, a card row or a note under a card. */
+    private static final class Entry {
+        static final int HEADER=0, ROW=1, NOTE=2;
+        final int kind; final PluginSettingsModel.Item setting; final String text;
+        int position=ZephyrWrapCell.POSITION_SINGLE; int indent; String counter; boolean expandable;
+        Entry(int kind, PluginSettingsModel.Item setting, String text) { this.kind=kind; this.setting=setting; this.text=text; }
+    }
+    /**
+     * Screen = cards. A header starts a new card (small grey text above it); a divider row ends one and its text
+     * becomes a note under it. Row subtexts are the second line of the row. Rows with item.parent == a switch key
+     * sit under that switch and show only while it is expanded.
+     */
+    private ArrayList<Entry> buildEntries() {
+        ArrayList<Entry> entries=new ArrayList<>();
+        HashMap<String,ArrayList<PluginSettingsModel.Item>> children=new HashMap<>();
+        HashSet<String> keys=new HashSet<>();
+        for (PluginSettingsModel.Item it : model.items) if (it.key!=null) keys.add(it.key);
+        ArrayList<PluginSettingsModel.Item> top=new ArrayList<>();
+        for (PluginSettingsModel.Item it : model.items) {
+            if (it.parent!=null && !it.parent.equals(it.key) && keys.contains(it.parent) && isSwitchKey(it.parent)) {
+                ArrayList<PluginSettingsModel.Item> list=children.get(it.parent);
+                if (list==null) { list=new ArrayList<>(); children.put(it.parent,list); }
+                list.add(it);
+            } else top.add(it);
+        }
+        for (PluginSettingsModel.Item setting : top) {
+            if (setting.type==PluginSettingsModel.TYPE_HEADER) { entries.add(new Entry(Entry.HEADER,setting,setting.text)); continue; }
+            if (setting.type==PluginSettingsModel.TYPE_DIVIDER) { entries.add(new Entry(Entry.NOTE,setting,setting.text)); continue; }
+            Entry e=new Entry(Entry.ROW,setting,null);
+            ArrayList<PluginSettingsModel.Item> kids=setting.type==PluginSettingsModel.TYPE_SWITCH ? children.get(setting.key) : null;
+            if (kids!=null) {
+                int total=0, on=0;
+                for (PluginSettingsModel.Item k : kids) if (k.type==PluginSettingsModel.TYPE_SWITCH) { total++; if (model.getBoolean(k)) on++; }
+                if (total==0) total=kids.size();
+                e.expandable=true; e.counter=total==0 ? null : on+"/"+total;
+            }
+            entries.add(e);
+            if (kids!=null && expanded.contains(setting.key)) {
+                for (PluginSettingsModel.Item k : kids) { Entry c=new Entry(Entry.ROW,k,null); c.indent=1; entries.add(c); }
+            }
+        }
+        // Card positions: a run of rows between headers/notes.
+        int i=0;
+        while (i<entries.size()) {
+            if (entries.get(i).kind!=Entry.ROW) { i++; continue; }
+            int j=i; while (j+1<entries.size() && entries.get(j+1).kind==Entry.ROW) j++;
+            for (int k=i; k<=j; k++) entries.get(k).position=i==j ? ZephyrWrapCell.POSITION_SINGLE : k==i ? ZephyrWrapCell.POSITION_FIRST : k==j ? ZephyrWrapCell.POSITION_LAST : ZephyrWrapCell.POSITION_MIDDLE;
+            i=j+1;
+        }
+        return entries;
+    }
+    private boolean hasChildren(PluginSettingsModel.Item setting) {
+        if (model==null || setting.key==null) return false;
+        for (PluginSettingsModel.Item it : model.items) if (setting.key.equals(it.parent) && !setting.key.equals(it.key)) return true;
+        return false;
+    }
+    private boolean isSwitchKey(String key) {
+        for (PluginSettingsModel.Item it : model.items) if (key.equals(it.key)) return it.type==PluginSettingsModel.TYPE_SWITCH;
+        return false;
+    }
+    private static boolean hasSwitch(ArrayList<PluginSettingsModel.Item> list) {
+        for (PluginSettingsModel.Item it : list) if (it.type==PluginSettingsModel.TYPE_SWITCH) return true;
+        return false;
+    }
+    private View blockFor(String cacheKey, int mode, CharSequence text) {
+        View v=blocks.get(cacheKey);
+        ZephyrWrapCell.TextBlock block=v instanceof ZephyrWrapCell.TextBlock ? (ZephyrWrapCell.TextBlock)v : new ZephyrWrapCell.TextBlock(getParentActivity());
+        blocks.put(cacheKey,block);
+        block.bind(mode,text);
+        return block;
+    }
+    private final HashMap<String,View> blocks=new HashMap<>();
     @Override protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         PluginManager.InstalledPlugin plugin=PluginManager.INSTANCE.getInstalled(pluginId);
         if (plugin==null || !plugin.enabled) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(R.string.ZephyrPluginSettingsNotLoaded))); return; }
         if (model==null || model.items.isEmpty()) { items.add(UItem.asShadow(ZephyrPluginsActivity.s(loading ? R.string.Loading : R.string.ZephyrPluginSettingsEmpty))); return; }
         if (getParentActivity()==null) return;
         HashSet<String> used=new HashSet<>();
-        for (PluginSettingsModel.Item setting : model.items) {
-            UItem item;
-            if (setting.type==PluginSettingsModel.TYPE_HEADER) item=UItem.asHeader(setting.text);
-            else if (setting.type==PluginSettingsModel.TYPE_DIVIDER) item=UItem.asShadow(setting.text);
-            else if (setting.type==PluginSettingsModel.TYPE_PAGE) {
-                // Navigation row (like the category list of exteraGram): icon + title, opens a sub-screen.
-                item=UItem.asButton(rowId(setting),pageIcon(setting.icon),setting.text);
-            } else {
-                // Own wrapping row: the stock one-line cells cut long titles and values with "...".
-                boolean isSwitch=setting.type==PluginSettingsModel.TYPE_SWITCH;
-                String value="";
-                if (setting.type==PluginSettingsModel.TYPE_INPUT) value=shorten(model.getString(setting));
-                else if (setting.type==PluginSettingsModel.TYPE_SELECTOR) {
-                    int selected=model.getInt(setting);
-                    value=setting.options!=null && selected>=0 && selected<setting.options.length ? setting.options[selected] : "";
-                }
-                ZephyrWrapCell cell=cells.get(setting.key);
-                if (cell==null) { cell=new ZephyrWrapCell(getParentActivity()); cells.put(setting.key,cell); }
-                used.add(setting.key);
-                cell.setData(setting.text,value,isSwitch,isSwitch && model.getBoolean(setting),true);
-                final UItem row=UItem.asCustom(cell,LayoutHelper.WRAP_CONTENT);
-                row.id=rowId(setting);
-                cell.setOnClickListener(v -> onClick(row,v,-1,0,0));
-                item=row;
+        HashSet<String> usedBlocks=new HashSet<>();
+        usedBlocks.add("top");
+        items.add(blockItem("top".hashCode(),blockFor("top",ZephyrWrapCell.TextBlock.SPACE,null)));
+        ArrayList<Entry> entries=buildEntries();
+        for (int n=0; n<entries.size(); n++) {
+            Entry e=entries.get(n);
+            PluginSettingsModel.Item setting=e.setting;
+            if (e.kind!=Entry.ROW) {
+                String cacheKey=(e.kind==Entry.HEADER ? "h:" : "n:")+setting.key;
+                usedBlocks.add(cacheKey);
+                UItem block=blockItem(cacheKey.hashCode(),blockFor(cacheKey,e.kind==Entry.HEADER ? ZephyrWrapCell.TextBlock.HEADER : ZephyrWrapCell.TextBlock.NOTE,e.text));
+                block.object=setting; items.add(block);
+                continue;
             }
-            item.object=setting; items.add(item);
-            if (setting.subtext!=null && !setting.subtext.isEmpty()) items.add(UItem.asShadow(setting.subtext));
+            boolean isSwitch=setting.type==PluginSettingsModel.TYPE_SWITCH;
+            boolean isPage=setting.type==PluginSettingsModel.TYPE_PAGE;
+            String value="", sub=setting.subtext==null ? "" : setting.subtext;
+            if (setting.type==PluginSettingsModel.TYPE_INPUT) value=shorten(model.getString(setting));
+            else if (setting.type==PluginSettingsModel.TYPE_SELECTOR) {
+                int selected=model.getInt(setting);
+                value=setting.options!=null && selected>=0 && selected<setting.options.length ? setting.options[selected] : "";
+            } else if (setting.type==PluginSettingsModel.TYPE_TEXT && !sub.isEmpty() && sub.length()<=24 && sub.indexOf('\n')<0) {
+                value=sub; sub="";   // a short note of a plain row reads as its value on the right
+            }
+            CharSequence title=setting.text;
+            if (e.expandable) {
+                boolean open=expanded.contains(setting.key);
+                title=(setting.text==null ? "" : setting.text)+(e.counter==null ? "" : "  "+e.counter)+(open ? " \u25B4" : " \u25BE");
+            }
+            ZephyrWrapCell cell=cells.get(setting.key);
+            if (cell==null) { cell=new ZephyrWrapCell(getParentActivity()); cells.put(setting.key,cell); }
+            used.add(setting.key);
+            cell.bind(title,sub,value,isPage ? pageIcon(setting.icon) : 0,isSwitch,isSwitch && model.getBoolean(setting),e.expandable,isPage,e.indent,e.position);
+            final UItem row=UItem.asCustom(cell,LayoutHelper.WRAP_CONTENT);
+            row.id=rowId(setting);
+            final ZephyrWrapCell clicked=cell;
+            cell.setOnClickListener(v -> onClick(row,clicked,-1,0,0));
+            row.object=setting; items.add(row);
         }
+        // Closing space under the last card.
+        usedBlocks.add("end");
+        items.add(blockItem("end".hashCode(),blockFor("end",ZephyrWrapCell.TextBlock.SPACE,null)));
         cells.keySet().retainAll(used);
+        blocks.keySet().retainAll(usedBlocks);
+    }
+    private static UItem blockItem(int id, View view) {
+        UItem item=UItem.asCustom(view,LayoutHelper.WRAP_CONTENT);
+        item.id=id;
+        return item;
     }
     /** Stable per key (keys are unique on a screen), so a rebuilt row is the same row. */
     private static int rowId(PluginSettingsModel.Item setting) { return setting.key==null ? 0 : setting.key.hashCode(); }
@@ -165,7 +259,13 @@ public class ZephyrPluginSettingsActivity extends UniversalFragment implements P
                 child.setCurrentAccount(currentAccount);
                 presentFragment(child);
                 break;
-            case PluginSettingsModel.TYPE_SWITCH: model.setValue(setting,!model.getBoolean(setting)); update(); reloadSoon(); break;
+            case PluginSettingsModel.TYPE_SWITCH:
+                if (hasChildren(setting) && !(view instanceof ZephyrWrapCell && ((ZephyrWrapCell)view).wasSwitchTouched())) {
+                    if (!expanded.remove(setting.key)) expanded.add(setting.key);
+                    update();
+                    break;
+                }
+                model.setValue(setting,!model.getBoolean(setting)); update(); reloadSoon(); break;
             case PluginSettingsModel.TYPE_INPUT:
                 EditText input=new EditText(getParentActivity()); input.setText(model.getString(setting)); input.setSingleLine(!setting.multiline);
                 if (setting.hint!=null) input.setHint(setting.hint);

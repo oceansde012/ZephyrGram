@@ -840,6 +840,7 @@ def http_get(url, headers=None, timeout=15):
 INLINE_RESULT_HOOK = True   # BasePlugin.add_inline_result_hook / on_inline_result_send / InlineAction (inline.hook)
 SEND_MEDIA = True           # send_media (media.send)
 NOTIFY = True               # notify (Android notification, 0.2.6)
+NESTED_SETTINGS = True      # ui item.parent = "<switch key>": nested rows under a switch (0.2.8)
 FILE_PICKER = True          # ui.FilePicker: user-chosen files copied into data_dir/picked (0.2.7)
 HEADER_BUTTON = True        # MenuType.CHAT_HEADER_BUTTON (icon in the chat header, 0.2.7)
 USER_PROFILE = True         # get_user_profile, download_profile_photo (0.2.7)
