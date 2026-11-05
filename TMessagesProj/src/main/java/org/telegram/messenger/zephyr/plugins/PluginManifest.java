@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  *   static PluginManifest parse(String source) throws InvalidException
  *   static boolean isValidId(String id)                 ^[a-z][a-z0-9_]{2,31}$
  *   static final Set&lt;String&gt; KNOWN_PERMISSIONS         network.requests, updates.read, messages.send, ui.menu, internet, java.raw,
- *                                                       ai.complete, ai.memory, chat.read, inline.hook, media.send
+ *                                                       ai.complete, ai.memory, memory.style, chat.read, inline.hook, media.send
  *   static final int MAX_SOURCE_BYTES = 512 * 1024
  *   fields: String id, name, description, author, version, minAppVersion, maxAppVersion (null if absent), icon (null);
  *           int versionCode, apiVersion (default 1); List&lt;String&gt; permissions (unmodifiable)
@@ -33,7 +33,7 @@ public final class PluginManifest {
     public static final int MAX_SOURCE_BYTES = 512 * 1024;
     public static final Set<String> KNOWN_PERMISSIONS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
             "network.requests", "updates.read", "messages.send", "ui.menu", "internet", "java.raw",
-            "ai.complete", "ai.memory", "chat.read", "inline.hook", "media.send")));
+            "ai.complete", "ai.memory", "memory.style", "chat.read", "inline.hook", "media.send")));
 
     private static final Pattern ID_RE = Pattern.compile("^[a-z][a-z0-9_]{2,31}$");
     private static final String STR = "(?:\"((?:[^\"\\\\\\n]|\\\\.)*)\"|'((?:[^'\\\\\\n]|\\\\.)*)')";

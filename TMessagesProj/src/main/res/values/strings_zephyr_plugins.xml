@@ -102,5 +102,6 @@
     <string name="ZephyrPluginPermAiMemory">Save and retrieve chat memory on your AI server, including opted-in local summaries</string>
     <string name="ZephyrPluginPermInlineHook">Inspect, cancel or resend inline bot results you pick (without the via @bot label)</string>
     <string name="ZephyrPluginPermMediaSend">Send photos, videos, GIFs and files from the plugin folder, Telegram media cache or HTTPS links</string>
+    <string name="ZephyrPluginPermMemoryStyle">Save reply examples, feedback and facts on your AI server to imitate your writing style, and retrieve them</string>
 </resources>
 

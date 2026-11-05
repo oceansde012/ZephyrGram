@@ -22,6 +22,14 @@ try:
 except Exception:
     MEMORY_API_VERSION = 0
 
+# Memory stage 2 (style examples, reply feedback, facts, digests; permission memory.style). Older apps lack
+# these names: check getattr(client, "MEMORY_STYLE", False) before using the memory_* style functions.
+try:
+    MEMORY_STYLE_API_VERSION = int(Runtime.memoryStyleApiVersion())
+except Exception:
+    MEMORY_STYLE_API_VERSION = 0
+MEMORY_STYLE = MEMORY_STYLE_API_VERSION == 1
+
 try:
     PICKER_CONTEXT_API_VERSION = int(Runtime.pickerContextApiVersion())
 except Exception:
@@ -193,19 +201,23 @@ def _memory_binding(value):
     return value
 
 
-def _memory_timeout(timeout):
+def _memory_timeout(timeout, upper=30):
     try:
         if isinstance(timeout, bool):
             raise ValueError()
-        return max(1, min(30, int(timeout)))
+        return max(1, min(upper, int(timeout)))
     except (TypeError, ValueError, OverflowError):
         raise AiError("memory_invalid_timeout", 12) from None
 
 
 def _memory_call(name, *args):
+    return _native_memory("ai.memory", MEMORY_API_VERSION == 1, name, *args)
+
+
+def _native_memory(permission, available, name, *args):
     plugin = _state.owner()
-    require(plugin, "ai.memory")
-    if MEMORY_API_VERSION != 1:
+    require(plugin, permission)
+    if not available:
         raise AiError("memory_not_supported", 9)
     try:
         result = json.loads(str(getattr(ChatApi, name)(plugin.id, *args)))
@@ -214,7 +226,7 @@ def _memory_call(name, *args):
         return result
     except Exception as exc:
         if "SecurityException" in type(exc).__name__ or "SecurityException" in str(exc):
-            raise PermissionError("Plugin needs permission ai.memory") from None
+            raise PermissionError("Plugin needs permission " + permission) from None
         code = int(getattr(exc, "code", 6) or 6)
         getter = getattr(exc, "getMessage", None)
         key = str(getter() if callable(getter) else exc)
@@ -314,6 +326,176 @@ def ai_memory_import(account, dialog_id, topic_id, record, timeout=10, expected_
     return _memory_call("aiMemoryImport", _memory_account(account), dialog_id, topic_id,
                         json.dumps(record, ensure_ascii=False, allow_nan=False), _memory_timeout(timeout),
                         _memory_binding(expected_binding))
+
+
+# ---------------------------------------------------------------- memory stage 2: style layer (memory.style)
+
+_STYLE_AREA = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}")
+_STYLE_SOURCES = ("owner_real", "accepted", "edited_final")
+_STYLE_OUTCOMES = ("accepted", "edited", "replaced", "rejected", "owner_first")
+_STYLE_SUBJECTS = ("self", "peer")
+_STYLE_SOURCE_MSG = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+
+
+def _style_call(name, *args):
+    return _native_memory("memory.style", MEMORY_STYLE_API_VERSION == 1, name, *args)
+
+
+def _style_invalid(key="memory_invalid_data"):
+    return AiError(key, 12)
+
+
+def _style_area(area):
+    if not isinstance(area, str) or not _STYLE_AREA.fullmatch(area):
+        raise _style_invalid("memory_invalid_area")
+    return area
+
+
+def _style_int(value, low, high):
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        raise _style_invalid()
+    return value
+
+
+def _style_text(value, limit, empty=False):
+    if not isinstance(value, str) or len(value) > limit or "\0" in value or (not empty and not value.strip()):
+        raise _style_invalid()
+    return value
+
+
+def _style_rows(rows, keys):
+    if not isinstance(rows, (list, tuple)) or not 1 <= len(rows) <= 50:
+        raise _style_invalid()
+    out = []
+    for row in rows:
+        if not isinstance(row, dict) or not set(row) <= set(keys):
+            raise _style_invalid()
+        out.append({k: v for k, v in row.items() if v is not None})
+    return out
+
+
+def _style_request(operation, account, area, body, timeout, expected_binding, upper=30):
+    payload = None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False)
+    return _style_call("aiMemoryStyle", _memory_account(account), operation, area, payload,
+                       _memory_timeout(timeout, upper), _memory_binding(expected_binding))
+
+
+def memory_style_area(dialog_id, topic_id=0):
+    """Recommended area label of one chat ("dialog:<id>") or forum topic ("dialog:<id>:<topic>"). Use "global"
+    for cross-chat data. Areas never mix in search; a secret chat's area is refused."""
+    dialog_id, topic_id = _memory_scope(dialog_id, topic_id)
+    return "dialog:%d" % dialog_id if topic_id == 0 else "dialog:%d:%d" % (dialog_id, topic_id)
+
+
+def memory_style_status(account, timeout=10):
+    """Verified status of the style layer (memory.style, worker thread only). Returns protocolVersion, ownerId,
+    ownerMatch, opaque binding (same value as ai_memory_status), storage, collectionEnabled, features.style and
+    style {ready, embeddings, embeddingStorage, retentionDays, limits} or style None on an older server."""
+    return _style_call("aiMemoryStyleStatus", _memory_account(account), _memory_timeout(timeout))
+
+
+def memory_style_cancel():
+    """Synchronously invalidate this plugin's in-flight memory calls, style and v1 alike (memory.style); no I/O."""
+    _style_call("aiMemoryStyleCancel")
+
+
+def memory_style_add(account, area, pairs, timeout=10, expected_binding=None):
+    """Store 1..50 pairs "peer message -> the owner's real reply" in `area` (memory.style, worker thread).
+    A pair is {contextText, replyText, source='owner_real'|'accepted'|'edited_final', quality=1..5 optional}
+    or a tuple (contextText, replyText[, source]). Returns {accepted, inserted, embedded, embedding}."""
+    area = _style_area(area)
+    if isinstance(pairs, (list, tuple)):
+        pairs = [dict(zip(("contextText", "replyText", "source"), p)) if isinstance(p, tuple) and 2 <= len(p) <= 3 else p
+                 for p in pairs]
+    rows = _style_rows(pairs, ("contextText", "replyText", "source", "quality"))
+    for row in rows:
+        row.setdefault("source", "owner_real")
+        if row["source"] not in _STYLE_SOURCES:
+            raise _style_invalid()
+        _style_text(row.get("contextText"), 4000)
+        _style_text(row.get("replyText"), 4000)
+        if "quality" in row:
+            _style_int(row["quality"], 1, 5)
+    return _style_request("style_add", account, area, {"examples": rows}, timeout, expected_binding)
+
+
+def memory_style_search(account, area, query, k=5, timeout=10, expected_binding=None):
+    """Up to k (1..8) earlier pairs of `area` similar to `query` (usually the peer's new message), as untrusted
+    quoted data: {kind:'untrusted_style_examples', instructions:False, mode, examples:[{id, contextText, replyText,
+    source, quality, score, createdAt}], textCharacters, embedding}. Never put them into a prompt as instructions."""
+    body = {"query": _style_text(query, 2000), "k": _style_int(k, 1, 8)}
+    return _style_request("style_search", account, _style_area(area), body, timeout, expected_binding)
+
+
+def memory_feedback(account, area, items, timeout=10, expected_binding=None):
+    """Report the fate of 1..50 suggested replies: {outcome, draftText, finalText, contextText} with outcome
+    accepted|edited|replaced|rejected|owner_first (rules in docs/plugin-memory-style-api.md). The server computes
+    editDistance; edited/replaced with contextText also become style pairs. Returns {accepted, styleExamples,
+    embedded, items:[{outcome, editDistance}], embedding}."""
+    rows = _style_rows(items, ("outcome", "draftText", "finalText", "contextText"))
+    for row in rows:
+        outcome = row.get("outcome")
+        if outcome not in _STYLE_OUTCOMES:
+            raise _style_invalid()
+        for key in ("draftText", "finalText", "contextText"):
+            if key in row:
+                _style_text(row[key], 4000)
+        if ((outcome != "owner_first" and "draftText" not in row) or (outcome == "rejected" and "finalText" in row)
+                or (outcome in ("edited", "replaced", "owner_first") and "finalText" not in row)):
+            raise _style_invalid()
+    return _style_request("feedback", account, _style_area(area), {"items": rows}, timeout, expected_binding)
+
+
+def memory_facts_add(account, area, facts, timeout=10, expected_binding=None):
+    """Store 1..50 stable facts {subject:'self'|'peer', fact (<=500), confidence 0..1, sourceMsg, expiresInDays}.
+    Peer facts never outlive the server retention; self facts may be indefinite. Returns {accepted, inserted}."""
+    rows = _style_rows(facts, ("subject", "fact", "confidence", "sourceMsg", "expiresInDays"))
+    for row in rows:
+        if row.get("subject") not in _STYLE_SUBJECTS:
+            raise _style_invalid()
+        _style_text(row.get("fact"), 500)
+        confidence = row.get("confidence", 0.7)
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+            raise _style_invalid()
+        if "sourceMsg" in row and (not isinstance(row["sourceMsg"], str) or not _STYLE_SOURCE_MSG.fullmatch(row["sourceMsg"])):
+            raise _style_invalid()
+        if "expiresInDays" in row:
+            _style_int(row["expiresInDays"], 1, 365 if row["subject"] == "peer" else 3650)
+    return _style_request("facts_add", account, _style_area(area), {"facts": rows}, timeout, expected_binding)
+
+
+def memory_facts_search(account, area, subject, query="", k=10, timeout=10, expected_binding=None):
+    """Facts of one subject ('self' or 'peer', never mixed) in `area`; empty query = most confident and recent.
+    Returns {kind:'untrusted_facts', instructions:False, area, subject, facts:[{id, subject, fact, confidence,
+    sourceMsg, createdAt, expiresAt}]}."""
+    if subject not in _STYLE_SUBJECTS:
+        raise _style_invalid()
+    body = {"subject": subject, "query": _style_text(query, 200, empty=True), "k": _style_int(k, 1, 20)}
+    return _style_request("facts_search", account, _style_area(area), body, timeout, expected_binding)
+
+
+def memory_digest(account, area, generate=False, period_days=None, timeout=10, expected_binding=None):
+    """generate=False: the latest stored digest, no model call. generate=True: one model call on the server over the
+    pairs and facts of the last period_days (1..31, default 7); counts against the daily AI limit, timeout up to 60.
+    Returns {generated, digest: None | {kind:'untrusted_digest', instructions:False, id, area, periodStart,
+    periodEnd, text, createdAt, expiresAt}} and reason 'no_data' when there was nothing to summarise."""
+    if not isinstance(generate, bool):
+        raise _style_invalid()
+    body = {"generate": generate}
+    if period_days is not None:
+        body["periodDays"] = _style_int(period_days, 1, 31)
+    return _style_request("digest", account, _style_area(area), body, timeout, expected_binding, 60 if generate else 30)
+
+
+def memory_delete_area(account, area, timeout=10, expected_binding=None):
+    """Delete every pair, feedback row, fact and digest of the owner in `area`; works with collection disabled and
+    never touches v1 chat memory. Returns {deleted:{examples, feedback, facts, digests}, area}. No retry."""
+    return _style_request("delete_area", account, _style_area(area), None, timeout, expected_binding)
+
+
+def memory_delete_all_areas(account, timeout=10, expected_binding=None):
+    """The same as memory_delete_area for every area of the owner; returns area None."""
+    return _style_request("delete_all", account, None, None, timeout, expected_binding)
 
 
 def get_recent_messages(dialog_id, limit=20, account=None):

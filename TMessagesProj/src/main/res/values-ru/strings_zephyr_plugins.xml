@@ -98,5 +98,6 @@
     <string name="ZephyrPluginPermAiMemory">Сохранять и читать память чатов на вашем AI-сервере, включая разрешённые локальные итоги</string>
     <string name="ZephyrPluginPermInlineHook">Просматривать, отменять или отправлять от своего имени выбранные inline-результаты ботов (без пометки via @bot)</string>
     <string name="ZephyrPluginPermMediaSend">Отправлять фото, видео, GIF и файлы из папки плагина, медиакеша Telegram или HTTPS-ссылок</string>
+    <string name="ZephyrPluginPermMemoryStyle">Сохранять на вашем AI-сервере примеры ваших ответов, отзывы на черновики и факты, чтобы писать в вашем стиле, и находить их</string>
 </resources>
 

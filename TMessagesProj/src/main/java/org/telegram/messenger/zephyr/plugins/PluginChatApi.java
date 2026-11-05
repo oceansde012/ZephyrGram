@@ -19,6 +19,7 @@ import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.zephyr.ZephyrAiClient;
+import org.telegram.messenger.zephyr.ZephyrMemoryClient;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
@@ -175,6 +176,66 @@ public final class PluginChatApi {
         PluginRuntime.INSTANCE.requirePermission(id, "ai.memory");
         if (recordJson == null || recordJson.length() > 50000) throw new IllegalArgumentException("Memory record too large");
         return memoryCall(id, account, "import", dialogId, topicId, new JSONObject(recordJson), timeoutSec, expectedBinding);
+    }
+
+    // ------------------------------------------------------------------ memory style layer (memory.style)
+
+    private static final String STYLE_PERMISSION = "memory.style";
+    private static final int MAX_STYLE_BODY_CHARS = 1024 * 1024;
+
+    /** Label check only: an area named after a secret chat ("dialog:<encrypted id>[:topic]") is refused like in v1. */
+    private static void rejectSecretArea(String area) throws ZephyrAiClient.AiException {
+        if (area == null || !area.startsWith("dialog:")) return;
+        String[] parts = area.split(":", -1);
+        long dialogId;
+        try { dialogId = Long.parseLong(parts[1]); } catch (NumberFormatException e) { return; }
+        if (DialogObject.isEncryptedDialog(dialogId)) {
+            throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_secret_chat");
+        }
+    }
+
+    /** operation null = status. The body is plugin JSON; the native transport whitelists it before any upload. */
+    private static String memoryStyleCall(String id, int account, String operation, String area, String bodyJson,
+                                          int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        checkAccount(account);
+        notMainThread();
+        if (bodyJson != null && bodyJson.length() > MAX_STYLE_BODY_CHARS) {
+            throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_request_too_large");
+        }
+        rejectSecretArea(area);
+        JSONObject body;
+        try { body = bodyJson == null ? null : new JSONObject(bodyJson); }
+        catch (org.json.JSONException e) { throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_invalid_data"); }
+        final long epoch = PluginRuntime.INSTANCE.memoryEpoch(id, STYLE_PERMISSION);
+        if (!MEMORY_SLOTS.tryAcquire()) throw new ZephyrAiClient.AiException(ZephyrAiClient.ERR_RATE_LIMIT, "memory_busy");
+        try {
+            ZephyrMemoryClient.Guard guard = () -> PluginRuntime.INSTANCE.memoryEpochCurrent(id, epoch, STYLE_PERMISSION);
+            JSONObject result = operation == null
+                    ? ZephyrAiClient.memoryStyleStatusBlocking(account, timeoutSec, guard)
+                    : ZephyrAiClient.memoryStyleRequestBlocking(account, operation, area, body, timeoutSec, expectedBinding, guard);
+            if (!guard.isCurrent()) throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_CANCELLED, "memory_operation_cancelled");
+            return result.toString();
+        } finally { MEMORY_SLOTS.release(); }
+    }
+
+    public static String aiMemoryStyleStatus(String id, int account, int timeoutSec) throws Exception {
+        return memoryStyleCall(id, account, null, null, null, timeoutSec, null);
+    }
+
+    /** Synchronous local cancellation of this plugin's in-flight memory calls (style and v1); no I/O, safe on the UI thread. */
+    public static String aiMemoryStyleCancel(String id) {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        PluginRuntime.INSTANCE.invalidateMemory(id);
+        return "{}";
+    }
+
+    /** operation: style_add, style_search, feedback, facts_add, facts_search, digest, delete_area, delete_all. */
+    public static String aiMemoryStyle(String id, int account, String operation, String area, String bodyJson,
+                                       int timeoutSec, String expectedBinding) throws Exception {
+        PluginRuntime.INSTANCE.requirePermission(id, STYLE_PERMISSION);
+        if (operation == null) throw new ZephyrAiClient.AiException(ZephyrMemoryClient.ERR_INVALID, "memory_invalid_scope");
+        return memoryStyleCall(id, account, operation, area, bodyJson, timeoutSec, expectedBinding);
     }
 
     private static long fromId(TLRPC.Message m, long dialogId, int account) {

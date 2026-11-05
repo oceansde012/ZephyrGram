@@ -11,12 +11,14 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +37,18 @@ public final class ZephyrMemoryClient {
     public static final int ERR_CONSENT = 15;
     private static final int MAX_RESPONSE_BYTES = 65536;
     private static final int MAX_REQUEST_BYTES = 256 * 1024;
+    /** Style layer (memory stage 2): POST /style and /feedback accept 1 MiB on the server, everything else 256 KiB. */
+    public static final int STYLE_API_VERSION = 1;
+    private static final int MAX_STYLE_BULK_BYTES = 1024 * 1024;
+    private static final int MAX_ERROR_BYTES = 4096;
+    private static final String DATE_RE = "[0-9]{4}-[0-9]{2}-[0-9]{2}T.+(Z|[+-][0-9]{2}:[0-9]{2})";
+    static final String AREA_RE = "[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}";
+    static final List<String> STYLE_OPERATIONS = Arrays.asList(
+            "style_add", "style_search", "feedback", "facts_add", "facts_search", "digest", "delete_area", "delete_all");
+    private static final List<String> STYLE_SOURCES = Arrays.asList("owner_real", "accepted", "edited_final");
+    private static final List<String> STYLE_OUTCOMES = Arrays.asList("accepted", "edited", "replaced", "rejected", "owner_first");
+    private static final List<String> STYLE_SUBJECTS = Arrays.asList("self", "peer");
+    private static final List<String> STYLE_EMBEDDING = Arrays.asList("used", "partial", "disabled", "skipped_quota", "unavailable", "not_needed");
     private static final ScheduledExecutorService DEADLINES = Executors.newScheduledThreadPool(2, task -> {
         Thread thread = new Thread(task, "ZephyrMemoryDeadline");
         thread.setDaemon(true);
@@ -80,12 +94,16 @@ public final class ZephyrMemoryClient {
     }
 
     private static final class Snapshot {
-        final int account, selected;
+        final int account, selected, maxMs;
         final long owner, deadline;
         final String base, token, binding;
         final Guard allowed;
         volatile boolean expired;
         Snapshot(int account, int timeout, Guard allowed) throws ZephyrAiClient.AiException {
+            this(account, timeout, 30, allowed);
+        }
+        /** maxSeconds is 30 for every call except digest generation (one model call on the server, up to 60). */
+        Snapshot(int account, int timeout, int maxSeconds, Guard allowed) throws ZephyrAiClient.AiException {
             if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) throw error(ERR_ACCOUNT, "memory_invalid_account");
             this.account = account;
             this.selected = UserConfig.selectedAccount;
@@ -96,13 +114,14 @@ public final class ZephyrMemoryClient {
             if (token.isEmpty()) throw error(ZephyrAiClient.ERR_NOT_CONFIGURED, "memory_not_configured");
             this.binding = binding(base, token, account, owner);
             this.allowed = allowed;
-            this.deadline = System.nanoTime() + Math.max(1, Math.min(30, timeout)) * 1000000000L;
+            this.maxMs = Math.max(1, Math.min(60, maxSeconds)) * 1000;
+            this.deadline = System.nanoTime() + Math.max(1, Math.min(maxMs / 1000, timeout)) * 1000000000L;
             check();
         }
         int remaining() throws ZephyrAiClient.AiException {
             long ms = (deadline - System.nanoTime()) / 1000000L;
             if (expired || ms <= 0) throw error(ZephyrAiClient.ERR_NETWORK, "memory_timeout");
-            return (int) Math.min(30000, ms);
+            return (int) Math.min(maxMs, ms);
         }
         void check() throws ZephyrAiClient.AiException {
             if (Thread.currentThread().isInterrupted() || allowed == null || !allowed.isCurrent()
@@ -124,9 +143,15 @@ public final class ZephyrMemoryClient {
     }
 
     private JSONObject request(Snapshot snapshot, String method, String path, JSONObject body) throws ZephyrAiClient.AiException {
+        return request(snapshot, method, path, body, MAX_REQUEST_BYTES, false);
+    }
+
+    /** styleErrors: map the server's fixed error code (never its message) to a fixed memory_* key; v1 keeps status-only mapping. */
+    private JSONObject request(Snapshot snapshot, String method, String path, JSONObject body, int maxBytes,
+                               boolean styleErrors) throws ZephyrAiClient.AiException {
         snapshot.check();
         byte[] bytes = body == null ? null : body.toString().getBytes(StandardCharsets.UTF_8);
-        if (bytes != null && bytes.length > MAX_REQUEST_BYTES) throw error(ERR_INVALID, "memory_request_too_large");
+        if (bytes != null && bytes.length > maxBytes) throw error(ERR_INVALID, "memory_request_too_large");
         if (body != null && body.toString().contains(snapshot.token)) throw error(ERR_INVALID, "memory_sensitive_data");
         HttpURLConnection connection = null;
         ScheduledFuture<?> deadline = null;
@@ -164,6 +189,7 @@ public final class ZephyrMemoryClient {
             snapshot.check();
             if (status / 100 != 2) {
                 // No server body or exception message reaches logs/Python; they can contain private data.
+                if (styleErrors) throw styleError(status, errorCode(connection));
                 if (status == 401 || status == 403) throw error(ZephyrAiClient.ERR_UNAUTHORIZED, "memory_not_authorized");
                 if (status == 429) throw error(ZephyrAiClient.ERR_RATE_LIMIT, "memory_rate_limited");
                 if (status == 409) throw error(ERR_CONSENT, "memory_consent_required");
@@ -201,12 +227,7 @@ public final class ZephyrMemoryClient {
     private JSONObject verify(Snapshot snapshot) throws ZephyrAiClient.AiException {
         try {
             JSONObject response = request(snapshot, "GET", "/status", null);
-            if (integer(response, "protocolVersion", 1, 1) != 1) throw error(ERR_UNSUPPORTED, "memory_not_supported");
-            if (!String.valueOf(snapshot.owner).equals(response.optString("ownerId", ""))) {
-                throw error(ERR_ACCOUNT, "memory_account_mismatch");
-            }
-            JSONObject storage = response.getJSONObject("storage");
-            JSONObject safeStorage = new JSONObject().put("configured", bool(storage, "configured")).put("ready", bool(storage, "ready"));
+            JSONObject base = verifiedBase(snapshot, response);
             JSONObject sourceLimits = response.getJSONObject("limits"), limits = new JSONObject();
             String[] names = {"maxScopes", "maxMessagesPerScope", "maxBatchMessages", "maxMessageChars", "maxContextMessages", "maxContextChars", "minRetentionDays", "maxRetentionDays"};
             int[] max = {20, 200, 50, 4000, 20, 6000, 90, 90};
@@ -215,12 +236,22 @@ public final class ZephyrMemoryClient {
             JSONObject sourceFeatures = response.optJSONObject("features");
             boolean legacyImport = sourceFeatures != null && sourceFeatures.has("legacyImport") && bool(sourceFeatures, "legacyImport");
             if (legacyImport) limits.put("maxLegacySummaryChars", integer(sourceLimits, "maxLegacySummaryChars", 1, 8000));
-            return new JSONObject().put("protocolVersion", API_VERSION).put("ownerId", String.valueOf(snapshot.owner))
-                    .put("ownerMatch", true).put("binding", snapshot.binding).put("storage", safeStorage)
-                    .put("collectionEnabled", bool(response, "collectionEnabled")).put("limits", limits)
-                    .put("features", new JSONObject().put("legacyImport", legacyImport));
+            return base.put("limits", limits).put("features", new JSONObject().put("legacyImport", legacyImport));
         } catch (ZephyrAiClient.AiException e) { throw e; }
         catch (Exception e) { throw error(ERR_UNSUPPORTED, "memory_invalid_response"); }
+    }
+
+    /** Fields shared by the v1 and style status: protocol, verified owner, binding, storage, collection switch. */
+    private static JSONObject verifiedBase(Snapshot snapshot, JSONObject response) throws Exception {
+        if (integer(response, "protocolVersion", 1, 1) != 1) throw error(ERR_UNSUPPORTED, "memory_not_supported");
+        if (!String.valueOf(snapshot.owner).equals(response.optString("ownerId", ""))) {
+            throw error(ERR_ACCOUNT, "memory_account_mismatch");
+        }
+        JSONObject storage = response.getJSONObject("storage");
+        JSONObject safeStorage = new JSONObject().put("configured", bool(storage, "configured")).put("ready", bool(storage, "ready"));
+        return new JSONObject().put("protocolVersion", API_VERSION).put("ownerId", String.valueOf(snapshot.owner))
+                .put("ownerMatch", true).put("binding", snapshot.binding).put("storage", safeStorage)
+                .put("collectionEnabled", bool(response, "collectionEnabled"));
     }
 
     static int integer(JSONObject object, String key, int min, int max) throws Exception {
@@ -382,6 +413,387 @@ public final class ZephyrMemoryClient {
             return result;
         } catch (ZephyrAiClient.AiException e) { throw e; }
         catch (Exception e) { throw error(ERR_INVALID, "memory_invalid_data"); }
+    }
+
+    // ------------------------------------------------------------------ style layer (memory stage 2)
+
+    /** Server error codes are read from a bounded error body and mapped to fixed keys; nothing else of the body is kept. */
+    private static String errorCode(HttpURLConnection connection) {
+        try (InputStream in = connection.getErrorStream()) {
+            if (in == null) return "";
+            ByteArrayOutputStream body = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int count;
+            while ((count = in.read(buffer)) != -1) {
+                if (body.size() + count > MAX_ERROR_BYTES) return "";
+                body.write(buffer, 0, count);
+            }
+            JSONObject error = new JSONObject(new String(body.toByteArray(), StandardCharsets.UTF_8)).optJSONObject("error");
+            String code = error == null ? "" : error.optString("code", "");
+            return code.matches("[a-z_]{1,40}") ? code : "";
+        } catch (Exception e) { return ""; }
+    }
+
+    static ZephyrAiClient.AiException styleError(int status, String code) {
+        switch (status) {
+            case 400: return "memory_account_required".equals(code) ? error(ERR_ACCOUNT, "memory_account_required")
+                    : error(ERR_INVALID, "memory_invalid_data");
+            case 401: return error(ZephyrAiClient.ERR_UNAUTHORIZED, "memory_not_authorized");
+            case 403: return "memory_account_mismatch".equals(code) ? error(ERR_ACCOUNT, "memory_account_mismatch")
+                    : "telegram_owned_token_required".equals(code) ? error(ZephyrAiClient.ERR_UNAUTHORIZED, "memory_token_not_owned")
+                    : error(ZephyrAiClient.ERR_UNAUTHORIZED, "memory_not_authorized");
+            case 404: return error(ERR_UNSUPPORTED, "memory_style_not_supported");
+            case 413: return error(ERR_INVALID, "memory_request_too_large");
+            case 429: return "daily_limit_exceeded".equals(code) || "daily_budget_exceeded".equals(code)
+                    ? error(ZephyrAiClient.ERR_RATE_LIMIT, "memory_daily_limit") : error(ZephyrAiClient.ERR_RATE_LIMIT, "memory_rate_limited");
+            case 502: return "digest_failed".equals(code) ? error(ZephyrAiClient.ERR_SERVER, "memory_digest_failed")
+                    : error(ZephyrAiClient.ERR_SERVER, "memory_request_failed");
+            case 503:
+                if ("memory_disabled".equals(code)) return error(ERR_DISABLED, "memory_disabled");
+                if ("memory_not_configured".equals(code)) return error(ZephyrAiClient.ERR_NOT_CONFIGURED, "memory_not_configured");
+                if ("memory_starting".equals(code)) return error(ZephyrAiClient.ERR_STARTING, "memory_starting");
+                if ("digest_unavailable".equals(code) || "upstream_not_configured".equals(code) || "upstream_keys_disabled".equals(code)) {
+                    return error(ERR_UNSUPPORTED, "memory_digest_unavailable");
+                }
+                return error(ZephyrAiClient.ERR_STARTING, "memory_unavailable");
+            default: return error(ZephyrAiClient.ERR_SERVER, "memory_request_failed");
+        }
+    }
+
+    /** Bounds a request is validated against: the contract maxima before networking, then the server's advertised ones. */
+    static final class StyleLimits {
+        final int batch, text, query, searchK, searchChars, factChars, factsK, periodDays, digestChars, retentionDays;
+        StyleLimits(int batch, int text, int query, int searchK, int searchChars, int factChars, int factsK, int periodDays,
+                    int digestChars, int retentionDays) {
+            this.batch = batch; this.text = text; this.query = query; this.searchK = searchK; this.searchChars = searchChars;
+            this.factChars = factChars; this.factsK = factsK; this.periodDays = periodDays; this.digestChars = digestChars;
+            this.retentionDays = retentionDays;
+        }
+        static final StyleLimits CONTRACT = new StyleLimits(50, 4000, 2000, 8, 8000, 500, 20, 31, 4000, 365);
+        static StyleLimits of(JSONObject style) throws Exception {
+            JSONObject l = style.getJSONObject("limits");
+            return new StyleLimits(l.getInt("maxBatch"), l.getInt("maxTextChars"), l.getInt("maxQueryChars"), l.getInt("maxSearchK"),
+                    l.getInt("maxSearchChars"), l.getInt("maxFactChars"), l.getInt("maxFactsK"), l.getInt("maxPeriodDays"),
+                    l.getInt("maxDigestChars"), style.getInt("retentionDays"));
+        }
+    }
+
+    private static boolean present(JSONObject object, String key) { return object.has(key) && !object.isNull(key); }
+    private static String choice(JSONObject object, String key, List<String> allowed) throws Exception {
+        Object value = object.get(key);
+        if (!(value instanceof String) || !allowed.contains(value)) throw error(ERR_INVALID, "memory_invalid_data");
+        return (String) value;
+    }
+    private static double fraction(JSONObject object, String key) throws Exception {
+        Object value = object.get(key);
+        if (!(value instanceof Number)) throw error(ERR_INVALID, "memory_invalid_data");
+        double number = ((Number) value).doubleValue();
+        if (Double.isNaN(number) || number < 0 || number > 1) throw error(ERR_INVALID, "memory_invalid_data");
+        return number;
+    }
+    private static JSONArray rows(JSONObject object, String key, int max) throws Exception {
+        Object value = object.get(key);
+        if (!(value instanceof JSONArray) || ((JSONArray) value).length() < 1 || ((JSONArray) value).length() > max) {
+            throw error(ERR_INVALID, "memory_invalid_data");
+        }
+        return (JSONArray) value;
+    }
+    private static String date(JSONObject object, String key) throws Exception {
+        String value = text(object, key, 40, false);
+        if (!value.matches(DATE_RE)) throw error(ERR_INVALID, "memory_invalid_data");
+        return value;
+    }
+    private static String rowId(JSONObject object) throws Exception {
+        String value = text(object, "id", 20, false);
+        if (!value.matches("[0-9]{1,20}")) throw error(ERR_INVALID, "memory_invalid_data");
+        return value;
+    }
+    private static void untrusted(JSONObject response, String kind) throws Exception {
+        if (!kind.equals(response.optString("kind")) || bool(response, "instructions")) throw error(ERR_INVALID, "memory_invalid_response");
+    }
+
+    static String area(String value) throws ZephyrAiClient.AiException {
+        if (value == null || !value.matches(AREA_RE)) throw error(ERR_INVALID, "memory_invalid_area");
+        return value;
+    }
+
+    /** Whitelists one plugin request. Optional fields are omitted (never sent as null); unknown fields are rejected. */
+    static JSONObject validateStyle(String operation, String area, JSONObject body, StyleLimits l) throws Exception {
+        if (operation.equals("delete_all")) {
+            if (area != null || body != null) throw error(ERR_INVALID, "memory_invalid_data");
+            return null;
+        }
+        area(area);
+        if (operation.equals("delete_area")) {
+            if (body != null) throw error(ERR_INVALID, "memory_invalid_data");
+            return null;
+        }
+        if (body == null) throw error(ERR_INVALID, "memory_invalid_data");
+        JSONObject safe = new JSONObject().put("area", area);
+        switch (operation) {
+            case "style_add": {
+                keys(body, "examples");
+                JSONArray in = rows(body, "examples", l.batch), out = new JSONArray();
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    keys(row, "contextText", "replyText", "source", "quality");
+                    JSONObject item = new JSONObject().put("contextText", text(row, "contextText", l.text, false))
+                            .put("replyText", text(row, "replyText", l.text, false)).put("source", choice(row, "source", STYLE_SOURCES));
+                    if (present(row, "quality")) item.put("quality", integer(row, "quality", 1, 5));
+                    out.put(item);
+                }
+                return safe.put("examples", out);
+            }
+            case "style_search":
+                keys(body, "query", "k");
+                safe.put("query", text(body, "query", l.query, false));
+                if (present(body, "k")) safe.put("k", integer(body, "k", 1, l.searchK));
+                return safe;
+            case "feedback": {
+                keys(body, "items");
+                JSONArray in = rows(body, "items", l.batch), out = new JSONArray();
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    keys(row, "outcome", "draftText", "finalText", "contextText"); // editDistance is computed by the server
+                    String outcome = choice(row, "outcome", STYLE_OUTCOMES);
+                    JSONObject item = new JSONObject().put("outcome", outcome);
+                    for (String key : new String[]{"draftText", "finalText", "contextText"}) {
+                        if (present(row, key)) item.put(key, text(row, key, l.text, false));
+                    }
+                    boolean draft = item.has("draftText"), last = item.has("finalText");
+                    if ((!outcome.equals("owner_first") && !draft) || (outcome.equals("rejected") && last)
+                            || ((outcome.equals("edited") || outcome.equals("replaced") || outcome.equals("owner_first")) && !last)) {
+                        throw error(ERR_INVALID, "memory_invalid_data");
+                    }
+                    out.put(item);
+                }
+                return safe.put("items", out);
+            }
+            case "facts_add": {
+                keys(body, "facts");
+                JSONArray in = rows(body, "facts", l.batch), out = new JSONArray();
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    keys(row, "subject", "fact", "confidence", "sourceMsg", "expiresInDays");
+                    String subject = choice(row, "subject", STYLE_SUBJECTS);
+                    JSONObject item = new JSONObject().put("subject", subject).put("fact", text(row, "fact", l.factChars, false));
+                    if (present(row, "confidence")) item.put("confidence", fraction(row, "confidence"));
+                    if (present(row, "sourceMsg")) {
+                        String source = text(row, "sourceMsg", 128, false);
+                        if (!source.matches("[A-Za-z0-9_.:-]{1,128}")) throw error(ERR_INVALID, "memory_invalid_data");
+                        item.put("sourceMsg", source);
+                    }
+                    // Facts about the peer are someone else's data: never longer than the server's retention.
+                    if (present(row, "expiresInDays")) {
+                        item.put("expiresInDays", integer(row, "expiresInDays", 1, subject.equals("peer") ? l.retentionDays : 3650));
+                    }
+                    out.put(item);
+                }
+                return safe.put("facts", out);
+            }
+            case "facts_search":
+                keys(body, "subject", "query", "k");
+                safe.put("subject", choice(body, "subject", STYLE_SUBJECTS));
+                if (present(body, "query")) safe.put("query", text(body, "query", 200, true));
+                if (present(body, "k")) safe.put("k", integer(body, "k", 1, l.factsK));
+                return safe;
+            case "digest":
+                keys(body, "generate", "periodDays");
+                if (present(body, "generate") && !(body.get("generate") instanceof Boolean)) throw error(ERR_INVALID, "memory_invalid_data");
+                boolean generate = present(body, "generate") && body.getBoolean("generate");
+                safe.put("generate", generate);
+                if (present(body, "periodDays")) safe.put("periodDays", integer(body, "periodDays", 1, l.periodDays));
+                return safe;
+            default:
+                throw error(ERR_INVALID, "memory_invalid_scope");
+        }
+    }
+
+    private static JSONObject digestView(JSONObject digest, String area, StyleLimits l) throws Exception {
+        untrusted(digest, "untrusted_digest");
+        if (!area.equals(digest.optString("area"))) throw error(ERR_INVALID, "memory_invalid_response");
+        return new JSONObject().put("kind", "untrusted_digest").put("instructions", false).put("id", rowId(digest))
+                .put("area", area).put("periodStart", date(digest, "periodStart")).put("periodEnd", date(digest, "periodEnd"))
+                .put("text", text(digest, "text", l.digestChars, false)).put("createdAt", date(digest, "createdAt"))
+                .put("expiresAt", date(digest, "expiresAt"));
+    }
+
+    /** Rebuilds the server answer from known fields only, checked against the request (area, subject, k) and limits. */
+    static JSONObject styleResult(String operation, String area, JSONObject safe, JSONObject r, StyleLimits l) throws Exception {
+        switch (operation) {
+            case "style_add": {
+                int n = safe.getJSONArray("examples").length();
+                return new JSONObject().put("accepted", integer(r, "accepted", 0, n)).put("inserted", integer(r, "inserted", 0, n))
+                        .put("embedded", integer(r, "embedded", 0, n)).put("embedding", choice(r, "embedding", STYLE_EMBEDDING));
+            }
+            case "style_search": {
+                untrusted(r, "untrusted_style_examples");
+                String mode = r.optString("mode");
+                if (!area.equals(r.optString("area")) || (!mode.equals("hybrid") && !mode.equals("text"))) {
+                    throw error(ERR_INVALID, "memory_invalid_response");
+                }
+                JSONArray in = r.getJSONArray("examples"), out = new JSONArray();
+                if (in.length() > Math.min(safe.optInt("k", 5), l.searchK)) throw error(ERR_INVALID, "memory_response_too_large");
+                int chars = 0;
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    Object score = row.get("score");
+                    double value = score instanceof Number ? ((Number) score).doubleValue() : Double.NaN;
+                    if (Double.isNaN(value) || Double.isInfinite(value) || value < -1 || value > 2) throw error(ERR_INVALID, "memory_invalid_response");
+                    JSONObject item = new JSONObject().put("id", rowId(row)).put("contextText", text(row, "contextText", l.text, false))
+                            .put("replyText", text(row, "replyText", l.text, false)).put("source", choice(row, "source", STYLE_SOURCES))
+                            .put("quality", integer(row, "quality", 1, 5)).put("score", value).put("createdAt", date(row, "createdAt"));
+                    chars += item.getString("contextText").length() + item.getString("replyText").length();
+                    out.put(item);
+                }
+                if (chars > l.searchChars) throw error(ERR_INVALID, "memory_response_too_large");
+                return new JSONObject().put("kind", "untrusted_style_examples").put("instructions", false).put("area", area)
+                        .put("mode", mode).put("examples", out).put("textCharacters", chars)
+                        .put("embedding", choice(r, "embedding", STYLE_EMBEDDING));
+            }
+            case "feedback": {
+                int n = safe.getJSONArray("items").length();
+                JSONArray in = r.getJSONArray("items"), out = new JSONArray();
+                if (in.length() > n) throw error(ERR_INVALID, "memory_invalid_response");
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    out.put(new JSONObject().put("outcome", choice(row, "outcome", STYLE_OUTCOMES)).put("editDistance",
+                            present(row, "editDistance") ? (Object) integer(row, "editDistance", 0, l.text) : JSONObject.NULL));
+                }
+                return new JSONObject().put("accepted", integer(r, "accepted", 0, n)).put("styleExamples", integer(r, "styleExamples", 0, n))
+                        .put("embedded", integer(r, "embedded", 0, n)).put("items", out).put("embedding", choice(r, "embedding", STYLE_EMBEDDING));
+            }
+            case "facts_add": {
+                int n = safe.getJSONArray("facts").length();
+                return new JSONObject().put("accepted", integer(r, "accepted", 0, n)).put("inserted", integer(r, "inserted", 0, n));
+            }
+            case "facts_search": {
+                untrusted(r, "untrusted_facts");
+                String subject = safe.getString("subject");
+                if (!area.equals(r.optString("area")) || !subject.equals(r.optString("subject"))) throw error(ERR_INVALID, "memory_invalid_response");
+                JSONArray in = r.getJSONArray("facts"), out = new JSONArray();
+                if (in.length() > Math.min(safe.optInt("k", 10), l.factsK)) throw error(ERR_INVALID, "memory_response_too_large");
+                for (int i = 0; i < in.length(); i++) {
+                    JSONObject row = in.getJSONObject(i);
+                    if (!subject.equals(row.optString("subject"))) throw error(ERR_INVALID, "memory_invalid_response");
+                    Object source = JSONObject.NULL;
+                    if (present(row, "sourceMsg")) {
+                        String value = text(row, "sourceMsg", 128, false);
+                        if (!value.matches("[A-Za-z0-9_.:-]{1,128}")) throw error(ERR_INVALID, "memory_invalid_response");
+                        source = value;
+                    }
+                    out.put(new JSONObject().put("id", rowId(row)).put("subject", subject).put("fact", text(row, "fact", l.factChars, false))
+                            .put("confidence", fraction(row, "confidence")).put("sourceMsg", source).put("createdAt", date(row, "createdAt"))
+                            .put("expiresAt", present(row, "expiresAt") ? (Object) date(row, "expiresAt") : JSONObject.NULL));
+                }
+                return new JSONObject().put("kind", "untrusted_facts").put("instructions", false).put("area", area)
+                        .put("subject", subject).put("facts", out);
+            }
+            case "digest": {
+                boolean generated = bool(r, "generated");
+                JSONObject result = new JSONObject().put("generated", generated);
+                if (present(r, "reason")) {
+                    if (generated || !"no_data".equals(r.optString("reason"))) throw error(ERR_INVALID, "memory_invalid_response");
+                    result.put("reason", "no_data");
+                }
+                if (generated && !present(r, "digest")) throw error(ERR_INVALID, "memory_invalid_response");
+                return result.put("digest", present(r, "digest") ? digestView(r.getJSONObject("digest"), area, l) : JSONObject.NULL);
+            }
+            case "delete_area":
+            case "delete_all": {
+                JSONObject deleted = r.getJSONObject("deleted"), counts = new JSONObject();
+                for (String key : new String[]{"examples", "feedback", "facts", "digests"}) counts.put(key, integer(deleted, key, 0, Integer.MAX_VALUE));
+                boolean all = operation.equals("delete_all");
+                if (all ? !r.isNull("area") : !area.equals(r.optString("area"))) throw error(ERR_INVALID, "memory_invalid_response");
+                return new JSONObject().put("deleted", counts).put("area", all ? JSONObject.NULL : area);
+            }
+            default:
+                throw error(ERR_INVALID, "memory_invalid_scope");
+        }
+    }
+
+    private JSONObject verifyStyle(Snapshot snapshot) throws ZephyrAiClient.AiException {
+        try {
+            JSONObject response = request(snapshot, "GET", "/status", null, MAX_REQUEST_BYTES, true);
+            JSONObject safe = verifiedBase(snapshot, response);
+            JSONObject features = response.optJSONObject("features");
+            boolean supported = features != null && features.has("style") && bool(features, "style");
+            safe.put("features", new JSONObject().put("style", supported));
+            if (!supported) return safe.put("style", JSONObject.NULL);
+            JSONObject style = response.getJSONObject("style"), sourceLimits = style.getJSONObject("limits"), limits = new JSONObject();
+            String[] names = {"maxBatch", "maxTextChars", "embedChars", "maxQueryChars", "maxSearchK", "maxSearchChars", "maxFactChars",
+                    "maxFactsK", "maxPeriodDays", "maxDigestChars", "maxExamplesPerOwner", "maxFeedbackPerOwner", "maxFactsPerOwner"};
+            int[] max = {50, 4000, 2000, 2000, 8, 8000, 500, 20, 31, 4000, 1000000, 1000000, 1000000};
+            for (int i = 0; i < names.length; i++) limits.put(names[i], integer(sourceLimits, names[i], 1, max[i]));
+            Object storage = style.isNull("embeddingStorage") ? JSONObject.NULL : style.get("embeddingStorage");
+            if (storage != JSONObject.NULL && !"pgvector".equals(storage) && !"real[]".equals(storage)) {
+                throw error(ERR_INVALID, "memory_invalid_response");
+            }
+            return safe.put("style", new JSONObject().put("ready", bool(style, "ready")).put("embeddings", bool(style, "embeddings"))
+                    .put("embeddingStorage", storage).put("retentionDays", integer(style, "retentionDays", 1, 365)).put("limits", limits));
+        } catch (ZephyrAiClient.AiException e) { throw e; }
+        catch (Exception e) { throw error(ERR_UNSUPPORTED, "memory_invalid_response"); }
+    }
+
+    JSONObject styleStatus(int account, int timeout, Guard allowed) throws ZephyrAiClient.AiException {
+        Snapshot snapshot = new Snapshot(account, timeout, allowed);
+        JSONObject result = verifyStyle(snapshot);
+        snapshot.check();
+        return result;
+    }
+
+    /**
+     * One style-layer operation for the verified owner of {@code account}. Same rules as v1: binding checked before any
+     * I/O, a fresh status handshake, input validated before networking and again against the advertised limits,
+     * fixed paths only, no retries. Deletion works with collection disabled; the v1 chat memory is never touched.
+     */
+    JSONObject operateStyle(int account, String operation, String area, JSONObject body, int timeout,
+                            String expectedBinding, Guard allowed) throws ZephyrAiClient.AiException {
+        if (operation == null || !STYLE_OPERATIONS.contains(operation)) throw error(ERR_INVALID, "memory_invalid_scope");
+        boolean generate = operation.equals("digest") && body != null && Boolean.TRUE.equals(body.opt("generate"));
+        Snapshot snapshot = new Snapshot(account, timeout, generate ? 60 : 30, allowed);
+        expected(snapshot, expectedBinding); // Check BEFORE a handshake or any data upload.
+        try {
+            validateStyle(operation, area, body, StyleLimits.CONTRACT);
+            JSONObject status = verifyStyle(snapshot);
+            JSONObject storage = status.getJSONObject("storage");
+            if (!storage.getBoolean("configured")) throw error(ZephyrAiClient.ERR_NOT_CONFIGURED, "memory_not_configured");
+            if (!storage.getBoolean("ready")) throw error(ZephyrAiClient.ERR_STARTING, "memory_unavailable");
+            if (!status.getJSONObject("features").getBoolean("style")) throw error(ERR_UNSUPPORTED, "memory_style_not_supported");
+            JSONObject style = status.getJSONObject("style");
+            if (!style.getBoolean("ready")) throw error(ZephyrAiClient.ERR_STARTING, "memory_starting");
+            boolean deletion = operation.startsWith("delete");
+            if (!deletion && !status.getBoolean("collectionEnabled")) throw error(ERR_DISABLED, "memory_disabled");
+            StyleLimits limits = StyleLimits.of(style);
+            JSONObject safe = validateStyle(operation, area, body, limits);
+            snapshot.check(); expected(snapshot, expectedBinding);
+            String path;
+            switch (operation) {
+                case "style_add": path = "/style"; break;
+                case "style_search": path = "/style/search"; break;
+                case "feedback": path = "/feedback"; break;
+                case "facts_add": path = "/facts"; break;
+                case "facts_search": path = "/facts/search"; break;
+                case "digest": path = "/digest"; break;
+                case "delete_area": path = "/area/" + URLEncoder.encode(area, "UTF-8"); break;
+                default: path = "/areas"; break;
+            }
+            boolean bulk = operation.equals("style_add") || operation.equals("feedback");
+            JSONObject response = request(snapshot, deletion ? "DELETE" : "POST", path, safe,
+                    bulk ? MAX_STYLE_BULK_BYTES : MAX_REQUEST_BYTES, true);
+            JSONObject result = styleResult(operation, area, safe, response, limits);
+            snapshot.check(); expected(snapshot, expectedBinding);
+            return result;
+        } catch (ZephyrAiClient.AiException e) { throw e; }
+        catch (Exception e) { throw error(ERR_INVALID, "memory_invalid_data"); }
+    }
+
+    public static JSONObject styleStatusBlocking(int account, int timeout, Guard allowed) throws ZephyrAiClient.AiException {
+        return DEFAULT.styleStatus(account, timeout, allowed);
+    }
+    public static JSONObject styleRequestBlocking(int account, String operation, String area, JSONObject body, int timeout,
+                                                  String expectedBinding, Guard allowed) throws ZephyrAiClient.AiException {
+        return DEFAULT.operateStyle(account, operation, area, body, timeout, expectedBinding, allowed);
     }
 
     public static JSONObject statusBlocking(int account, int timeout, Guard allowed) throws ZephyrAiClient.AiException {
