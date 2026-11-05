@@ -98,5 +98,8 @@
     <string name="ZephyrPluginsAutoUpdateLastUpdate">Оновлено: %1$s (%2$s)</string>
     <string name="ZephyrPluginsAutoUpdateProblem">Проблема: %1$s</string>
     <string name="ZephyrPluginPermAiMemory">Зберігати й читати пам’ять чатів на вашому AI-сервері, зокрема дозволені локальні підсумки</string>
+    <string name="ZephyrPluginPermInlineHook">Переглядати, скасовувати або надсилати від свого імені вибрані inline-результати ботів (без позначки via @bot)</string>
+    <string name="ZephyrPluginPermMediaSend">Надсилати фото, відео, GIF і файли з теки плагіна, медіакешу Telegram або HTTPS-посилань</string>
+    <string name="ZephyrPluginPermMemoryStyle">Зберігати на вашому AI-сервері приклади ваших відповідей, відгуки на чернетки й факти, щоб писати у вашому стилі, і знаходити їх</string>
 </resources>
 

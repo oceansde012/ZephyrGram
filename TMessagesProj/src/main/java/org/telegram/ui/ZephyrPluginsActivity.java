@@ -54,7 +54,10 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
             else if ("java.raw".equals(permission)) id = R.string.ZephyrPluginPermJavaRaw;
             else if ("ai.complete".equals(permission)) id = R.string.ZephyrPluginPermAiComplete;
             else if ("ai.memory".equals(permission)) id = R.string.ZephyrPluginPermAiMemory;
+            else if ("memory.style".equals(permission)) id = R.string.ZephyrPluginPermMemoryStyle;
             else if ("chat.read".equals(permission)) id = R.string.ZephyrPluginPermChatRead;
+            else if ("inline.hook".equals(permission)) id = R.string.ZephyrPluginPermInlineHook;
+            else if ("media.send".equals(permission)) id = R.string.ZephyrPluginPermMediaSend;
             labels.add(s(id));
         }
         String text = android.text.TextUtils.join("\n", labels);
@@ -125,7 +128,12 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         return info.toString();
     }
     @Override protected void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.object instanceof String) { presentFragment(new ZephyrPluginDetailsActivity((String)item.object)); return; }
+        if (item.object instanceof String) {
+            ZephyrPluginDetailsActivity activity=new ZephyrPluginDetailsActivity((String)item.object);
+            activity.setCurrentAccount(currentAccount);
+            presentFragment(activity);
+            return;
+        }
         switch (item.id) {
             case REFRESH: repository.refresh((index, failure) -> error(this, failure)); break;
             case AUTO: manager.setAutoUpdateEnabled(!manager.isAutoUpdateEnabled()); break;
@@ -183,4 +191,5 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     @Override public void onPluginsChanged() { update(); }
     @Override public void onRepositoryChanged() { update(); }
 }
+
 

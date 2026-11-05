@@ -38,6 +38,18 @@ public class ZephyrAiClient {
         return ZephyrMemoryClient.requestBlocking(account, operation, dialogId, topicId, body, timeoutSec, expectedBinding, guard);
     }
 
+    /** Memory stage 2 (style examples, reply feedback, facts, digests). Same token/account binding as v1. */
+    public static final int MEMORY_STYLE_API_VERSION = ZephyrMemoryClient.STYLE_API_VERSION;
+
+    public static JSONObject memoryStyleStatusBlocking(int account, int timeoutSec, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.styleStatusBlocking(account, timeoutSec, guard);
+    }
+
+    public static JSONObject memoryStyleRequestBlocking(int account, String operation, String area, JSONObject body,
+                                                       int timeoutSec, String expectedBinding, ZephyrMemoryClient.Guard guard) throws AiException {
+        return ZephyrMemoryClient.styleRequestBlocking(account, operation, area, body, timeoutSec, expectedBinding, guard);
+    }
+
     public static final int ERR_NOT_CONFIGURED = 1;
     public static final int ERR_UNAUTHORIZED = 2;
     public static final int ERR_RATE_LIMIT = 3;
@@ -211,6 +223,8 @@ public class ZephyrAiClient {
     private static HttpURLConnection open(String method, String path, String token) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(endpoint(path)).openConnection();
         c.setRequestMethod(method);
+        // never replay the Authorization header to a redirect target; 3xx is handled as an error
+        c.setInstanceFollowRedirects(false);
         c.setConnectTimeout(45000);
         c.setReadTimeout(120000);
         c.setRequestProperty("Authorization", "Bearer " + ZephyrAiSetupParser.sanitizeSecret(token));
@@ -669,6 +683,7 @@ public class ZephyrAiClient {
                 c = openWithRetry(null, () -> {
                     HttpURLConnection cc = (HttpURLConnection) new URL(adminEndpoint(path)).openConnection();
                     cc.setRequestMethod(method);
+                    cc.setInstanceFollowRedirects(false);
                     cc.setConnectTimeout(45000);
                     cc.setReadTimeout(60000);
                     cc.setRequestProperty("Authorization", "Bearer " + secret);

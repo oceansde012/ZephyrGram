@@ -10233,6 +10233,21 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if (result == null) {
             return;
         }
+        if (org.telegram.messenger.zephyr.plugins.PluginHooks.hasInlineResultHooks) {
+            // ZephyrGram plugins (inline.hook): cancel, or resend the same media/text as an ordinary message without via_bot.
+            org.telegram.messenger.zephyr.plugins.PluginHooks.InlineDecision decision = org.telegram.messenger.zephyr.plugins.PluginHooks.onInlineResultSend(
+                    accountInstance.getCurrentAccount(), result, params, dialogId, replyToMsg, replyToTopMsg, scheduleDate);
+            if (decision != null) {
+                if (decision.cancel) {
+                    return;
+                }
+                if (decision.ownResult != null) {
+                    // No bot params: no query_id (plain sendMedia/sendMessage) and no via_bot_id on the local message.
+                    prepareSendingBotContextResult(fragment, accountInstance, decision.ownResult, null, dialogId, replyToMsg, replyToTopMsg, storyItem, quote, notify, scheduleDate, scheduleRepeatPeriod, sendMessageChatArguments, stars, monoForumPeerId);
+                    return;
+                }
+            }
+        }
         if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaAuto) {
             new Thread(() -> {
                 boolean isEncrypted = DialogObject.isEncryptedDialog(dialogId);

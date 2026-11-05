@@ -101,6 +101,7 @@ public final class PluginMenus {
 
     /** Called from Python. Replaces an existing item with the same plugin+key. */
     public static synchronized void add(String pluginId, String key, int type, String text, String subtext, String icon, int priority, boolean hasCondition) {
+        PluginHooks.requireCaller(pluginId);
         String full = pluginId + "/" + key;
         Integer id = idByKey.get(full);
         if (id == null) {
@@ -118,6 +119,7 @@ public final class PluginMenus {
     }
 
     public static synchronized void remove(String pluginId, String key) {
+        PluginHooks.requireCaller(pluginId);
         boolean changed = items.removeIf(i -> i.pluginId.equals(pluginId) && i.key.equals(key));
         if (changed) notifyChanged();
     }
