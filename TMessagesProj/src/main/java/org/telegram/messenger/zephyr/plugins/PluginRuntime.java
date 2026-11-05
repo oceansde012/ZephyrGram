@@ -233,7 +233,7 @@ public final class PluginRuntime implements PluginHost {
                 PluginHooks.setCurrentPlugin(previous);
                 // Python cannot be interrupted, so a hook that stalls the network/update thread is counted
                 // like an error and eventually disables the plugin.
-                if (elapsed > 3000 && (method.endsWith("_hook") || INLINE_RESULT_SEND.equals(method))) reportErrorImpl(id, "Hook " + method + " blocked for " + elapsed + " ms");
+                if (elapsed > 3000 && (method.endsWith("_hook") || INLINE_RESULT_SEND.equals(method) || "__menu_condition__".equals(method))) reportErrorImpl(id, "Hook " + method + " blocked for " + elapsed + " ms");
             }
         }
     }

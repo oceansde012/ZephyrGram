@@ -56,9 +56,14 @@ public final class PluginHeaderMenu {
                 return;
             }
             List<PluginMenus.Item> accepted = PluginMenus.getItems(type, account, dialogId, null, fragment);
+            // Compare by id: a plugin re-registering a key swaps in a new Item object.
+            HashSet<Integer> acceptedIds = new HashSet<>();
+            for (PluginMenus.Item a : accepted) {
+                acceptedIds.add(a.id);
+            }
             for (PluginMenus.Item item : all) {
                 try {
-                    if (!accepted.contains(item)) {
+                    if (!acceptedIds.contains(item.id)) {
                         if (menuItem.hasSubItem(item.id)) {
                             menuItem.hideSubItem(item.id);
                         }
