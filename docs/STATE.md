@@ -1,3 +1,5 @@
+> Updated 2026-11-05 after the 0.2.5 release. The branch tables further down describe the state before PR #6/#7 and are historical.
+
 # ZephyrGram: current state
 
 Snapshot taken 2026-11-05 from GitHub (`oceansde012/ZephyrGram`) and the code of branch `ccr-40da9ed7-07luj0` (head `c6006d1`). Anything not verifiable from the repo or GitHub is marked **unknown**.
@@ -6,14 +8,11 @@ Snapshot taken 2026-11-05 from GitHub (`oceansde012/ZephyrGram`) and the code of
 
 | Item | State |
 | --- | --- |
-| Latest public release | **v0.2.3**, published 2026-11-04 21:28 UTC, built by workflow run #15 (manual dispatch on `release/0.2.3` @ `4075ba1`, success). Tag `v0.2.3` -> `4075ba1`. |
-| Previous releases | 0.2.2 (2026-11-03, tag `0.2.2`, no `v`), 0.2.1, 0.2.0, 0.1.5 ... 0.1.2 |
-| **0.2.4 (version code 10)** | **Not released.** No `v0.2.4` tag and no GitHub Release exist. `release/0.2.4` @ `348ea7d` ("Bump version to 0.2.4 (code 10)") was built by workflow run #17 (`workflow_dispatch`, 2026-11-05 11:33-12:06 UTC): **conclusion success**, `publish` not set, so it produced only a preview artifact `ZephyrGram-preview-0.2.4-42019979732` (50.3 MB, sha256 `0a1cdd32...7512bb`), expires 2026-11-08 12:06 UTC (3-day retention). Run: https://github.com/oceansde012/ZephyrGram/actions/runs/42019979732 |
-| 0.2.4 on a device | **unknown** (no evidence in the repo or GitHub) |
-| 0.2.4 content | 12 commits over 0.2.3: `inline.hook` + `media.send` permissions, `on_inline_result_send` hook, `client.send_media`, `memory.style` client (style/feedback/facts/digest/area deletion), docs `plugin-inline-media.md` and `plugin-memory-style-api.md`. `feature/inline-hook` (`e30d2bc`) and `feature/memory-style-client` (`e662da1`) are both fully contained in `release/0.2.4`. |
-| `gradle.properties` on the base branch | still `ZEPHYR_VERSION_NAME=0.2.2`, `ZEPHYR_VERSION_CODE=8`. 0.2.3 and 0.2.4 version bumps live only on their release branches. |
+| Latest public release | **v0.2.5** (code 11), published 2026-11-05 17:02 UTC by workflow run 42066301048 from `release/0.2.5` @ `286d1bb`; APK `ZephyrGram-0.2.5-arm64-v8a.apk`. Includes everything from 0.2.4 (never released separately). |
+| 0.2.5 content | plugin limit 2 MiB + signed `index-v2.json` (no fallback to v1 after v2 trusted), CHAT_ACTION / PROFILE_ACTION plugin items in chat/profile header menus, slow menu conditions count as plugin errors; plus 0.2.4: inline hook, `send_media`, `memory.style` client. Opus review of both feature branches, findings fixed. |
+| 0.2.5 on a device | not verified by the maintainer yet (only CI builds). |
+| Integration branch | `ccr-40da9ed7-07luj0` contains `release/0.2.3`, `release/0.2.4` (PR #6) and `release/0.2.5` (PR #7); nothing released is missing from it. `main` is still only the initial commit. |
 
-To publish 0.2.4: re-run the Release workflow (`workflow_dispatch`) on `release/0.2.4` with `version=0.2.4`, `publish=true`, or push tag `v0.2.4`. Not done here.
 
 ## Branches and pull requests
 
