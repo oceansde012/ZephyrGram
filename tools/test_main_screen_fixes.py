@@ -26,6 +26,6 @@ class T(unittest.TestCase):
             self.assertRegex(x, r'ZephyrNavGhostStateOn">[^<]*%1\$d')
         self.assertNotIn("ZephyrNavHistoryState", S)
     def test_uk_ads_short(self):
-        self.assertIn(">Ховати рекламу<", res("values-uk"))
+        self.assertIn(">Без реклами<", res("values-uk"))
 if __name__ == "__main__":
     unittest.main()

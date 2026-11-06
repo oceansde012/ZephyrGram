@@ -33,7 +33,7 @@
     <string name="ZephyrNavHeaderExtensions">Розширення</string>
     <string name="ZephyrNavHeaderSystem">Система</string>
     <string name="ZephyrNavTilesInfo">Натискання вмикає й вимикає, утримання відкриває подробиці.</string>
-    <string name="ZephyrDisableAdsTile">Ховати рекламу</string>
+    <string name="ZephyrDisableAdsTile">Без реклами</string>
     <string name="ZephyrTileOnN">Увімкнено</string>
     <string name="ZephyrTileOffN">Вимкнено</string>
     <string name="ZephyrTileOnM">Увімкнено</string>
