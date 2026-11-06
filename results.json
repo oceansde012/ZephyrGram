@@ -1,0 +1,338 @@
+[
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_dark",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_dark",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_dark",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_360dp_f1.3_light",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_360dp_f1.3_light",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 4,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "chats",
+  "cls": "ZephyrChatsSettingsActivity",
+  "frames": 3,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "privacy",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "history",
+  "cls": "ZephyrHistorySettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "ru_411dp_f1.0_light",
+  "screen": "ghost_open",
+  "cls": "ZephyrPrivacySettingsActivity",
+  "frames": 3,
+  "error": null
+ }
+]
