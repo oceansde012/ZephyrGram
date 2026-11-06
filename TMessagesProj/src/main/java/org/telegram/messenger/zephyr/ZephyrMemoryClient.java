@@ -190,6 +190,9 @@ public final class ZephyrMemoryClient {
             if (status / 100 != 2) {
                 // No server body or exception message reaches logs/Python; they can contain private data.
                 if (styleErrors) throw styleError(status, errorCode(connection));
+                // v1 keeps its status-only mapping, except 403 on /status: the server's fixed code tells the plugin
+                // why (memory_token_not_owned / memory_account_mismatch) instead of a generic memory_not_authorized.
+                if (status == 403 && "/status".equals(path)) throw styleError(status, errorCode(connection));
                 if (status == 401 || status == 403) throw error(ZephyrAiClient.ERR_UNAUTHORIZED, "memory_not_authorized");
                 if (status == 429) throw error(ZephyrAiClient.ERR_RATE_LIMIT, "memory_rate_limited");
                 if (status == 409) throw error(ERR_CONSENT, "memory_consent_required");
