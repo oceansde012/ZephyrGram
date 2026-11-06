@@ -179,6 +179,7 @@ public class ZephyrWrapCell extends FrameLayout {
             iconView.setVisibility(GONE);
         }
         hasIcon = iconRes != 0;
+        checkMark.setVisibility(GONE);   // a recycled cell must not keep a foreign check mark; setCheckMode shows it again
         checkBox.setVisibility(withSwitch ? VISIBLE : GONE);
         switchDivider.setVisibility(withSwitch && separated ? VISIBLE : GONE);
         if (withSwitch) checkBox.setChecked(checked, false);
