@@ -54,7 +54,7 @@
     <string name="ZephyrRdSnow">Снігопад круглий рік</string>
     <string name="ZephyrRdBlur">Примусове розмиття</string>
     <string name="ZephyrRdGhostGroup">Режим привида</string>
-    <string name="ZephyrRdGhostInfo">Галочки обирають, що ховати. Сам режим вмикається перемикачем або плиткою на головному екрані.</string>
+    <string name="ZephyrRdGhostInfo">Перемикачі в групі обирають, що ховати. Сам режим вмикається загальним перемикачем або плиткою на головному екрані.</string>
     <string name="ZephyrRdProfile">Профіль</string>
     <string name="ZephyrRdMessageHistory">Історія повідомлень</string>
     <string name="ZephyrRdSavedCount">Збережено: %1$d</string>
@@ -69,4 +69,5 @@
     <string name="ZephyrRdPrevTabPersonal">Особисті</string>
     <string name="ZephyrRdPrevTabChannels">Канали</string>
     <string name="ZephyrRdBottomMuteShort">Звук</string>
+    <string name="ZephyrNavHistoryShort">Історія</string>
 </resources>

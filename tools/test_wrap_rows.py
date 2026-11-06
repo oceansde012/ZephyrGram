@@ -60,5 +60,16 @@ class NoDuplicateMeasure(unittest.TestCase):
         self.assertEqual(W.count("valueView.setMaxWidth("), 1)
         self.assertIn("MeasureSpec.UNSPECIFIED", W)
 
+
+class Strings0210(unittest.TestCase):
+    def test_ghost_info_no_checkmarks(self):
+        for loc in ("values", "values-ru", "values-uk"):
+            x = (R / "res" / loc / "strings_zephyr_redesign.xml").read_text()
+            m = re.search(r'name="ZephyrRdGhostInfo">([^<]*)<', x).group(1)
+            self.assertNotRegex(m.lower(), r"галочк|checkmark")
+            self.assertIn('name="ZephyrNavHistoryShort"', x)
+    def test_history_title_short(self):
+        self.assertIn("R.string.ZephyrNavHistoryShort", (UI / "ZephyrHistorySettingsActivity.java").read_text())
+
 if __name__ == "__main__":
     unittest.main()

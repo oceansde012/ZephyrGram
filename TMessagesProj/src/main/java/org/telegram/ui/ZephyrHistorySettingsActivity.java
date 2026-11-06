@@ -31,7 +31,7 @@ public class ZephyrHistorySettingsActivity extends ZephyrBaseSettingsActivity {
 
     @Override
     protected CharSequence getTitle() {
-        return LocaleController.getString(R.string.ZephyrNavHistory);
+        return LocaleController.getString(R.string.ZephyrNavHistoryShort);
     }
 
     @Override

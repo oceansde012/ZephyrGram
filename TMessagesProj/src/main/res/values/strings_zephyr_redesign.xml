@@ -54,7 +54,7 @@
     <string name="ZephyrRdSnow">Snow all year</string>
     <string name="ZephyrRdBlur">Force blur</string>
     <string name="ZephyrRdGhostGroup">Ghost mode</string>
-    <string name="ZephyrRdGhostInfo">The checkmarks choose what to hide. The mode itself is turned on by the switch or by the tile on the main screen.</string>
+    <string name="ZephyrRdGhostInfo">The switches in the group choose what to hide. The mode itself is turned on by the main switch or by the tile on the main screen.</string>
     <string name="ZephyrRdProfile">Profile</string>
     <string name="ZephyrRdMessageHistory">Message history</string>
     <string name="ZephyrRdSavedCount">Saved: %1$d</string>
@@ -69,4 +69,5 @@
     <string name="ZephyrRdPrevTabPersonal">Personal</string>
     <string name="ZephyrRdPrevTabChannels">Channels</string>
     <string name="ZephyrRdBottomMuteShort">Mute</string>
+    <string name="ZephyrNavHistoryShort">History</string>
 </resources>
