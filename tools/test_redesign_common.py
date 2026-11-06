@@ -29,7 +29,12 @@ class Common(unittest.TestCase):
         # the keys are never renamed or rewritten: an inverted switch flips the stored value
         self.assertIn("ZephyrConfig.setBool(key, stored)", base)
         cell = read("java/org/telegram/ui/Cells/ZephyrWrapCell.java")
-        self.assertIn("setCheckMode", cell)
+        # nested group rows use a normal switch, no green check marks anywhere in the cell
+        self.assertNotIn("setCheckMode", cell)
+        self.assertNotIn("CheckBox2", cell)
+        self.assertNotIn("setCheckMode", base)
+        self.assertIn("setRowChecked(view, newValue)", base)
+        self.assertRegex(base, r'child\.bind\([^;]*, 0, true, ZephyrConfig\.getBool\(group\.keys\[i\]\), false, false, 1,')
         self.assertIn("boolean standalone", cell)
 
 

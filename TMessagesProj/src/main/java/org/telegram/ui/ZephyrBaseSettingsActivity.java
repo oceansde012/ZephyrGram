@@ -104,9 +104,8 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         if (!open) return;
         for (int i = 0; i < group.keys.length; i++) {
             org.telegram.ui.Cells.ZephyrWrapCell child = groupCell("c:" + group.id + ":" + i);
-            child.bind(LocaleController.getString(group.titleRes2[i]), null, null, 0, false, false, false, false, 1,
+            child.bind(LocaleController.getString(group.titleRes2[i]), null, null, 0, true, ZephyrConfig.getBool(group.keys[i]), false, false, 1,
                     i == group.keys.length - 1 ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_LAST : org.telegram.ui.Cells.ZephyrWrapCell.POSITION_MIDDLE);
-            child.setCheckMode(true, ZephyrConfig.getBool(group.keys[i]));
             UItem childRow = UItem.asCustom(child, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT);
             childRow.id = ("c:" + group.id + ":" + i).hashCode();
             childRow.object = new GroupChild(group, i);
@@ -257,7 +256,9 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         } else if (item.object instanceof GroupChild) {
             GroupChild child = (GroupChild) item.object;
             String key = child.group.keys[child.index];
-            ZephyrConfig.setBool(key, !ZephyrConfig.getBool(key));
+            boolean newValue = !ZephyrConfig.getBool(key);
+            ZephyrConfig.setBool(key, newValue);
+            setRowChecked(view, newValue);
             if (listView != null && listView.adapter != null) listView.adapter.update(false);
         } else if (item.object instanceof Choice) {
             final Choice choice = (Choice) item.object;

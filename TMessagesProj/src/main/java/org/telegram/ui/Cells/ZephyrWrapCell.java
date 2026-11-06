@@ -57,7 +57,6 @@ public class ZephyrWrapCell extends FrameLayout {
 
     /** True = the cell paints its own card (plugin screens); false = a flat row inside a ZephyrCards section. */
     private final boolean standalone;
-    private final org.telegram.ui.Components.CheckBox2 checkMark;
 
     public ZephyrWrapCell(Context context) {
         this(context, true);
@@ -115,22 +114,7 @@ public class ZephyrWrapCell extends FrameLayout {
         checkBox.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
         checkBox.setVisibility(GONE);
         row.addView(checkBox, LayoutHelper.createLinear(52, 32, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
-        checkMark = new org.telegram.ui.Components.CheckBox2(context, 22);
-        checkMark.setColor(Theme.key_radioBackgroundChecked, Theme.key_checkboxDisabled, Theme.key_checkboxCheck);
-        checkMark.setDrawUnchecked(true);
-        checkMark.setVisibility(GONE);
-        row.addView(checkMark, LayoutHelper.createLinear(22, 22, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
         applyColors();
-    }
-
-    /** Shows a check mark at the right instead of the switch (rows nested in an expandable group). */
-    public void setCheckMode(boolean show, boolean checked) {
-        checkMark.setVisibility(show ? VISIBLE : GONE);
-        if (show) {
-            checkBox.setVisibility(GONE);
-            switchDivider.setVisibility(GONE);
-            checkMark.setChecked(checked, false);
-        }
     }
 
     /** Switch state change from a click (animated). */
@@ -188,7 +172,6 @@ public class ZephyrWrapCell extends FrameLayout {
             iconView.setVisibility(GONE);
         }
         hasIcon = iconRes != 0;
-        checkMark.setVisibility(GONE);   // a recycled cell must not keep a foreign check mark; setCheckMode shows it again
         checkBox.setVisibility(withSwitch ? VISIBLE : GONE);
         switchDivider.setVisibility(withSwitch && separated ? VISIBLE : GONE);
         if (withSwitch) checkBox.setChecked(checked, false);

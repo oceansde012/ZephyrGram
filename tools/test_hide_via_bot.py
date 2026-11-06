@@ -35,8 +35,8 @@ class HideViaBot(unittest.TestCase):
 
     def test_version(self):
         g = (ROOT / "gradle.properties").read_text()
-        self.assertIn("ZEPHYR_VERSION_NAME=0.2.9", g)
-        self.assertIn("ZEPHYR_VERSION_CODE=15", g)
+        self.assertIn("ZEPHYR_VERSION_NAME=0.2.10", g)
+        self.assertIn("ZEPHYR_VERSION_CODE=16", g)
 
 
 if __name__ == "__main__":
