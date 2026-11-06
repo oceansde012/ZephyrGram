@@ -188,6 +188,61 @@ def type_text(field, value, clear=True):
     adb(f"shell input text {value}")
 
 
+def read_fields():
+    nodes, _ = dump()
+    edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
+    if len(edits) < 2:
+        return None, None, nodes
+    return edits[0], edits[-1], nodes
+
+
+def digits(x):
+    return re.sub(r"\D", "", x or "")
+
+
+def clear_all(phone):
+    tap(phone)
+    # DEL in an empty phone field bounces to the country code field, so this clears both
+    adb("shell input keyevent KEYCODE_MOVE_END")
+    adb("shell input keyevent " + " ".join(["KEYCODE_DEL"] * 30))
+
+
+def enter_number(nodes, number):
+    """Several strategies; each is verified by reading both fields back (digits of code+phone must be 999+number)."""
+    want = "999" + number
+    strategies = ["code999_then_phone", "full_in_phone", "full_in_code", "slow_phone"]
+    for st in strategies:
+        code_f, phone_f, nodes = read_fields()
+        if not phone_f:
+            return False
+        clear_all(phone_f)
+        code_f, phone_f, nodes = read_fields()
+        if not phone_f:
+            return False
+        if st == "code999_then_phone":
+            tap(code_f); adb("shell input text 999")
+            code_f, phone_f, nodes = read_fields()
+            tap(phone_f); adb(f"shell input text {number}")
+        elif st == "full_in_phone":
+            tap(phone_f); adb(f"shell input text {want}")
+        elif st == "full_in_code":
+            tap(code_f); adb(f"shell input text {want}")
+        else:
+            tap(code_f); adb("shell input text 999")
+            code_f, phone_f, nodes = read_fields()
+            tap(phone_f)
+            for ch in number:
+                adb(f"shell input text {ch}")
+                time.sleep(0.4)
+        time.sleep(1.5)
+        code_f, phone_f, nodes = read_fields()
+        got = digits(code_f.text) + digits(phone_f.text) if code_f else ""
+        log(f"strategy {st}: code='{code_f.text if code_f else None}' phone='{phone_f.text if phone_f else None}' want {want}")
+        if got == want:
+            return True
+    return False
+
+
 def login(dc):
     number = f"66{dc}{int(time.time()) % 10000:04d}"  # 99966 X YYYY, country code 999
     code = str(dc) * 5
@@ -197,7 +252,7 @@ def login(dc):
     tb_done = False
     phone_done = False
     phone_tries = 0
-    for step in range(90):
+    for step in range(45):
         nodes, _ = dump()
         if step % 5 == 0:
             screenshot(f"login_{step}")
@@ -228,26 +283,13 @@ def login(dc):
             if phone_done and phone_tries >= 3:
                 time.sleep(3)
                 continue
-            for _try in range(6):
-                nodes, _ = dump()
-                edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
-                type_text(edits[0], "999")
-                time.sleep(4)
-                nodes, _ = dump()
-                if not find(nodes, r"Invalid country code"):
-                    break
-                log("country code 999 still invalid, waiting for the test country list")
-                time.sleep(6)
             nodes, _ = dump()
-            edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
-            if len(edits) >= 2:
-                type_text(edits[-1], number, clear=True)
-                nodes, _ = dump()
-                edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
-                if edits and edits[0].text.strip() not in ("999", "+999"):
-                    log(f"code field became '{edits[0].text}', resetting to 999")
-                    type_text(edits[0], "999")
-                    nodes, _ = dump()
+            if not enter_number(nodes, number):
+                log("could not get '+999' + number into the fields, not submitting")
+                phone_tries += 1
+                phone_done = phone_tries >= 3
+                continue
+            if True:
                 nodes, _ = dump()
                 done_btn = find(nodes, r"^(Done|Готово|Next|Далее)$")
                 if done_btn:
