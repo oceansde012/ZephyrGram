@@ -439,9 +439,8 @@ public class ZephyrSettingsActivity extends BaseFragment {
                 view = tilesView = new TilesView(context);
                 view.setTag(RecyclerListView.TAG_NOT_SECTION);
             } else if (viewType == TYPE_SETTINGS) {
-                TextDetailSettingsCell detailCell = new TextDetailSettingsCell(context);
-                detailCell.setMultilineDetail(true);
-                view = detailCell;
+                // Wrapping row: long titles go to a second line instead of "..."
+                view = new org.telegram.ui.Cells.ZephyrWrapCell(context, false);
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -463,13 +462,11 @@ public class ZephyrSettingsActivity extends BaseFragment {
             } else if (type == TYPE_TILES) {
                 ((TilesView) holder.itemView).refresh();
             } else if (type == TYPE_SETTINGS) {
-                TextDetailSettingsCell cell = (TextDetailSettingsCell) holder.itemView;
-                cell.setTextAndValueAndIcon(
-                        LocaleController.getString(linkTitle(position)),
-                        linkSubtitle(position),
-                        linkIcon(position),
-                        linkDivider(position));
-                cell.setTitleColor(Theme.getColor(position == ROW_RESET ? Theme.key_text_RedRegular : Theme.key_windowBackgroundWhiteBlackText));
+                org.telegram.ui.Cells.ZephyrWrapCell cell = (org.telegram.ui.Cells.ZephyrWrapCell) holder.itemView;
+                cell.bind(LocaleController.getString(linkTitle(position)), linkSubtitle(position), null, linkIcon(position),
+                        false, false, false, false, 0,
+                        linkDivider(position) ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_MIDDLE : org.telegram.ui.Cells.ZephyrWrapCell.POSITION_LAST);
+                if (position == ROW_RESET) cell.setTitleColor(Theme.getColor(Theme.key_text_RedRegular));
             } else if (type == TYPE_INFO) {
                 ((TextInfoPrivacyCell) holder.itemView).setText(LocaleController.getString(
                         position == ROW_TILES_INFO ? R.string.ZephyrNavTilesInfo : R.string.ZephyrCreditsText));

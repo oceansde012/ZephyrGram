@@ -24,5 +24,16 @@ class T(unittest.TestCase):
         pat = re.compile(r"\s*\((?:[^)]*(?:умолч|замовч|default)[^)]*)\)\s*$")
         for s, want in (("Таблетка (по умолчанию)", "Таблетка"), ("Pill (default)", "Pill"), ("Таблетка (за замовчуванням)", "Таблетка"), ("Круг", "Круг")):
             self.assertEqual(pat.sub("", s), want)
+
+class Main(unittest.TestCase):
+    def test_main_rows_wrap(self):
+        s = (UI / "ZephyrSettingsActivity.java").read_text()
+        self.assertIn("new org.telegram.ui.Cells.ZephyrWrapCell(context, false)", s)
+        self.assertNotIn("new TextDetailSettingsCell", s)
+    def test_history_button(self):
+        s = (UI / "ZephyrHistorySettingsActivity.java").read_text()
+        self.assertIn("ZephyrRdClearSaved", s)
+        self.assertNotIn("ZephyrHistoryClear), historyStats == null", s)
+
 if __name__ == "__main__":
     unittest.main()
