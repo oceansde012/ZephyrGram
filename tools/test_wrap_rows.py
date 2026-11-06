@@ -41,5 +41,15 @@ class Colors(unittest.TestCase):
         i = W.index("public void bind(")
         self.assertIn("applyColors();", W[i:i + 400])
 
+
+class Helper(unittest.TestCase):
+    def test_set_row_checked_everywhere(self):
+        self.assertIn("static void setRowChecked(View view, boolean checked)", B)
+        for n in ("Push", "Updates", "History", "Appearance", "General", "Ghost"):
+            s = (UI / ("Zephyr%sSettingsActivity.java" % n)).read_text()
+            self.assertIn("setRowChecked(view,", s, n)
+            self.assertNotRegex(s, r"\(\(TextCheckCell\) view\)\.setChecked", n)
+        self.assertIn("setRowChecked(view,", (UI / "ZephyrDiagnosticsActivity.java").read_text())
+
 if __name__ == "__main__":
     unittest.main()

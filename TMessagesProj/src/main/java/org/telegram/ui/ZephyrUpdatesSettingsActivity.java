@@ -37,9 +37,7 @@ public class ZephyrUpdatesSettingsActivity extends ZephyrBaseSettingsActivity {
         if (item.id == ID_AUTO_UPDATE) {
             final boolean value = !ZephyrConfig.autoUpdateCheck;
             ZephyrConfig.setAutoUpdateCheck(value);
-            if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
         } else if (item.id == ID_CHECK_NOW) {
             ZephyrUpdater.checkManually(this);

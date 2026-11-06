@@ -80,9 +80,7 @@ public class ZephyrHistorySettingsActivity extends ZephyrBaseSettingsActivity {
                 value = !ZephyrConfig.saveEdited;
                 ZephyrConfig.setSaveEdited(value);
             }
-            if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
         } else if (item.id == ID_HISTORY_STATS) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());

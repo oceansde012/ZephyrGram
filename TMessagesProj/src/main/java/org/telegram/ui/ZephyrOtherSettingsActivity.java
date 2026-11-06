@@ -69,9 +69,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
             org.telegram.messenger.BuildVars.LOGS_ENABLED = !org.telegram.messenger.BuildVars.LOGS_ENABLED;
             org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", android.content.Context.MODE_PRIVATE)
                     .edit().putBoolean("logsEnabled", org.telegram.messenger.BuildVars.LOGS_ENABLED).commit();
-            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
-                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(org.telegram.messenger.BuildVars.LOGS_ENABLED);
-            }
+            setRowChecked(view, org.telegram.messenger.BuildVars.LOGS_ENABLED);
             item.checked = org.telegram.messenger.BuildVars.LOGS_ENABLED;
             if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
                 org.telegram.messenger.FileLog.d("ZephyrGram logging enabled by user, version=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING + " zephyr=" + org.telegram.messenger.BuildConfig.ZEPHYR_VERSION);
@@ -98,17 +96,13 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
         } else if (item.id == ID_SETTINGS_CARDS) {
             final boolean value = !ZephyrConfig.settingsCards;
             ZephyrConfig.setSettingsCards(value);
-            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
-                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
             org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(R.raw.info, LocaleController.getString(R.string.ZephyrRestartToApply)).show();
         } else if (item.id == ID_HIDE_VIA_BOT) {
             final boolean value = !ZephyrConfig.hideViaBot;
             ZephyrConfig.setHideViaBot(value);
-            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
-                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
             org.telegram.messenger.NotificationCenter.getGlobalInstance().postNotificationName(org.telegram.messenger.NotificationCenter.reloadInterface);
         } else if (item.id == ID_LOCAL_PREMIUM || item.id == ID_DISABLE_ADS) {
@@ -120,9 +114,7 @@ public class ZephyrOtherSettingsActivity extends ZephyrBaseSettingsActivity {
                 value = !ZephyrConfig.disableAds;
                 ZephyrConfig.setDisableAds(value);
             }
-            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
-                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
         }
     }

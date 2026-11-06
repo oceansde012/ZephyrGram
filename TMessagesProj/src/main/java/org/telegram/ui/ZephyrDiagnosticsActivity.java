@@ -39,9 +39,7 @@ public class ZephyrDiagnosticsActivity extends ZephyrBaseSettingsActivity {
             org.telegram.messenger.BuildVars.LOGS_ENABLED = !org.telegram.messenger.BuildVars.LOGS_ENABLED;
             org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", android.content.Context.MODE_PRIVATE)
                     .edit().putBoolean("logsEnabled", org.telegram.messenger.BuildVars.LOGS_ENABLED).commit();
-            if (view instanceof org.telegram.ui.Cells.TextCheckCell) {
-                ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(org.telegram.messenger.BuildVars.LOGS_ENABLED);
-            }
+            setRowChecked(view, org.telegram.messenger.BuildVars.LOGS_ENABLED);
             item.checked = org.telegram.messenger.BuildVars.LOGS_ENABLED;
             if (org.telegram.messenger.BuildVars.LOGS_ENABLED) {
                 org.telegram.messenger.FileLog.d("ZephyrGram logging enabled by user, version=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING + " zephyr=" + org.telegram.messenger.BuildConfig.ZEPHYR_VERSION);

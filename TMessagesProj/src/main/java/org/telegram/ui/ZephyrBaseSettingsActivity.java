@@ -236,22 +236,14 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
             String key = (String) item.object;
             boolean value = !ZephyrConfig.getBool(key);
             ZephyrConfig.setBool(key, value);
-            if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(value);
-            } else if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell) {
-                ((org.telegram.ui.Cells.ZephyrWrapCell) view).setSwitchChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
         } else if (item.object instanceof Inverted) {
             String key = ((Inverted) item.object).key;
             boolean stored = !ZephyrConfig.getBool(key);       // the shown state is !stored: toggling the shown state flips the stored one
             ZephyrConfig.setBool(key, stored);
             boolean shown = !stored;
-            if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(shown);
-            } else if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell) {
-                ((org.telegram.ui.Cells.ZephyrWrapCell) view).setSwitchChecked(shown);
-            }
+            setRowChecked(view, shown);
             item.checked = shown;
         } else if (item.object instanceof Group) {
             Group group = (Group) item.object;
@@ -285,6 +277,15 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
     }
 
     protected void onCustomClick(UItem item, View view) {
+    }
+
+    /** Moves the switch of a row (stock check cell or our wrapping row) to a new state, animated. */
+    protected static void setRowChecked(View view, boolean checked) {
+        if (view instanceof TextCheckCell) {
+            ((TextCheckCell) view).setChecked(checked);
+        } else if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell) {
+            ((org.telegram.ui.Cells.ZephyrWrapCell) view).setSwitchChecked(checked);
+        }
     }
 
     /** Called after a Choice dialog stored a new value (screens refresh their previews). */

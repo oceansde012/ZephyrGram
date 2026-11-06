@@ -52,9 +52,7 @@ public class ZephyrGhostSettingsActivity extends ZephyrBaseSettingsActivity {
         } else {
             return;
         }
-        if (view instanceof TextCheckCell) {
-            ((TextCheckCell) view).setChecked(value);
-        }
+        setRowChecked(view, value);
         item.checked = value;
     }
 }

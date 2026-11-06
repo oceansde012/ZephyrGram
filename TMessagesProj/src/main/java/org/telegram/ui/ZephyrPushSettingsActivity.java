@@ -94,9 +94,7 @@ public class ZephyrPushSettingsActivity extends ZephyrBaseSettingsActivity {
             case ID_ENABLE: {
                 boolean value = !ZephyrPush.isServiceEnabled();
                 ZephyrPush.setEnabled(value);
-                if (view instanceof TextCheckCell) {
-                    ((TextCheckCell) view).setChecked(value);
-                }
+                setRowChecked(view, value);
                 item.checked = value;
                 if (value && Build.VERSION.SDK_INT >= 33 && !ZephyrPush.hasNotificationPermission() && PermissionRequest.canAskPermission(Manifest.permission.POST_NOTIFICATIONS)) {
                     PermissionRequest.requestPermission(Manifest.permission.POST_NOTIFICATIONS, granted -> refresh());

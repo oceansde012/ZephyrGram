@@ -78,9 +78,7 @@ public class ZephyrGeneralSettingsActivity extends ZephyrBaseSettingsActivity {
             final boolean value = !SharedConfig.useSystemEmoji;
             SharedConfig.useSystemEmoji = value;
             ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE).edit().putBoolean("useSystemEmoji", value).apply();
-            if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(value);
-            }
+            setRowChecked(view, value);
             item.checked = value;
         }
     }
