@@ -177,10 +177,14 @@ def handle_system_dialogs(nodes):
 
 
 def type_text(field, value, clear=True):
+    """tap the field, delete exactly its current digits (never DEL on an empty phone field: Telegram then
+    moves focus to the country code field and erases it), then type value."""
     tap(field)
     if clear:
-        adb("shell input keyevent KEYCODE_MOVE_END")
-        adb("shell input keyevent " + " ".join(["KEYCODE_DEL"] * 15))
+        cur = re.sub(r"[^0-9A-Za-z]", "", field.text or "")
+        if cur and not re.search(r"phone|номер|name|имя", field.text or "", re.I):
+            adb("shell input keyevent KEYCODE_MOVE_END")
+            adb("shell input keyevent " + " ".join(["KEYCODE_DEL"] * (len(cur) + 2)))
     adb(f"shell input text {value}")
 
 
