@@ -32,7 +32,7 @@
     <string name="ZephyrNavHeaderPrivacy">Приватность и данные</string>
     <string name="ZephyrNavHeaderExtensions">Расширения</string>
     <string name="ZephyrNavHeaderSystem">Система</string>
-    <string name="ZephyrNavTilesInfo">Нажатие включает и выключает. Удержание открывает настройки.</string>
+    <string name="ZephyrNavTilesInfo">Нажатие включает и выключает, удержание открывает подробности.</string>
     <string name="ZephyrDisableAdsTile">Скрывать рекламу</string>
     <string name="ZephyrTileOnN">Включено</string>
     <string name="ZephyrTileOffN">Выключено</string>

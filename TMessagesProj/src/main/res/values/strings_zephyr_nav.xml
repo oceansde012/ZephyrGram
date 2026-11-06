@@ -32,7 +32,7 @@
     <string name="ZephyrNavHeaderPrivacy">Privacy and data</string>
     <string name="ZephyrNavHeaderExtensions">Extensions</string>
     <string name="ZephyrNavHeaderSystem">System</string>
-    <string name="ZephyrNavTilesInfo">Tap toggles. Long press opens the settings.</string>
+    <string name="ZephyrNavTilesInfo">Tap to turn on or off, hold for details.</string>
     <string name="ZephyrDisableAdsTile">Hide ads</string>
     <string name="ZephyrTileOnN">On</string>
     <string name="ZephyrTileOffN">Off</string>
