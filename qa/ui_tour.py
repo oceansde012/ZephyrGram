@@ -296,6 +296,12 @@ def login(dc):
                     adb(f"shell input text {code}")
                     code_sent_at = time.time()
                     log("code typed")
+                    time.sleep(6)
+                    lc = adb("logcat -d -v time", 60)
+                    hits = [l for l in lc.splitlines() if re.search(r"tmessages|error|invalid|sign|code|rpc", l, re.I)
+                            and not re.search(r"Choreographer|gralloc|SurfaceFlinger|OpenGL|Vulkan", l)]
+                    log("logcat after code (%d hits): " % len(hits) + " || ".join(h[-160:] for h in hits[-14:]))
+                    adb("logcat -c")
             time.sleep(5)
             continue
         if on_phone_screen and len(edits) >= 2 and not phone_submitted:
