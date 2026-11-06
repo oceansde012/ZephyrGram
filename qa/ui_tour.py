@@ -293,14 +293,16 @@ def login(dc):
                 ce = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: (n.b[1], n.b[0]))
                 if ce:
                     tap(ce[0])
-                    adb(f"shell input text {code}")
+                    for ch in code:
+                        adb(f"shell input keyevent {7 + int(ch)}")
+                        time.sleep(0.6)
                     code_sent_at = time.time()
-                    log("code typed")
+                    log("code typed digit by digit: " + " ".join(n.text for n in dump()[0] if n.cls.endswith("EditText")))
                     time.sleep(6)
                     lc = adb("logcat -d -v time", 60)
                     hits = [l for l in lc.splitlines() if re.search(r"tmessages|error|invalid|sign|code|rpc", l, re.I)
                             and not re.search(r"Choreographer|gralloc|SurfaceFlinger|OpenGL|Vulkan", l)]
-                    log("logcat after code (%d hits): " % len(hits) + " || ".join(h[-160:] for h in hits[-14:]))
+                    log("logcat after code (%d hits): " % len(hits) + " || ".join(h[-160:] for h in hits[-6:]))
                     adb("logcat -c")
             time.sleep(5)
             continue
