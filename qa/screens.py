@@ -100,6 +100,28 @@ def capture(cfg, key, cls, out_dir, results, lang, theme):
     return frames
 
 
+def ghost_open(cfg, out_dir, lang, theme, results):
+    """Open the privacy screen and expand the ghost-mode group (tap the 'N/4' title), screenshot before and after."""
+    adb(f"shell am force-stop {PKG}"); adb("logcat -c")
+    adb(f"shell am start -n {PKG}/org.telegram.ui.LaunchActivity --es qa_screen ZephyrPrivacySettingsActivity --es qa_lang {lang} --es qa_theme {theme}")
+    time.sleep(5)
+    adb("shell uiautomator dump /sdcard/u.xml")
+    xml = adb("shell cat /sdcard/u.xml")
+    m = re.search(r'text="[^"]*\d/4[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml)
+    frames = []
+    if m:
+        x = (int(m.group(1)) + int(m.group(3))) // 2; y = (int(m.group(2)) + int(m.group(4))) // 2
+        adb(f"shell input tap {x} {y}"); time.sleep(1.5)
+        log(f"{cfg} ghost: tapped {x},{y}")
+    else:
+        log(f"{cfg} ghost: N/4 title not found in uiautomator dump")
+    for i in range(3):
+        path = os.path.join(out_dir, f"ghost_open_{i}.jpg"); save_jpeg(shot_bytes(), path); frames.append(path)
+        adb("shell input swipe 540 1900 540 700 450"); time.sleep(1.0)
+    results.append(dict(config=cfg, screen="ghost_open", cls="ZephyrPrivacySettingsActivity", frames=len(frames), error=crashed()))
+    return frames
+
+
 def contact_sheet(cfg_dir, cfg, entries):
     from PIL import Image, ImageDraw
     thumbs = [(k, p[0]) for k, p in entries if p]
@@ -130,6 +152,9 @@ def main():
     configs = [(l, w, f, "dark") for l, w, f in itertools.product(LANGS, WIDTHS, FONTS)]
     configs += [("uk", 411, "1.0", "light"), ("ru", 360, "1.3", "light")]  # light theme: main, appearance, chats
     mode = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "screens_mode.txt")).read().strip() if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "screens_mode.txt")) else "full"
+    v210 = mode == "v210"
+    if v210:  # 0.2.10: five screens, dark+light, uk+ru, 360dp/1.3 and 411dp/1.0, plus the expanded ghost group
+        configs = [(l, w, f, t) for t in ("dark", "light") for l in ("uk", "ru") for w, f in ((360, "1.3"), (411, "1.0"))]
     if mode == "quick":  # hook check: one screen, dark and light
         configs = [("uk", 411, "1.0", "dark"), ("uk", 411, "1.0", "light")]
     for lang, w, font, theme in configs:
@@ -140,10 +165,14 @@ def main():
         set_display(w, font)
         entries = []
         screens = SCREENS if theme == "dark" else SCREENS[:3:1] if False else [x for x in SCREENS if x[0] in ("main", "appearance", "chats")]
+        if v210:
+            screens = [x for x in SCREENS if x[0] in ("main", "privacy", "chats", "appearance", "history")]
         if mode == "quick":
             screens = [x for x in SCREENS if x[0] in ("main", "appearance")]
         for key, cls in screens:
             entries.append((key, capture(cfg, key, cls, cdir, results, lang, theme)))
+        if v210:
+            entries.append(("ghost_open", ghost_open(cfg, cdir, lang, theme, results)))
         contact_sheet(cdir, cfg, entries)
         json.dump(results, open(os.path.join(a.out, "results.json"), "w"), ensure_ascii=False, indent=1)
     adb("shell wm size reset"); adb("shell wm density reset"); adb("shell settings put system font_scale 1.0")
