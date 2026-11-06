@@ -11,6 +11,11 @@ import java.util.ArrayList;
 
 public class ZephyrMediaSettingsActivity extends ZephyrBaseSettingsActivity {
 
+    private ZephyrPreviews.Sticker sticker;
+
+    @Override
+    protected void onChoiceChanged() { if (sticker != null) sticker.refresh(); }
+
     @Override
     protected CharSequence getTitle() {
         return LocaleController.getString(R.string.ZephyrNavMedia);
@@ -19,7 +24,9 @@ public class ZephyrMediaSettingsActivity extends ZephyrBaseSettingsActivity {
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         addHeader(items, R.string.ZephyrRdStickers);
-        addSlider(items, "stickerSize", R.string.ZephyrStickerSize, 50, 150);
+        if (sticker == null) sticker = new ZephyrPreviews.Sticker(getParentActivity());
+        addPreview(items, sticker, 190);
+        addSlider(items, "stickerSize", R.string.ZephyrStickerSize, 50, 150, () -> sticker.refresh());
         addInvertedSwitch(items, "hideStickerTime", R.string.ZephyrRdStickerTime, 0);
         addSwitch(items, "unlimitedRecentStickers", R.string.ZephyrRdUnlimitedRecent);
 

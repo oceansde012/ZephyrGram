@@ -156,6 +156,20 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
                 val -> ZephyrConfig.setInt(key, val)));
     }
 
+    /** Slider that also tells the screen about every change (live previews). */
+    protected void addSlider(ArrayList<UItem> items, String key, int titleRes, int min, int max, Runnable onChange) {
+        items.add(UItem.asHeader(LocaleController.getString(titleRes)));
+        items.add(UItem.asIntSlideView(1, min, Math.max(min, Math.min(max, ZephyrConfig.getInt(key))), max,
+                val -> val + "%",
+                val -> { ZephyrConfig.setInt(key, val); if (onChange != null) onChange.run(); }));
+    }
+
+    /** Adds a custom preview view as a row of its own. */
+    protected static void addPreview(ArrayList<UItem> items, android.view.View view, int heightDp) {
+        UItem item = UItem.asCustom(view, heightDp);
+        items.add(item);
+    }
+
     protected void addChoice(ArrayList<UItem> items, Choice choice) {
         int value = Math.max(0, Math.min(choice.options.length - 1, ZephyrConfig.getInt(choice.key)));
         UItem item = UItem.asButton(choice.key.hashCode(), LocaleController.getString(choice.titleRes), choice.options[value]);
@@ -202,6 +216,7 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
             builder.setTitle(LocaleController.getString(choice.titleRes));
             builder.setItems(choice.options, (dialog, which) -> {
                 ZephyrConfig.setInt(choice.key, which);
+                onChoiceChanged();
                 if (listView != null && listView.adapter != null) {
                     listView.adapter.update(true);
                 }
@@ -213,6 +228,10 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
     }
 
     protected void onCustomClick(UItem item, View view) {
+    }
+
+    /** Called after a Choice dialog stored a new value (screens refresh their previews). */
+    protected void onChoiceChanged() {
     }
 
     @Override

@@ -11,14 +11,21 @@ import java.util.ArrayList;
 
 public class ZephyrChatsSettingsActivity extends ZephyrBaseSettingsActivity {
 
+    private ZephyrPreviews.Bubbles bubbles;
+
     @Override
     protected CharSequence getTitle() {
         return LocaleController.getString(R.string.ZephyrSettingsChats);
     }
 
     @Override
+    protected void onChoiceChanged() { if (bubbles != null) bubbles.refresh(); }
+
+    @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         addHeader(items, R.string.ZephyrRdDoubleTap);
+        if (bubbles == null) bubbles = new ZephyrPreviews.Bubbles(getParentActivity());
+        addPreview(items, bubbles, 150);
         final CharSequence[] doubleTapOptions = {
                 LocaleController.getString(R.string.ZephyrDoubleTapOff),
                 LocaleController.getString(R.string.ZephyrDoubleTapReaction),

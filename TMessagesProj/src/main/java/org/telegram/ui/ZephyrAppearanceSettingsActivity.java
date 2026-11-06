@@ -19,6 +19,20 @@ import java.util.ArrayList;
 public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity {
     private static final int ID_SYSTEM_EMOJI = 9001;
 
+    private ZephyrPreviews.TabStyles tabs;
+    private ZephyrPreviews.Fab fab;
+    private ZephyrPreviews.Avatars avatars;
+
+    private void refreshChoice() {
+        if (listView != null && listView.adapter != null) listView.adapter.update(false);
+    }
+
+    @Override
+    protected void onChoiceChanged() {
+        if (tabs != null) tabs.refresh();
+        if (fab != null) fab.refresh();
+    }
+
     @Override
     protected CharSequence getTitle() {
         return LocaleController.getString(R.string.ZephyrSettingsAppearance);
@@ -26,7 +40,11 @@ public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity
 
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
+        if (tabs == null) { tabs = new ZephyrPreviews.TabStyles(getParentActivity()); tabs.onChange = () -> refreshChoice(); }
+        if (fab == null) { fab = new ZephyrPreviews.Fab(getParentActivity()); fab.onChange = () -> refreshChoice(); }
+        if (avatars == null) avatars = new ZephyrPreviews.Avatars(getParentActivity());
         addHeader(items, R.string.ZephyrRdFolderTabs);
+        addPreview(items, tabs, 3 * 92 + 16);
         addChoice(items, new Choice("tabStyle", R.string.ZephyrRdTabStyle,
                 LocaleController.getString(R.string.ZephyrTabStylePill),
                 LocaleController.getString(R.string.ZephyrTabStyleRounded),
@@ -36,12 +54,14 @@ public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity
         addSwitch(items, "tabCounter", R.string.ZephyrRdUnreadCounter);
 
         addHeader(items, R.string.ZephyrRdNewChatButton);
+        addPreview(items, fab, 96);
         addChoice(items, new Choice("fabShape", R.string.ZephyrFabShape,
                 LocaleController.getString(R.string.ZephyrFabCircle),
                 LocaleController.getString(R.string.ZephyrFabSquare)));
 
         addHeader(items, R.string.ZephyrRdAvatars);
-        addSlider(items, "avatarCorners", R.string.ZephyrAvatarCorners, 0, 100);
+        addPreview(items, avatars, 84);
+        addSlider(items, "avatarCorners", R.string.ZephyrAvatarCorners, 0, 100, () -> avatars.refresh());
 
         addHeader(items, R.string.ZephyrRdMainScreen);
         addChoice(items, new Choice("titleText", R.string.ZephyrMainTitle,
