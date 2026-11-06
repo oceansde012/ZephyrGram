@@ -132,7 +132,7 @@ public class ArchivedStickersActivity extends BaseFragment implements Notificati
         listView.setFocusable(true);
         listView.setEmptyView(emptyView);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
 
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));

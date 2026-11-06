@@ -158,7 +158,7 @@ public class LogoutActivity extends BaseFragment {
                 showLogOutDialog();
             }
         });
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
 
         return fragmentView;

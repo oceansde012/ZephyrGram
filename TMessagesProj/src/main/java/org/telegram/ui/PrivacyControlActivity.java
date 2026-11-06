@@ -581,7 +581,7 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
         frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);

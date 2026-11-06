@@ -664,7 +664,7 @@ public class FiltersSetupActivity extends BaseFragment implements NotificationCe
                 return super.onTouchEvent(e);
             }
         };
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         DefaultItemAnimator itemAnimator = new DefaultItemAnimator();
         itemAnimator.setDurations(350);

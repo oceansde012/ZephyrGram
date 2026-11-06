@@ -190,7 +190,7 @@ public class LanguageSelectActivity extends BaseFragment implements Notification
         frameLayout.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setEmptyView(emptyView);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));

@@ -104,7 +104,7 @@ public class LiteModeSettingsActivity extends BaseFragment {
         contentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context));
         listView.setAdapter(adapter = new Adapter());

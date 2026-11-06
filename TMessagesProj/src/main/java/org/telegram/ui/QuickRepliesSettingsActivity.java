@@ -87,7 +87,7 @@ public class QuickRepliesSettingsActivity extends BaseFragment {
 		FrameLayout frameLayout = (FrameLayout) fragmentView;
 
 		listView = new RecyclerListView(context);
-		listView.setSections();
+		ZephyrCards.enable(listView, true);
 		listView.setVerticalScrollBarEnabled(false);
 		listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
 		frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));

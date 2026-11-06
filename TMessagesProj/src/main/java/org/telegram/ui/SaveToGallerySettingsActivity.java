@@ -148,7 +148,7 @@ public class SaveToGallerySettingsActivity extends BaseFragment {
         }
 
         recyclerListView = new RecyclerListView(context);
-        recyclerListView.setSections();
+        ZephyrCards.enable(recyclerListView, true);
         actionBar.setAdaptiveBackground(recyclerListView);
         DefaultItemAnimator defaultItemAnimator = new DefaultItemAnimator();
         defaultItemAnimator.setDurations(400);

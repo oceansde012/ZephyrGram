@@ -1095,7 +1095,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         fragmentView = frameLayout;
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);
         listView.setAdapter(listAdapter);

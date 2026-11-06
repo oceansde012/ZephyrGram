@@ -425,7 +425,7 @@ public class NotificationsCustomSettingsActivity extends BaseFragment implements
         frameLayout.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
 //        listView.setTranslateSelector(true);
         listView.setEmptyView(emptyView);

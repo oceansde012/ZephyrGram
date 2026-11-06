@@ -229,7 +229,7 @@ public class RestrictedLanguagesSelectActivity extends BaseFragment implements N
         frameLayout.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         listView.setEmptyView(emptyView);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);

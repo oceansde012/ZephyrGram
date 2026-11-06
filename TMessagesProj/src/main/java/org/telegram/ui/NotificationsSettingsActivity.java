@@ -491,7 +491,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
         frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setItemAnimator(null);
         listView.setLayoutAnimation(null);

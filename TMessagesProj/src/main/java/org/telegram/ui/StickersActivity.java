@@ -256,7 +256,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
         listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, this::onLongClick);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setFocusable(true);
         listView.setTag(7);

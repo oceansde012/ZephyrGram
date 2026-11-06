@@ -234,7 +234,7 @@ public class SessionsActivity extends BaseFragment implements NotificationCenter
                 return getThemedColor(Theme.key_listSelector);
             }
         };
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false) {
             @Override

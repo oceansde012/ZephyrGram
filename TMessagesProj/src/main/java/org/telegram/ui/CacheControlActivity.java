@@ -1293,7 +1293,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 return child != cacheChart;
             }
         };
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         listView.setVerticalScrollBarEnabled(false);
         listView.setPadding(0, AndroidUtilities.statusBarHeight + ActionBar.getCurrentActionBarHeight() / 2, 0, 0);
         listView.setClipToPadding(false);

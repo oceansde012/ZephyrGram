@@ -382,7 +382,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         FrameLayout frameLayout = (FrameLayout) fragmentView;
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         ((DefaultItemAnimator) listView.getItemAnimator()).setDelayAnimations(false);
         ((DefaultItemAnimator) listView.getItemAnimator()).setTranslationInterpolator(CubicBezierInterpolator.DEFAULT);

@@ -712,7 +712,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
         FrameLayout frameLayout = (FrameLayout) fragmentView;
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
         listView.setClipToPadding(false);

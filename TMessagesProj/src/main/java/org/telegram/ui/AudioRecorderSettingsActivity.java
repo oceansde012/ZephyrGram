@@ -59,7 +59,7 @@ public class AudioRecorderSettingsActivity extends BaseFragment {
         fragmentView = frameLayout;
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setVerticalScrollBarEnabled(false);

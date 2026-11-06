@@ -344,7 +344,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
         frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray, resourcesProvider));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         adapter = new Adapter();

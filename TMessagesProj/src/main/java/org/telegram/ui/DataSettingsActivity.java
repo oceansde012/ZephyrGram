@@ -292,7 +292,7 @@ public class DataSettingsActivity extends BaseFragment {
                 return getThemedColor(Theme.key_listSelector);
             }
         };
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setVerticalScrollBarEnabled(false);
         listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));

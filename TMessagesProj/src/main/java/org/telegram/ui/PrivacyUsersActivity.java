@@ -168,7 +168,7 @@ public class PrivacyUsersActivity extends BaseFragment implements NotificationCe
         frameLayout.addView(emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         listView = new RecyclerListView(context);
-        listView.setSections();
+        ZephyrCards.enable(listView, true);
         actionBar.setAdaptiveBackground(listView);
         listView.setItemSelectorColorProvider(position -> {
             if (position == deleteAllRow) {
