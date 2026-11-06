@@ -52,5 +52,13 @@ class Helper(unittest.TestCase):
             self.assertNotRegex(s, r"\(\(TextCheckCell\) view\)\.setChecked", n)
         self.assertIn("setRowChecked(view,", (UI / "ZephyrDiagnosticsActivity.java").read_text())
 
+
+class NoDuplicateMeasure(unittest.TestCase):
+    def test_single_outer_onMeasure(self):
+        # the outer class has exactly one onMeasure (4-space indent); the nested TextBlock has its own at 8 spaces
+        self.assertEqual(len(re.findall(r"(?m)^    protected void onMeasure\(", W)), 1)
+        self.assertEqual(W.count("valueView.setMaxWidth("), 1)
+        self.assertIn("MeasureSpec.UNSPECIFIED", W)
+
 if __name__ == "__main__":
     unittest.main()

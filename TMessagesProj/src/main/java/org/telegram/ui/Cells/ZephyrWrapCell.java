@@ -143,13 +143,6 @@ public class ZephyrWrapCell extends FrameLayout {
         titleView.setTextColor(color);
     }
 
-    /** The value on the right never takes more than about 45% of the row, the title has priority. */
-    @Override
-    protected void onMeasure(int widthSpec, int heightSpec) {
-        valueView.setMaxWidth((int) (MeasureSpec.getSize(widthSpec) * 0.45f));
-        super.onMeasure(widthSpec, heightSpec);
-    }
-
     private void applyColors() {
         titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
@@ -237,6 +230,8 @@ public class ZephyrWrapCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // The value on the right never takes more than about 45% of the row, the title has priority.
+        valueView.setMaxWidth((int) (MeasureSpec.getSize(widthMeasureSpec) * 0.45f));
         super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
     }
