@@ -63,10 +63,10 @@ public final class ZephyrPreviews {
             int pad = dp(28);
             float bw = w * 0.62f;
             round(c, pad, dp(12), pad + bw, dp(52), dp(16), Theme.getColor(Theme.key_chat_inBubble));
-            text(c, "Привет!", pad + dp(12), dp(36), Theme.getColor(Theme.key_chat_messageTextIn), 15, false);
+            text(c, LocaleController.getString(R.string.ZephyrRdPrevHello), pad + dp(12), dp(36), Theme.getColor(Theme.key_chat_messageTextIn), 15, false);
             text(c, action(ZephyrConfig.getInt("doubleTapAction")), pad, dp(68), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), 12, false);
             round(c, w - pad - bw, dp(80), w - pad, dp(120), dp(16), Theme.getColor(Theme.key_chat_outBubble));
-            text(c, "Как дела?", w - pad - bw + dp(12), dp(104), Theme.getColor(Theme.key_chat_messageTextOut), 15, false);
+            text(c, LocaleController.getString(R.string.ZephyrRdPrevHowAreYou), w - pad - bw + dp(12), dp(104), Theme.getColor(Theme.key_chat_messageTextOut), 15, false);
             text(c, action(ZephyrConfig.getInt("doubleTapActionOutOwner")), w - pad - bw, dp(136), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), 12, false);
         }
     }
@@ -95,7 +95,7 @@ public final class ZephyrPreviews {
 
     /** Five tab styles in two columns; tapping a card selects the style. */
     public static final class TabStyles extends Base {
-        private final String[] labels = {"Все", "Личные", "Каналы"};
+        private final String[] labels = {LocaleController.getString(R.string.ZephyrRdPrevTabAll), LocaleController.getString(R.string.ZephyrRdPrevTabPersonal), LocaleController.getString(R.string.ZephyrRdPrevTabChannels)};
         public TabStyles(Context c) { super(c); }
         @Override int heightDp() { return 3 * 92 + 16; }
         private RectF cell(int i) {

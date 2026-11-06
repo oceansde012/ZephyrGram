@@ -63,4 +63,9 @@
     <string name="ZephyrRdSendQualityInfo">По длинной стороне</string>
     <string name="ZephyrRdPluginsTapHint">Нажмите на плагин, чтобы открыть его настройки, права и обновления.</string>
     <string name="ZephyrRdPluginsDevHeader">Для разработчиков</string>
+    <string name="ZephyrRdPrevHello">Привет!</string>
+    <string name="ZephyrRdPrevHowAreYou">Как дела?</string>
+    <string name="ZephyrRdPrevTabAll">Все</string>
+    <string name="ZephyrRdPrevTabPersonal">Личные</string>
+    <string name="ZephyrRdPrevTabChannels">Каналы</string>
 </resources>

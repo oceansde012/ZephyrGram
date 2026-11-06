@@ -63,4 +63,9 @@
     <string name="ZephyrRdSendQualityInfo">Applies to the longest side of the photo</string>
     <string name="ZephyrRdPluginsTapHint">Tap a plugin to open its settings, permissions and updates.</string>
     <string name="ZephyrRdPluginsDevHeader">For developers</string>
+    <string name="ZephyrRdPrevHello">Hi!</string>
+    <string name="ZephyrRdPrevHowAreYou">How are you?</string>
+    <string name="ZephyrRdPrevTabAll">All</string>
+    <string name="ZephyrRdPrevTabPersonal">Personal</string>
+    <string name="ZephyrRdPrevTabChannels">Channels</string>
 </resources>
