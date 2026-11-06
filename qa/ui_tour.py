@@ -216,7 +216,7 @@ def login(dc):
         if tb and not tb_done:
             tap(tb)
             tb_done = True
-            time.sleep(3)
+            time.sleep(10)  # switchBackend + country list from the test server
             continue
         edits = [n for n in nodes if n.cls.endswith("EditText")]
         on_phone_screen = bool(find(nodes, r"Your phone number|Ваш номер телефона|Please confirm your country code"))
@@ -224,12 +224,26 @@ def login(dc):
             if phone_done and phone_tries >= 3:
                 time.sleep(3)
                 continue
-            edits.sort(key=lambda n: n.b[0])
-            type_text(edits[0], "999")
+            for _try in range(6):
+                nodes, _ = dump()
+                edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
+                type_text(edits[0], "999")
+                time.sleep(4)
+                nodes, _ = dump()
+                if not find(nodes, r"Invalid country code"):
+                    break
+                log("country code 999 still invalid, waiting for the test country list")
+                time.sleep(6)
             nodes, _ = dump()
             edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
             if len(edits) >= 2:
                 type_text(edits[-1], number, clear=True)
+                nodes, _ = dump()
+                edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
+                if edits and edits[0].text.strip() not in ("999", "+999"):
+                    log(f"code field became '{edits[0].text}', resetting to 999")
+                    type_text(edits[0], "999")
+                    nodes, _ = dump()
                 nodes, _ = dump()
                 done_btn = find(nodes, r"^(Done|Готово|Next|Далее)$")
                 if done_btn:
