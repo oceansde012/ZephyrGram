@@ -15,7 +15,8 @@ class T(unittest.TestCase):
     def test_default_mark_stripped(self):
         self.assertIn("умолч|замовч|default", B)
     def test_click_updates_switch(self):
-        self.assertGreaterEqual(B.count("setSwitchChecked"), 2)
+        self.assertGreaterEqual(B.count("setRowChecked(view"), 2)
+        self.assertIn("setSwitchChecked(checked)", B)
     def test_bottom_short(self):
         self.assertIn(".shorts(", (UI / "ZephyrChatsSettingsActivity.java").read_text())
         for loc in ("values", "values-ru", "values-uk"):
