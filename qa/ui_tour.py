@@ -252,6 +252,8 @@ def login(dc):
     tb_done = False
     phone_done = False
     phone_tries = 0
+    phone_submitted = False
+    code_sent_at = 0
     for step in range(45):
         nodes, _ = dump()
         if step % 5 == 0:
@@ -279,7 +281,24 @@ def login(dc):
             continue
         edits = [n for n in nodes if n.cls.endswith("EditText")]
         on_phone_screen = bool(find(nodes, r"Your phone number|Ваш номер телефона|Please confirm your country code"))
-        if on_phone_screen and len(edits) >= 2:
+        if find(nodes, r"Invalid phone number|Wrong format|Недействительный номер|Неверный формат"):
+            phone_submitted = False
+            ok = find(nodes, r"^(OK|ОК)$")
+            if ok:
+                tap(ok)
+            continue
+        if find(nodes, r"Enter code|Введите код|activation code|sent an SMS|sent you a code|sent the code"):
+            phone_submitted = True
+            if time.time() - code_sent_at > 25:
+                ce = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: (n.b[1], n.b[0]))
+                if ce:
+                    tap(ce[0])
+                    adb(f"shell input text {code}")
+                    code_sent_at = time.time()
+                    log("code typed")
+            time.sleep(5)
+            continue
+        if on_phone_screen and len(edits) >= 2 and not phone_submitted:
             if phone_done and phone_tries >= 3:
                 time.sleep(3)
                 continue
@@ -297,6 +316,7 @@ def login(dc):
                 else:
                     adb("shell input keyevent 66")
                 phone_done = True
+                phone_submitted = True
                 phone_tries += 1
                 time.sleep(5)
             continue
