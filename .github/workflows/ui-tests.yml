@@ -201,7 +201,7 @@ jobs:
       - name: Run the settings tour on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          QA_DC: ${{ inputs.dc || '2' }}
+          QA_DC: ${{ inputs.dc || '1' }}
         with:
           api-level: 34
           target: google_apis
