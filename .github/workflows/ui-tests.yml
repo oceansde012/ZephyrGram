@@ -1,0 +1,206 @@
+name: UI tests
+
+# Builds a QA APK (x86_64, same code as the ref, only LoginActivity.TEST_BACKEND_IN_STORE is flipped to true
+# at build time so the login screen offers the Telegram TEST backend) and walks every settings screen on an
+# Android emulator, pressing every item and watching logcat for crashes/ANRs.
+# Nothing is changed in the repository; the patch exists only inside the runner.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch/tag/sha to test'
+        required: false
+        default: 'wip/0.2.8'
+        type: string
+      apk_run_id:
+        description: 'Optional: run id of an earlier UI tests run whose QA APK artifact to reuse (skips the build)'
+        required: false
+        default: ''
+        type: string
+      dc:
+        description: 'Test Telegram DC (1-3) used to build the 99966XYYYY test number'
+        required: false
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ui-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ inputs.apk_run_id == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift \
+            /usr/local/share/powershell /usr/local/share/chromium /opt/microsoft || true
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: false
+
+      - name: Fetch submodules
+        run: bash scripts/init-submodules.sh
+
+      - name: Enable the Telegram test backend (build-time patch, not committed)
+        run: |
+          f=TMessagesProj/src/main/java/org/telegram/ui/LoginActivity.java
+          sed -i 's/public static final boolean TEST_BACKEND_IN_STORE = false;/public static final boolean TEST_BACKEND_IN_STORE = true;/' "$f"
+          grep -n "TEST_BACKEND_IN_STORE = " "$f"
+          grep -q "TEST_BACKEND_IN_STORE = true;" "$f"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Android SDK packages
+        run: |
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          sdkmanager="$(ls -d "$sdk"/cmdline-tools/latest/bin/sdkmanager "$sdk"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n1 || true)"
+          [[ -n "$sdkmanager" ]] || { echo "sdkmanager not found" >&2; exit 1; }
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          { yes || true; } | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null
+          "$sdkmanager" --sdk_root="$sdk" "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;27.2.12479018" "cmake;3.22.1" "platform-tools" >/dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode keystore
+        env:
+          ZEPHYR_KEYSTORE_BASE64: ${{ secrets.ZEPHYR_KEYSTORE_BASE64 }}
+        run: |
+          [[ -n "${ZEPHYR_KEYSTORE_BASE64}" ]] || { echo "secret ZEPHYR_KEYSTORE_BASE64 is not set" >&2; exit 1; }
+          keystore="${RUNNER_TEMP}/zephyr-release.jks"
+          printf '%s' "${ZEPHYR_KEYSTORE_BASE64}" | base64 -d > "$keystore"
+          chmod 600 "$keystore"
+          echo "ZEPHYR_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+
+      - name: ABI init script (x86_64 only, for the emulator)
+        run: |
+          cat > "${RUNNER_TEMP}/abi-x86.gradle" <<'EOF2'
+          allprojects {
+              afterEvaluate { p ->
+                  if (p.plugins.hasPlugin('com.android.application')) {
+                      p.android.productFlavors.all { f ->
+                          f.ndk.abiFilters.clear()
+                          f.ndk.abiFilters.add('x86_64')
+                      }
+                  }
+              }
+          }
+          EOF2
+
+      - name: Build QA APK
+        timeout-minutes: 120
+        env:
+          ZEPHYR_KEYSTORE_PASSWORD: ${{ secrets.ZEPHYR_KEYSTORE_PASSWORD }}
+          ZEPHYR_KEY_ALIAS: ${{ secrets.ZEPHYR_KEY_ALIAS }}
+          ZEPHYR_KEY_PASSWORD: ${{ secrets.ZEPHYR_KEY_PASSWORD }}
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+        run: |
+          [[ -n "${TG_API_ID}" && -n "${TG_API_HASH}" ]] || { echo "TG_API_ID/TG_API_HASH secrets missing" >&2; exit 1; }
+          chmod +x ./gradlew
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx6g \
+            --init-script "${RUNNER_TEMP}/abi-x86.gradle" \
+            -PZEPHYR_VERSION_NAME="0.0.0-qa" \
+            assembleAfatRelease
+
+      - name: Collect APK
+        run: |
+          mapfile -t apks < <(find TMessagesProj_App/build/outputs/apk -type f -name '*.apk')
+          (( ${#apks[@]} == 1 )) || { echo "expected one APK, found ${#apks[@]}" >&2; exit 1; }
+          mkdir -p dist
+          cp "${apks[0]}" dist/zephyr-qa.apk
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-qa-apk
+          path: dist/zephyr-qa.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/zephyr-release.jks"
+
+  emulator:
+    needs: build
+    # run even when the build was skipped (apk_run_id given)
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout (test scripts)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download QA APK (this run)
+        if: ${{ inputs.apk_run_id == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: zephyr-qa-apk
+          path: apk
+
+      - name: Download QA APK (earlier run)
+        if: ${{ inputs.apk_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: zephyr-qa-apk
+          path: apk
+          run-id: ${{ inputs.apk_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the settings tour on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          QA_DC: ${{ inputs.dc }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: python3 qa/ui_tour.py --apk apk/zephyr-qa.apk --out qa-out --dc "$QA_DC"
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [[ -f qa-out/report.md ]]; then cat qa-out/report.md >> "$GITHUB_STEP_SUMMARY"; else echo "No report produced (see logs)." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-tour-report
+          path: qa-out
+          retention-days: 14
+          if-no-files-found: warn
