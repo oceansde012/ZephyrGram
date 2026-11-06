@@ -10,6 +10,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.zephyr.ZephyrConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.UItem;
@@ -25,6 +26,19 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         final String key;
         final int titleRes;
         final CharSequence[] options;
+        CharSequence[] shortOptions;
+
+        /** Shorter texts for the value shown in the row (the dialog keeps the full options). */
+        Choice shorts(CharSequence... shortOptions) {
+            this.shortOptions = shortOptions;
+            return this;
+        }
+
+        /** Row value: short text if given, otherwise the option without a trailing "(default)" mark. */
+        CharSequence shown(int value) {
+            if (shortOptions != null && value < shortOptions.length) return shortOptions[value];
+            return options[value].toString().replaceAll("\\s*\\((?:[^)]*(?:умолч|замовч|default)[^)]*)\\)\\s*$", "");
+        }
 
         Choice(String key, int titleRes, CharSequence... options) {
             this.key = key;
@@ -122,6 +136,45 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
         items.add(item);
     }
 
+    /** Switch and button rows of our screens become wrapping rows: the title goes to a second line instead of "...". */
+    @Override
+    protected void fillItemsInternal(ArrayList<UItem> items, org.telegram.ui.Components.UniversalAdapter adapter) {
+        super.fillItemsInternal(items, adapter);
+        for (int i = 0; i < items.size(); i++) {
+            UItem it = items.get(i);
+            final boolean check = it.viewType == org.telegram.ui.Components.UniversalAdapter.VIEW_TYPE_CHECK;
+            final boolean button = it.viewType == org.telegram.ui.Components.UniversalAdapter.VIEW_TYPE_TEXT
+                    && !(it.object instanceof android.graphics.drawable.Drawable) && !(it.object instanceof org.telegram.tgnet.TLRPC.Document)
+                    && !(it.object instanceof String) && it.view == null;
+            if (!check && !button) continue;
+            boolean prev = i > 0 && ZephyrCards.isCardType(items.get(i - 1).viewType);
+            boolean next = i + 1 < items.size() && ZephyrCards.isCardType(items.get(i + 1).viewType);
+            int position = !prev && !next ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_SINGLE
+                    : !prev ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_FIRST
+                    : next ? org.telegram.ui.Cells.ZephyrWrapCell.POSITION_MIDDLE : org.telegram.ui.Cells.ZephyrWrapCell.POSITION_LAST;
+            final org.telegram.ui.Cells.ZephyrWrapCell cell = groupCell("r:" + it.id + ":" + it.text);
+            final boolean hasValue = !android.text.TextUtils.isEmpty(it.textValue);
+            cell.bind(it.text, check ? it.subtext : null, check ? null : it.textValue, button ? it.iconResId : 0, check, it.checked,
+                    false, button && hasValue, 0, position);
+            cell.setAlpha(it.enabled ? 1f : 0.5f);
+            if (it.red) cell.setTitleColor(Theme.getColor(Theme.key_text_RedRegular));
+            else if (it.accent) cell.setTitleColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
+            final UItem row = UItem.asCustom(cell, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT);
+            row.id = it.id;
+            row.object = it.object;
+            row.checked = it.checked;
+            row.enabled = it.enabled;
+            row.text = it.text;
+            cell.setOnClickListener(v -> {
+                if (row.enabled) {
+                    onClick(row, cell, -1, 0, 0);
+                    if (listView != null && listView.adapter != null) listView.adapter.update(false);
+                }
+            });
+            items.set(i, row);
+        }
+    }
+
     @Override
     public View createView(android.content.Context context) {
         ZephyrConfig.load();
@@ -172,7 +225,7 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
 
     protected void addChoice(ArrayList<UItem> items, Choice choice) {
         int value = Math.max(0, Math.min(choice.options.length - 1, ZephyrConfig.getInt(choice.key)));
-        UItem item = UItem.asButton(choice.key.hashCode(), LocaleController.getString(choice.titleRes), choice.options[value]);
+        UItem item = UItem.asButton(choice.key.hashCode(), LocaleController.getString(choice.titleRes), choice.shown(value));
         item.object = choice;
         items.add(item);
     }
@@ -185,6 +238,8 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
             ZephyrConfig.setBool(key, value);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(value);
+            } else if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell) {
+                ((org.telegram.ui.Cells.ZephyrWrapCell) view).setSwitchChecked(value);
             }
             item.checked = value;
         } else if (item.object instanceof Inverted) {
@@ -194,6 +249,8 @@ public abstract class ZephyrBaseSettingsActivity extends UniversalFragment {
             boolean shown = !stored;
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(shown);
+            } else if (view instanceof org.telegram.ui.Cells.ZephyrWrapCell) {
+                ((org.telegram.ui.Cells.ZephyrWrapCell) view).setSwitchChecked(shown);
             }
             item.checked = shown;
         } else if (item.object instanceof Group) {

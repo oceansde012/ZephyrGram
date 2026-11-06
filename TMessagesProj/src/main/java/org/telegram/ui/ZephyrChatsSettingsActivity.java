@@ -51,7 +51,8 @@ public class ZephyrChatsSettingsActivity extends ZephyrBaseSettingsActivity {
         addHeader(items, R.string.ZephyrRdChannels);
         addChoice(items, new Choice("bottomButton", R.string.ZephyrRdBottomButton,
                 LocaleController.getString(R.string.ZephyrBottomButtonMute),
-                LocaleController.getString(R.string.ZephyrBottomButtonDiscuss)));
+                LocaleController.getString(R.string.ZephyrBottomButtonDiscuss))
+                .shorts(LocaleController.getString(R.string.ZephyrRdBottomMuteShort), LocaleController.getString(R.string.ZephyrBottomButtonDiscuss)));
         addInvertedSwitch(items, "disableJumpToNextChannel", R.string.ZephyrRdNextChannel, R.string.ZephyrRdNextChannelInfo);
 
         addHeader(items, R.string.ZephyrRdInput);

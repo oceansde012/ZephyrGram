@@ -104,7 +104,6 @@ public class ZephyrWrapCell extends FrameLayout {
         valueView.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         valueView.setMaxLines(2);
         valueView.setEllipsize(TextUtils.TruncateAt.END);
-        valueView.setMaxWidth(AndroidUtilities.dp(170));
         valueView.setVisibility(GONE);
         row.addView(valueView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
 
@@ -132,6 +131,23 @@ public class ZephyrWrapCell extends FrameLayout {
             switchDivider.setVisibility(GONE);
             checkMark.setChecked(checked, false);
         }
+    }
+
+    /** Switch state change from a click (animated). */
+    public void setSwitchChecked(boolean checked) {
+        checkBox.setChecked(checked, true);
+    }
+
+    /** Overrides the title color after bind() (red / accent rows); bind() restores the default. */
+    public void setTitleColor(int color) {
+        titleView.setTextColor(color);
+    }
+
+    /** The value on the right never takes more than about 45% of the row, the title has priority. */
+    @Override
+    protected void onMeasure(int widthSpec, int heightSpec) {
+        valueView.setMaxWidth((int) (MeasureSpec.getSize(widthSpec) * 0.45f));
+        super.onMeasure(widthSpec, heightSpec);
     }
 
     private void applyColors() {

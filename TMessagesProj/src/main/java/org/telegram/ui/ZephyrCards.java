@@ -74,7 +74,7 @@ public final class ZephyrCards {
     }
 
     /** View types that sit inside a card: everything except shadows/notes and headers. */
-    private static boolean isCardType(int viewType) {
+    static boolean isCardType(int viewType) {
         return !UniversalAdapter.isShadow(viewType)
                 && viewType != UniversalAdapter.VIEW_TYPE_HEADER
                 && viewType != UniversalAdapter.VIEW_TYPE_ANIMATED_HEADER

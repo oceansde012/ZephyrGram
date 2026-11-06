@@ -54,7 +54,7 @@ public abstract class UniversalFragment extends BaseFragment {
         };
         contentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
-        listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, this::onLongClick) {
+        listView = new UniversalRecyclerView(this, this::fillItemsInternal, this::onClick, this::onLongClick) {
             @Override
             protected void onMeasure(int widthSpec, int heightSpec) {
 //                applyScrolledPosition();
@@ -73,6 +73,11 @@ public abstract class UniversalFragment extends BaseFragment {
     }
 
     protected abstract CharSequence getTitle();
+
+    /** Hook between the adapter and fillItems(): lets a subclass post-process the finished list. */
+    protected void fillItemsInternal(ArrayList<UItem> items, UniversalAdapter adapter) {
+        fillItems(items, adapter);
+    }
     protected abstract void fillItems(ArrayList<UItem> items, UniversalAdapter adapter);
     protected abstract void onClick(UItem item, View view, int position, float x, float y);
     protected abstract boolean onLongClick(UItem item, View view, int position, float x, float y);
