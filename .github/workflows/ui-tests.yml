@@ -36,8 +36,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      reuse: ${{ steps.r.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: r
+        env:
+          INPUT_RUN: ${{ inputs.apk_run_id }}
+        run: |
+          # reuse an earlier QA APK: workflow_dispatch input, or the run id written in qa/reuse_run_id.txt (push runs)
+          id="${INPUT_RUN}"
+          if [[ -z "$id" && -f qa/reuse_run_id.txt ]]; then id="$(tr -dc '0-9' < qa/reuse_run_id.txt)"; fi
+          echo "reuse=$id" >> "$GITHUB_OUTPUT"
+          echo "reuse run id: '$id'"
+
   build:
-    if: ${{ inputs.apk_run_id == '' }}
+    needs: plan
+    if: ${{ needs.plan.outputs.reuse == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -148,7 +165,7 @@ jobs:
         run: rm -f "${RUNNER_TEMP}/zephyr-release.jks"
 
   emulator:
-    needs: build
+    needs: [plan, build]
     # run even when the build was skipped (apk_run_id given)
     if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
@@ -160,19 +177,19 @@ jobs:
           ref: ${{ github.sha }}
 
       - name: Download QA APK (this run)
-        if: ${{ inputs.apk_run_id == '' }}
+        if: ${{ needs.plan.outputs.reuse == '' }}
         uses: actions/download-artifact@v4
         with:
           name: zephyr-qa-apk
           path: apk
 
       - name: Download QA APK (earlier run)
-        if: ${{ inputs.apk_run_id != '' }}
+        if: ${{ needs.plan.outputs.reuse != '' }}
         uses: actions/download-artifact@v4
         with:
           name: zephyr-qa-apk
           path: apk
-          run-id: ${{ inputs.apk_run_id }}
+          run-id: ${{ needs.plan.outputs.reuse }}
           github-token: ${{ github.token }}
 
       - name: Enable KVM

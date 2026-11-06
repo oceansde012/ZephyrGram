@@ -197,8 +197,11 @@ def login(dc):
         if step % 5 == 0:
             screenshot(f"login_{step}")
         if not nodes:
+            log(f"login step {step}: empty dump")
             time.sleep(2)
             continue
+        log(f"login step {step}: " + " | ".join(f"{n.pkg.split('.')[-1]}:{n.cls.split('.')[-1]}:{n.label}"
+            for n in nodes if n.label or n.cls.endswith("EditText"))[:700])
         if handle_system_dialogs(nodes):
             continue
         if find(nodes, r"Open navigation menu|^Settings$|^Настройки$") and not find(nodes, r"Your phone|Ваш телефон|Phone number|Test Backend"):
