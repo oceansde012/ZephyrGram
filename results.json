@@ -1,0 +1,30 @@
+[
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 1,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_dark",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 1,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "main",
+  "cls": "ZephyrSettingsActivity",
+  "frames": 2,
+  "error": null
+ },
+ {
+  "config": "uk_411dp_f1.0_light",
+  "screen": "appearance",
+  "cls": "ZephyrAppearanceSettingsActivity",
+  "frames": 1,
+  "error": null
+ }
+]
