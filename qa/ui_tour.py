@@ -105,6 +105,23 @@ def back():
     time.sleep(1.0)
 
 
+def b64shot(tag):
+    """dump a (downscaled when possible) screenshot into the job log so it can be read without artifact access"""
+    import base64
+    raw = subprocess.run("adb exec-out screencap -p", shell=True, capture_output=True, timeout=30).stdout
+    try:
+        from PIL import Image  # noqa
+        import io
+        im = Image.open(io.BytesIO(raw)); im.thumbnail((360, 800))
+        buf = io.BytesIO(); im.save(buf, "PNG", optimize=True); raw = buf.getvalue()
+    except Exception:
+        pass
+    b = base64.b64encode(raw).decode()
+    for i in range(0, len(b), 900):
+        print(f"B64SHOT {tag} {i // 900} {b[i:i + 900]}", flush=True)
+    print(f"B64SHOT {tag} END", flush=True)
+
+
 def screenshot(name):
     global shot_n
     shot_n += 1
@@ -297,6 +314,9 @@ def login(dc):
                         adb(f"shell input keyevent {7 + int(ch)}")
                         time.sleep(0.6)
                     code_sent_at = time.time()
+                    if not getattr(login, "shot_done", False):
+                        login.shot_done = True
+                        b64shot("after_code")
                     log("code typed digit by digit: " + " ".join(n.text for n in dump()[0] if n.cls.endswith("EditText")))
                     time.sleep(6)
                     lc = adb("logcat -d -v time", 60)
