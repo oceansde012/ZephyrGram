@@ -6,6 +6,9 @@ name: UI tests
 # Nothing is changed in the repository; the patch exists only inside the runner.
 
 on:
+  # a push to this QA branch also starts a run (workflow_dispatch is only available once the file is on main)
+  push:
+    branches: ['qa/ui-tests-**']
   workflow_dispatch:
     inputs:
       ref:
@@ -49,7 +52,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || 'wip/0.2.8' }}
           submodules: false
 
       - name: Fetch submodules
@@ -181,7 +184,7 @@ jobs:
       - name: Run the settings tour on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          QA_DC: ${{ inputs.dc }}
+          QA_DC: ${{ inputs.dc || '2' }}
         with:
           api-level: 34
           target: google_apis
