@@ -42,6 +42,7 @@ jobs:
         env:
           INPUT_RUN: ${{ inputs.apk_run_id }}
           INPUT_REF: ${{ inputs.ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # reuse an earlier QA APK: workflow_dispatch input, or the run id written in qa/screens_reuse_run_id.txt (push runs)
           id="${INPUT_RUN}"
@@ -49,7 +50,15 @@ jobs:
           echo "reuse=$id" >> "$GITHUB_OUTPUT"
           ref="${INPUT_REF}"
           if [[ -z "$ref" && -f qa/screens_ref.txt ]]; then ref="$(tr -d ' \r\n' < qa/screens_ref.txt)"; fi
-          echo "ref=${ref:-wip/0.2.8}" >> "$GITHUB_OUTPUT"
+          ref="${ref:-wip/0.2.8}"
+          # actions/checkout treats a short sha as a branch/tag prefix and fails: resolve abbreviated shas to the full one
+          if [[ "$ref" =~ ^[0-9a-f]{7,39}$ ]]; then
+            full="$(git ls-remote origin | awk -v p="$ref" 'index($1,p)==1 {print $1; exit}')"
+            if [[ -z "$full" ]]; then full="$(curl -fsS -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${ref}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["sha"])')"; fi
+            [[ -n "$full" ]] || { echo "cannot resolve short sha $ref"; exit 1; }
+            echo "resolved $ref -> $full"; ref="$full"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "reuse run id: '$id'"
 
   build:
