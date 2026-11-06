@@ -310,9 +310,18 @@ def login(dc):
                 ce = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: (n.b[1], n.b[0]))
                 if ce:
                     tap(ce[0])
-                    for ch in code:
-                        adb(f"shell input keyevent {7 + int(ch)}")
-                        time.sleep(0.6)
+                    attempt = getattr(login, "attempt", 0)
+                    login.attempt = attempt + 1
+                    candidates = [code, "11111", "33333", "22222", "12345"]
+                    use = candidates[attempt % len(candidates)]
+                    sz = re.search(r"(\d+)x(\d+)", adb("shell wm size"))
+                    W, H = (int(sz.group(1)), int(sz.group(2))) if sz else (1080, 2400)
+                    pos = {"1": (0.18, 0.758), "2": (0.50, 0.758), "3": (0.82, 0.758), "4": (0.18, 0.816), "5": (0.50, 0.816),
+                           "6": (0.82, 0.816), "7": (0.18, 0.874), "8": (0.50, 0.874), "9": (0.82, 0.874), "0": (0.50, 0.932)}
+                    log(f"typing code {use} on the on-screen keypad")
+                    for ch in use:
+                        adb(f"shell input tap {int(pos[ch][0] * W)} {int(pos[ch][1] * H)}")
+                        time.sleep(0.5)
                     code_sent_at = time.time()
                     if not getattr(login, "shot_done", False):
                         login.shot_done = True
