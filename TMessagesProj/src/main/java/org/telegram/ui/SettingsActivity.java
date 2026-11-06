@@ -1236,7 +1236,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText, resourcesProvider));
             valueView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText, resourcesProvider));
-            iconBackground.setDrawBorder(hasBackground && (resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark()));
+            iconBackground.setDrawBorder(!tonal && hasBackground && (resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark()));
         }
 
         private boolean twoLines;
@@ -1252,7 +1252,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             titleView.setTranslationX(icon == 0 ? dp(2) : 0);
             subtitleView.setTranslationX(icon == 0 ? dp(2) : 0);
 
-            iconBackground.setColor(iconColorTop, iconColorBottom);
+            if (tonal) {
+                int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText, resourcesProvider);
+                int tint = androidx.core.graphics.ColorUtils.compositeColors(androidx.core.graphics.ColorUtils.setAlphaComponent(accent, 0x26), Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
+                iconBackground.setColor(tint, tint);
+            } else {
+                iconBackground.setColor(iconColorTop, iconColorBottom);
+            }
             iconView.setImageResource(icon);
             titleView.setText(title);
             subtitleView.setVisibility((twoLines = !TextUtils.isEmpty(subtitle)) ? View.VISIBLE : View.GONE);
@@ -1260,6 +1266,21 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             setValue(value);
             updateColors();
         }
+
+        /** ZephyrGram row in card mode: a 40dp tonal square (accent tint) instead of the 28dp gradient one. */
+        public void setTonal(boolean tonal) {
+            if (this.tonal == tonal) return;
+            this.tonal = tonal;
+            iconBackground.setRadiusDp(tonal ? 12 : 10);
+            android.view.ViewGroup.LayoutParams lp = iconLayout.getLayoutParams();
+            if (lp instanceof LinearLayout.LayoutParams) {
+                LinearLayout.LayoutParams l = (LinearLayout.LayoutParams) lp;
+                l.width = l.height = dp(tonal ? 40 : 28);
+                iconLayout.setLayoutParams(l);
+            }
+            iconView.setColorFilter(tonal ? new android.graphics.PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText, resourcesProvider), android.graphics.PorterDuff.Mode.MULTIPLY) : null);
+        }
+        private boolean tonal;
 
         public void setValue(CharSequence value) {
             valueView.setVisibility(!TextUtils.isEmpty(value) ? View.VISIBLE : View.GONE);
@@ -1286,6 +1307,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 strokePaint.setShader(strokeGradient);
             }
 
+            private float radiusDp = 10;
+            public void setRadiusDp(float r) { radiusDp = r; invalidateSelf(); }
+
             public void setColor(int topColor, int bottomColor) {
                 gradient = new LinearGradient(0, 0, 0, dp(28), new int[] { topColor, bottomColor }, new float[] { 0, 1 }, Shader.TileMode.CLAMP);
                 paint.setShader(gradient);
@@ -1298,7 +1322,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
 
             @Override
             public void draw(@NonNull Canvas canvas) {
-                final float r = dp(10);
+                final float r = dp(radiusDp);
                 AndroidUtilities.rectTmp.set(getBounds());
                 matrix.reset();
                 matrix.postTranslate(AndroidUtilities.rectTmp.left, AndroidUtilities.rectTmp.top);
@@ -1336,6 +1360,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             public void bindView(View view, UItem item, boolean divider, UniversalAdapter adapter, UniversalRecyclerView listView) {
                 int iconColorTop    = (int) item.longValue;
                 int iconColorBottom = (int) (item.longValue >>> 32);
+                ((SettingCell) view).setTonal(item.id == 27 && org.telegram.messenger.zephyr.ZephyrConfig.settingsCards);
                 ((SettingCell) view).set(
                     iconColorTop, iconColorBottom, item.iconResId,
                     item.text,
