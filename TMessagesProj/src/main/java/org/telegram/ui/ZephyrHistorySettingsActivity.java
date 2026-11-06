@@ -62,10 +62,11 @@ public class ZephyrHistorySettingsActivity extends ZephyrBaseSettingsActivity {
         items.get(items.size() - 1).subtext = LocaleController.getString(R.string.ZephyrUxSaveEditedInfo);
         items.add(UItem.asShadow(null));
         items.add(UItem.asHeader(LocaleController.getString(R.string.ZephyrHistoryStorageHeader)));
-        items.add(UItem.asButton(ID_HISTORY_STATS, LocaleController.getString(R.string.ZephyrHistoryClear), historyStats == null
+        // The action reads as a button; the counter goes into the note below it instead of a cramped value on the right.
+        items.add(UItem.asButton(ID_HISTORY_STATS, LocaleController.getString(R.string.ZephyrRdClearSaved)).red());
+        items.add(UItem.asShadow(historyStats == null
                 ? LocaleController.getString(R.string.ZephyrHistoryLoading)
-                : LocaleController.formatString(R.string.ZephyrHistoryStats, historyStats[0], historyStats[1], AndroidUtilities.formatFileSize(historyStats[2])).replace('\n', ' ')));
-        items.add(UItem.asShadow(LocaleController.getString(R.string.ZephyrNavHistoryInfo)));
+                : LocaleController.formatString(R.string.ZephyrHistoryStats, historyStats[0], historyStats[1], AndroidUtilities.formatFileSize(historyStats[2])) + "\n" + LocaleController.getString(R.string.ZephyrNavHistoryInfo)));
     }
 
     @Override

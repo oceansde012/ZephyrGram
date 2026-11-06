@@ -25,7 +25,7 @@ class Cards(unittest.TestCase):
 
     def test_headers_stay_outside_the_card(self):
         s = read("java/org/telegram/ui/ZephyrCards.java")
-        m = re.search(r"private static boolean isCardType.*?\n    }\n", s, re.S).group(0)
+        m = re.search(r"static boolean isCardType.*?\n    }\n", s, re.S).group(0)
         for t in ("VIEW_TYPE_HEADER", "VIEW_TYPE_ANIMATED_HEADER", "VIEW_TYPE_BLACK_HEADER", "isShadow"):
             self.assertIn(t, m)
         self.assertIn("view instanceof HeaderCell", s)
