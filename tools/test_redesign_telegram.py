@@ -20,5 +20,17 @@ class Tonal(unittest.TestCase):
         self.assertIn("setTonal(item.id == 27 && org.telegram.messenger.zephyr.ZephyrConfig.settingsCards)", s)
         self.assertIn("dp(tonal ? 40 : 28)", s)
 
+
+class Search(unittest.TestCase):
+    def test_search_entries(self):
+        e = (UI / "ZephyrSearchEntries.java").read_text()
+        self.assertIn("ZephyrPrivacySettingsActivity::new", e)
+        guids = [int(x) for x in __import__("re").findall(r"add\(r, (\d+),", e)]
+        self.assertEqual(len(guids), len(set(guids)))
+        self.assertTrue(all(g >= 7000 for g in guids))
+        p = (UI / "ProfileActivity.java").read_text()
+        self.assertIn("ZephyrSearchEntries.create(f)", p)
+        self.assertIn("new SearchResult(500, getString(R.string.EditName)", p)   # stock results untouched
+
 if __name__ == "__main__":
     unittest.main()
