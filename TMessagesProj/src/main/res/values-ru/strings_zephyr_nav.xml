@@ -38,9 +38,14 @@
     <string name="ZephyrTileOffN">Выключено</string>
     <string name="ZephyrTileOnM">Включён</string>
     <string name="ZephyrTileOffM">Выключен</string>
-    <string name="ZephyrNavGhostStateOn">Призрак включён</string>
+    <string name="ZephyrNavGhostStateOn">Призрак: %1$d из 4</string>
     <string name="ZephyrNavGhostStateOff">Призрак выключен</string>
     <string name="ZephyrNavIdHidden">ID скрыт</string>
     <string name="ZephyrNavIdOnly">в профиле ID</string>
     <string name="ZephyrNavIdAndDc">в профиле ID и DC</string>
+    <string name="ZephyrNavGhostShort">%1$d из %2$d</string>
+    <string name="ZephyrNavHistoryBoth">Сохраняются удалённые и изменённые</string>
+    <string name="ZephyrNavHistoryDeleted">Сохраняются удалённые</string>
+    <string name="ZephyrNavHistoryEdited">Сохраняются изменённые</string>
+    <string name="ZephyrNavHistoryNone">Ничего не сохраняется</string>
 </resources>

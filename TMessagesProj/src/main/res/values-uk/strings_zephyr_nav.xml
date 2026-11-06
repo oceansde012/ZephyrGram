@@ -33,14 +33,19 @@
     <string name="ZephyrNavHeaderExtensions">Розширення</string>
     <string name="ZephyrNavHeaderSystem">Система</string>
     <string name="ZephyrNavTilesInfo">Натискання вмикає й вимикає, утримання відкриває подробиці.</string>
-    <string name="ZephyrDisableAdsTile">Приховувати рекламу</string>
+    <string name="ZephyrDisableAdsTile">Ховати рекламу</string>
     <string name="ZephyrTileOnN">Увімкнено</string>
     <string name="ZephyrTileOffN">Вимкнено</string>
     <string name="ZephyrTileOnM">Увімкнено</string>
     <string name="ZephyrTileOffM">Вимкнено</string>
-    <string name="ZephyrNavGhostStateOn">Привид увімкнено</string>
+    <string name="ZephyrNavGhostStateOn">Привид: %1$d з 4</string>
     <string name="ZephyrNavGhostStateOff">Привид вимкнено</string>
     <string name="ZephyrNavIdHidden">ID приховано</string>
     <string name="ZephyrNavIdOnly">у профілі ID</string>
     <string name="ZephyrNavIdAndDc">у профілі ID і DC</string>
+    <string name="ZephyrNavGhostShort">%1$d з %2$d</string>
+    <string name="ZephyrNavHistoryBoth">Зберігаються видалені й змінені</string>
+    <string name="ZephyrNavHistoryDeleted">Зберігаються видалені</string>
+    <string name="ZephyrNavHistoryEdited">Зберігаються змінені</string>
+    <string name="ZephyrNavHistoryNone">Нічого не зберігається</string>
 </resources>

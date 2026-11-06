@@ -164,9 +164,10 @@ public class ZephyrSettingsActivity extends BaseFragment {
             case ROW_PRIVACY: {
                 int idDc = ZephyrConfig.showIdAndDc;
                 String id = LocaleController.getString(idDc == 2 ? R.string.ZephyrNavIdAndDc : idDc == 1 ? R.string.ZephyrNavIdOnly : R.string.ZephyrNavIdHidden);
-                return LocaleController.formatString(R.string.ZephyrNavPrivacyGhostOn, LocaleController.getString(ghostOn() ? R.string.ZephyrNavGhostStateOn : R.string.ZephyrNavGhostStateOff), id);
+                return LocaleController.formatString(R.string.ZephyrNavPrivacyGhostOn, ghostOn() ? LocaleController.formatString(R.string.ZephyrNavGhostStateOn, ghostCountStatic()) : LocaleController.getString(R.string.ZephyrNavGhostStateOff), id);
             }
-            case ROW_HISTORY: return LocaleController.formatString(R.string.ZephyrNavHistoryState, onOff(ZephyrConfig.saveDeleted), onOff(ZephyrConfig.saveEdited));
+            case ROW_HISTORY: return LocaleController.getString(ZephyrConfig.saveDeleted && ZephyrConfig.saveEdited ? R.string.ZephyrNavHistoryBoth
+                    : ZephyrConfig.saveDeleted ? R.string.ZephyrNavHistoryDeleted : ZephyrConfig.saveEdited ? R.string.ZephyrNavHistoryEdited : R.string.ZephyrNavHistoryNone);
             case ROW_FILTERS: return LocaleController.formatString(R.string.ZephyrNavFiltersState, filtersCount());
             case ROW_PLUGINS: return pluginsSubtitle();
             case ROW_AUTOREPLY: return autoReplySubtitle();
@@ -186,8 +187,8 @@ public class ZephyrSettingsActivity extends BaseFragment {
             case ROW_PRIVACY: return R.drawable.msg_secret;
             case ROW_HISTORY: return R.drawable.msg_recent;
             case ROW_FILTERS: return R.drawable.msg_block;
-            case ROW_PLUGINS: return R.drawable.msg_instant;
-            case ROW_AUTOREPLY: return R.drawable.msg_reply_small;
+            case ROW_PLUGINS: return R.drawable.msg_forward_replace;
+            case ROW_AUTOREPLY: return R.drawable.msg_viewintopic;
             case ROW_ASSISTANT: return R.drawable.msg_bot;
             case ROW_PUSH: return R.drawable.msg_customize;
             case ROW_UPDATES: return R.drawable.msg_download;
@@ -201,6 +202,15 @@ public class ZephyrSettingsActivity extends BaseFragment {
     private static boolean linkDivider(int position) {
         return position != ROW_MEDIA && position != ROW_FILTERS && position != ROW_ASSISTANT
                 && position != ROW_DIAGNOSTICS && position != ROW_RESET;
+    }
+
+    private static int ghostCountStatic() {
+        int n = 0;
+        if (ZephyrConfig.ghostNoRead) n++;
+        if (ZephyrConfig.ghostNoTyping) n++;
+        if (ZephyrConfig.ghostAlwaysOffline) n++;
+        if (ZephyrConfig.ghostNoStoryViews) n++;
+        return n;
     }
 
     private static boolean ghostOn() {
@@ -286,17 +296,17 @@ public class ZephyrSettingsActivity extends BaseFragment {
             int margin = org.telegram.messenger.AndroidUtilities.dp(ZephyrCards.MARGIN_DP);
             setPadding(margin, org.telegram.messenger.AndroidUtilities.dp(4), margin, 0);
             int[] titleRes = {R.string.ZephyrGhostMode, R.string.ZephyrDisableAdsTile, R.string.ZephyrLocalPremium};
-            int[] iconRes = {R.drawable.zephyr_ghost, R.drawable.msg_block, R.drawable.msg_settings};
+            int[] iconRes = {R.drawable.zephyr_ghost, R.drawable.msg_premium_ads, R.drawable.msg_settings_premium};
             for (int i = 0; i < 3; i++) {
                 final int index = i;
                 android.widget.LinearLayout tile = new android.widget.LinearLayout(context);
                 tile.setOrientation(VERTICAL);
-                tile.setGravity(android.view.Gravity.BOTTOM);
+                tile.setMinimumHeight(org.telegram.messenger.AndroidUtilities.dp(116));
                 int pad = org.telegram.messenger.AndroidUtilities.dp(14);
                 tile.setPadding(pad, pad, pad, pad - 1);
                 icons[i] = new android.widget.ImageView(context);
                 icons[i].setImageResource(iconRes[i]);
-                tile.addView(icons[i], LayoutHelper.createLinear(24, 24, 0, 0, 0, 0, 0));
+                tile.addView(icons[i], LayoutHelper.createLinear(24, 24, android.view.Gravity.TOP | android.view.Gravity.LEFT, 0, 0, 0, 0));
                 android.view.View spacer = new View(context);
                 tile.addView(spacer, LayoutHelper.createLinear(1, 0, 1f));
                 titles[i] = new android.widget.TextView(context);
@@ -304,22 +314,51 @@ public class ZephyrSettingsActivity extends BaseFragment {
                 titles[i].setTypeface(org.telegram.messenger.AndroidUtilities.bold());
                 titles[i].setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                 titles[i].setText(LocaleController.getString(titleRes[i]));
+                titles[i].setMaxLines(2);
+                titles[i].setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE);
+                titles[i].setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
                 tile.addView(titles[i], LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
                 states[i] = new android.widget.TextView(context);
                 states[i].setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+                states[i].setSingleLine(true);
+                states[i].setEllipsize(android.text.TextUtils.TruncateAt.END);
                 tile.addView(states[i], LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
                 tile.setOnClickListener(v -> toggle(index));
                 tile.setOnLongClickListener(v -> { openSettings(index); return true; });
                 tiles[i] = tile;
-                addView(tile, LayoutHelper.createLinear(0, 116, 1f, 0, 0, i < 2 ? 8 : 0, 0));
+                addView(tile, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f, 0, 0, i < 2 ? 8 : 0, 0));
             }
             refresh();
+        }
+
+        /** Shrinks each title (15sp down to 11sp) until its longest word fits one line, so words are never broken. */
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            int total = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight() - org.telegram.messenger.AndroidUtilities.dp(16);
+            int avail = total / 3 - org.telegram.messenger.AndroidUtilities.dp(28);
+            android.graphics.Paint p = new android.graphics.Paint(titles[0].getPaint());
+            p.setTypeface(titles[0].getTypeface());
+            for (int i = 0; i < 3; i++) {
+                float size = 15;
+                for (; size > 11; size -= 0.5f) {
+                    p.setTextSize(org.telegram.messenger.AndroidUtilities.dp(size));
+                    if (longestWord(titles[i].getText(), p) <= avail) break;
+                }
+                titles[i].setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, size);
+            }
+            super.onMeasure(widthSpec, heightSpec);
+        }
+
+        private float longestWord(CharSequence text, android.graphics.Paint p) {
+            float max = 0;
+            for (String w : text.toString().split("\\s+")) max = Math.max(max, p.measureText(w));
+            return max;
         }
 
         void refresh() {
             boolean[] on = {ghostOn(), ZephyrConfig.disableAds, ZephyrConfig.localPremium};
             String[] text = {
-                    ghostOn() ? LocaleController.formatString(R.string.ZephyrNavGhostOn, ghostCount(), 4) : LocaleController.getString(R.string.ZephyrNavGhostOff),
+                    ghostOn() ? LocaleController.formatString(R.string.ZephyrNavGhostShort, ghostCount(), 4) : LocaleController.getString(R.string.ZephyrTileOffN),
                     LocaleController.getString(ZephyrConfig.disableAds ? R.string.ZephyrTileOnN : R.string.ZephyrTileOffN),
                     LocaleController.getString(ZephyrConfig.localPremium ? R.string.ZephyrTileOnM : R.string.ZephyrTileOffM)};
             int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText);

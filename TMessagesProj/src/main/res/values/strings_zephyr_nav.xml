@@ -38,9 +38,14 @@
     <string name="ZephyrTileOffN">Off</string>
     <string name="ZephyrTileOnM">On</string>
     <string name="ZephyrTileOffM">Off</string>
-    <string name="ZephyrNavGhostStateOn">Ghost on</string>
+    <string name="ZephyrNavGhostStateOn">Ghost: %1$d of 4</string>
     <string name="ZephyrNavGhostStateOff">Ghost off</string>
     <string name="ZephyrNavIdHidden">ID hidden</string>
     <string name="ZephyrNavIdOnly">ID in profile</string>
     <string name="ZephyrNavIdAndDc">ID and DC in profile</string>
+    <string name="ZephyrNavGhostShort">%1$d of %2$d</string>
+    <string name="ZephyrNavHistoryBoth">Deleted and edited messages are saved</string>
+    <string name="ZephyrNavHistoryDeleted">Deleted messages are saved</string>
+    <string name="ZephyrNavHistoryEdited">Edited messages are saved</string>
+    <string name="ZephyrNavHistoryNone">Nothing is saved</string>
 </resources>
