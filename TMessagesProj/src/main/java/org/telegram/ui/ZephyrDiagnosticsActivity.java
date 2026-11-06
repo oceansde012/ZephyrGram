@@ -34,9 +34,7 @@ public class ZephyrDiagnosticsActivity extends ZephyrBaseSettingsActivity {
 
     @Override
     protected void onCustomClick(UItem item, android.view.View view) {
-        if (item.id == ID_FILTERS) {
-            presentFragment(new ZephyrFiltersActivity());
-        } else if (item.id == ID_LOGS) {
+        if (item.id == ID_LOGS) {
             // exteraGram-derived logging toggle (GPLv2)
             org.telegram.messenger.BuildVars.LOGS_ENABLED = !org.telegram.messenger.BuildVars.LOGS_ENABLED;
             org.telegram.messenger.ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", android.content.Context.MODE_PRIVATE)
