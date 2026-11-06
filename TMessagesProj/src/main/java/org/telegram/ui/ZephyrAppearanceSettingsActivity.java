@@ -44,7 +44,7 @@ public class ZephyrAppearanceSettingsActivity extends ZephyrBaseSettingsActivity
         if (fab == null) { fab = new ZephyrPreviews.Fab(getParentActivity()); fab.onChange = () -> refreshChoice(); }
         if (avatars == null) avatars = new ZephyrPreviews.Avatars(getParentActivity());
         addHeader(items, R.string.ZephyrRdFolderTabs);
-        addPreview(items, tabs, 3 * 92 + 16);
+        addPreview(items, tabs, ZephyrPreviews.TabStyles.HEIGHT_DP);
         addChoice(items, new Choice("tabStyle", R.string.ZephyrRdTabStyle,
                 LocaleController.getString(R.string.ZephyrTabStylePill),
                 LocaleController.getString(R.string.ZephyrTabStyleRounded),

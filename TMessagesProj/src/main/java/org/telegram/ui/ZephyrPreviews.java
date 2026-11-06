@@ -95,43 +95,69 @@ public final class ZephyrPreviews {
 
     /** Five tab styles in two columns; tapping a card selects the style. */
     public static final class TabStyles extends Base {
+        public static final int CELL_DP = 56, GAP_DP = 12, ROWS = 3;
+        public static final int HEIGHT_DP = ROWS * CELL_DP + (ROWS - 1) * GAP_DP + 8;
         private final String[] labels = {LocaleController.getString(R.string.ZephyrRdPrevTabAll), LocaleController.getString(R.string.ZephyrRdPrevTabPersonal), LocaleController.getString(R.string.ZephyrRdPrevTabChannels)};
+        public Runnable onChange;
         public TabStyles(Context c) { super(c); }
-        @Override int heightDp() { return 3 * 92 + 16; }
+        @Override int heightDp() { return HEIGHT_DP; }
         private RectF cell(int i) {
-            float w = (getWidth() - dp(12) * 3) / 2f;
-            float h = dp(80);
+            float w = (getWidth() - dp(GAP_DP) * 3) / 2f;
+            float h = dp(CELL_DP);
             int col = i % 2, row = i / 2;
-            return new RectF(dp(12) + col * (w + dp(12)), dp(4) + row * (h + dp(12)), dp(12) + col * (w + dp(12)) + w, dp(4) + row * (h + dp(12)) + h);
+            float l = dp(GAP_DP) + col * (w + dp(GAP_DP)), t = dp(4) + row * (h + dp(GAP_DP));
+            return new RectF(l, t, l + w, t + h);
+        }
+        /** Label sizes that fit: starts at 12sp and goes down to 10sp; returns how many labels (3 or 2) and the size in sp. */
+        private float fit(float room, int[] count) {
+            for (float sp = 12; sp >= 10; sp -= 1) {
+                paint.setTextSize(dp(sp));
+                float need = 0;
+                for (int k = 0; k < 3; k++) need += paint.measureText(labels[k]) + dp(14);
+                if (need <= room) { count[0] = 3; return sp; }
+            }
+            paint.setTextSize(dp(10));
+            count[0] = 2;
+            return 10;
         }
         @Override protected void onDraw(Canvas c) {
             int selected = ZephyrConfig.getInt("tabStyle");
             int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText);
+            int tint = accent & 0x00FFFFFF | 0x33000000;
             int gray = Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2);
             int card = Theme.getColor(Theme.key_windowBackgroundWhite);
+            boolean badge = ZephyrConfig.getBool("tabCounter");
             for (int i = 0; i < 5; i++) {
                 RectF r = cell(i);
                 round(c, r.left, r.top, r.right, r.bottom, dp(14), card);
-                if (i == selected) {
-                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(dp(2)); paint.setColor(accent);
-                    c.drawRoundRect(r, dp(14), dp(14), paint);
-                    paint.setStyle(Paint.Style.FILL);
-                }
-                float x = r.left + dp(12), y = r.top + dp(34);
-                for (int k = 0; k < 3; k++) {
-                    paint.setTextSize(dp(12));
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(i == selected ? 2 : 1));
+                paint.setColor(i == selected ? accent : Theme.getColor(Theme.key_divider));
+                c.drawRoundRect(r, dp(14), dp(14), paint);
+                paint.setStyle(Paint.Style.FILL);
+                float pad = dp(12);
+                float room = r.width() - 2 * pad - (badge ? dp(30) : 0);
+                int[] count = new int[1];
+                float sp = fit(room, count);
+                float x = r.left + pad, y = r.centerY() + dp(5);
+                for (int k = 0; k < count[0]; k++) {
+                    paint.setTextSize(dp(sp));
+                    paint.setTypeface(AndroidUtilities.bold());
                     float tw = paint.measureText(labels[k]);
                     boolean active = k == 0;
-                    if (i == 0 && active) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(11), accent & 0x33FFFFFF | 0x33000000);
-                    if (i == 1 && active) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(5), accent & 0x33FFFFFF | 0x33000000);
-                    if (i == 4 && active) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(3), accent);
-                    if (i == 2 && active) round(c, x, y + dp(8), x + tw, y + dp(10), 0, accent);
-                    text(c, labels[k], x, y, i == 4 && active ? 0xFFFFFFFF : active ? accent : gray, 12, active);
+                    if (active) {
+                        if (i == 0) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(11), tint);
+                        if (i == 1) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(5), tint);
+                        if (i == 4) round(c, x - dp(6), y - dp(16), x + tw + dp(6), y + dp(6), dp(3), accent);
+                        if (i == 2) round(c, x, y + dp(8), x + tw, y + dp(10), 0, accent);
+                    }
+                    text(c, labels[k], x, y, i == 4 && active ? 0xFFFFFFFF : active ? accent : gray, sp, active);
                     x += tw + dp(14);
                 }
-                if (ZephyrConfig.getBool("tabCounter")) {
-                    round(c, r.right - dp(34), r.top + dp(14), r.right - dp(12), r.top + dp(32), dp(9), accent);
-                    text(c, "12", r.right - dp(30), r.top + dp(27), 0xFFFFFFFF, 11, true);
+                if (badge) {
+                    float bx = Math.min(x, r.right - pad - dp(22));
+                    round(c, bx, y - dp(15), bx + dp(22), y + dp(3), dp(9), accent);
+                    text(c, "12", bx + dp(4), y - dp(2), 0xFFFFFFFF, 11, true);
                 }
             }
         }
@@ -148,7 +174,6 @@ public final class ZephyrPreviews {
             }
             return e.getAction() == MotionEvent.ACTION_DOWN;
         }
-        public Runnable onChange;
     }
 
     /** Two floating-button shapes; tapping selects. */

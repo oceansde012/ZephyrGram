@@ -19,5 +19,16 @@ class T(unittest.TestCase):
         # mirrors ZephyrPreviews.stickerSidePx / avatarRadiusPx clamping
         self.assertIn("Math.max(50, Math.min(150, percent))", src("ZephyrPreviews"))
         self.assertIn("Math.max(0, Math.min(100, percent))", src("ZephyrPreviews"))
+
+class TabsLayout(unittest.TestCase):
+    def test_tabs_preview_measured_layout(self):
+        s = src("ZephyrPreviews")
+        self.assertIn("measureText(labels[k])", s)
+        self.assertIn("HEIGHT_DP", s)
+        self.assertNotIn("3 * 92 + 16", s)
+        self.assertNotIn("3 * 92 + 16", src("ZephyrAppearanceSettingsActivity"))
+        self.assertIn("Theme.key_divider", s)          # unselected cards keep a light border
+        self.assertIn("i == selected ? 2 : 1", s)
+
 if __name__ == "__main__":
     unittest.main()
