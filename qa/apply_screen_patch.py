@@ -10,7 +10,12 @@ if s.count(old) != 1:
     sys.exit(f"expected exactly one anchor, found {s.count(old)}")
 new = ("BaseFragment qaFragment = QaScreenLauncher.create(getIntent());\n"
        "                actionBarLayout.addFragmentToStack(qaFragment != null ? qaFragment : getClientNotActivatedFragment());")
-la.write_text(s.replace(old, new))
+s = s.replace(old, new)
+anchor2 = "ApplicationLoader.postInitApplication();\n        AndroidUtilities.checkDisplaySize(this, getResources().getConfiguration());"
+if s.count(anchor2) != 1:
+    sys.exit(f"onCreate anchor count {s.count(anchor2)}")
+s = s.replace(anchor2, "ApplicationLoader.postInitApplication();\n        QaScreenLauncher.applyThemeEarly(getIntent());\n        AndroidUtilities.checkDisplaySize(this, getResources().getConfiguration());")
+la.write_text(s)
 shutil.copy(pathlib.Path(__file__).parent / "patches" / "QaScreenLauncher.java", la.parent / "QaScreenLauncher.java")
 print("patched", la)
 # release builds are minified: keep the screens we open by class name

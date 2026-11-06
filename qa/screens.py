@@ -93,6 +93,9 @@ def capture(cfg, key, cls, out_dir, results, lang, theme):
             png = shot_bytes(); path = os.path.join(out_dir, f"{key}_after_crash.jpg"); save_jpeg(png, path); frames.append(path)
             break
     results.append(dict(config=cfg, screen=key, cls=cls, frames=len(frames), error=bad))
+    qa_log = [l for l in adb("logcat -d -s QaScreenLauncher:I").splitlines() if "theme" in l]
+    if qa_log:
+        log(f"{cfg} {key}: hook {qa_log[-1].strip()[-90:]}")
     log(f"{cfg} {key}: {len(frames)} frames {'ERROR ' + bad if bad else 'ok'}")
     return frames
 
@@ -125,7 +128,10 @@ def main():
     log("install: " + adb(f"install -r -g {a.apk}", 300).strip()[:80])
     results = []
     configs = [(l, w, f, "dark") for l, w, f in itertools.product(LANGS, WIDTHS, FONTS)]
-    configs += [("uk", 411, "1.0", "light"), ("ru", 360, "1.3", "light")]  # light theme: main screen set
+    configs += [("uk", 411, "1.0", "light"), ("ru", 360, "1.3", "light")]  # light theme: main, appearance, chats
+    mode = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "screens_mode.txt")).read().strip() if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "screens_mode.txt")) else "full"
+    if mode == "quick":  # hook check: one screen, dark and light
+        configs = [("uk", 411, "1.0", "dark"), ("uk", 411, "1.0", "light")]
     for lang, w, font, theme in configs:
         if time.time() > DEADLINE:
             log("deadline reached, stopping"); break
@@ -133,7 +139,9 @@ def main():
         cdir = os.path.join(a.out, cfg); os.makedirs(cdir, exist_ok=True)
         set_display(w, font)
         entries = []
-        screens = SCREENS if theme == "dark" else SCREENS[:1]
+        screens = SCREENS if theme == "dark" else SCREENS[:3:1] if False else [x for x in SCREENS if x[0] in ("main", "appearance", "chats")]
+        if mode == "quick":
+            screens = [x for x in SCREENS if x[0] in ("main", "appearance")]
         for key, cls in screens:
             entries.append((key, capture(cfg, key, cls, cdir, results, lang, theme)))
         contact_sheet(cdir, cfg, entries)

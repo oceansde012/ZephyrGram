@@ -16,6 +16,30 @@ import org.telegram.ui.ActionBar.Theme;
 public final class QaScreenLauncher {
     private QaScreenLauncher() {}
 
+    /** Called at the very start of LaunchActivity.onCreate, before any view or ActionBar exists. */
+    public static void applyThemeEarly(Intent intent) {
+        if (intent == null || intent.getStringExtra("qa_screen") == null) {
+            return;
+        }
+        try {
+            String theme = intent.getStringExtra("qa_theme");
+            if (theme != null) {
+                boolean dark = "dark".equals(theme);
+                Theme.selectedAutoNightType = Theme.AUTO_NIGHT_TYPE_NONE;
+                Theme.ThemeInfo ti = Theme.getTheme(dark ? "Night" : "Blue");
+                if (ti == null) {
+                    ti = Theme.getTheme(dark ? "Dark Blue" : "Day");
+                }
+                if (ti != null) {
+                    Theme.applyTheme(ti, false);
+                }
+                android.util.Log.i("QaScreenLauncher", "theme " + theme + " -> " + (ti == null ? "null" : ti.getKey()) + " dark=" + Theme.isCurrentThemeDark());
+            }
+        } catch (Throwable t) {
+            android.util.Log.e("QaScreenLauncher", "theme failed", t);
+        }
+    }
+
     public static BaseFragment create(Intent intent) {
         if (intent == null || intent.getStringExtra("qa_screen") == null) {
             return null;
@@ -26,13 +50,6 @@ public final class QaScreenLauncher {
                 LocaleController.LocaleInfo info = LocaleController.getInstance().languagesDict.get(lang);
                 if (info != null) {
                     LocaleController.getInstance().applyLanguage(info, true, false, UserConfig.selectedAccount);
-                }
-            }
-            String theme = intent.getStringExtra("qa_theme");
-            if (theme != null) {
-                Theme.ThemeInfo ti = Theme.getTheme("dark".equals(theme) ? "Night" : "Day");
-                if (ti != null) {
-                    Theme.applyTheme(ti, "dark".equals(theme));
                 }
             }
             String name = intent.getStringExtra("qa_screen");
