@@ -1,0 +1,245 @@
+name: Screens
+
+# QA-only screenshot run: builds an x86_64 APK from <ref> with QA hook (qa/apply_screen_patch.py: opens a
+# Zephyr screen from an intent extra without login; applied inside the runner, never committed, never in releases),
+# then takes screenshots of every settings screen on an emulator: languages x widths x font scales x themes.
+# Manual only: push a change to qa/screens-run.txt on a qa/screens-* branch (workflow_dispatch needs the file on main).
+
+on:
+  push:
+    branches: ['qa/screens-**']
+    paths: ['qa/screens-run.txt']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch/tag/sha with the app code'
+        required: false
+        default: 'wip/0.2.8'
+        type: string
+      apk_run_id:
+        description: 'Reuse the QA APK artifact of an earlier Screens run'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: screens-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      reuse: ${{ steps.r.outputs.reuse }}
+      ref: ${{ steps.r.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: r
+        env:
+          INPUT_RUN: ${{ inputs.apk_run_id }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          # reuse an earlier QA APK: workflow_dispatch input, or the run id written in qa/screens_reuse_run_id.txt (push runs)
+          id="${INPUT_RUN}"
+          if [[ -z "$id" && -f qa/screens_reuse_run_id.txt ]]; then id="$(tr -dc '0-9' < qa/screens_reuse_run_id.txt)"; fi
+          echo "reuse=$id" >> "$GITHUB_OUTPUT"
+          ref="${INPUT_REF}"
+          if [[ -z "$ref" && -f qa/screens_ref.txt ]]; then ref="$(tr -d ' \r\n' < qa/screens_ref.txt)"; fi
+          echo "ref=${ref:-wip/0.2.8}" >> "$GITHUB_OUTPUT"
+          echo "reuse run id: '$id'"
+
+  build:
+    needs: plan
+    if: ${{ needs.plan.outputs.reuse == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift \
+            /usr/local/share/powershell /usr/local/share/chromium /opt/microsoft || true
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          submodules: false
+
+      - name: Fetch submodules
+        run: bash scripts/init-submodules.sh
+
+      - name: QA sources (scripts and patch) from the triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: qa-src
+
+      - name: Apply the QA screen launcher (runner only, not committed)
+        run: python3 qa-src/qa/apply_screen_patch.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Android SDK packages
+        run: |
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          sdkmanager="$(ls -d "$sdk"/cmdline-tools/latest/bin/sdkmanager "$sdk"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n1 || true)"
+          [[ -n "$sdkmanager" ]] || { echo "sdkmanager not found" >&2; exit 1; }
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          { yes || true; } | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null
+          "$sdkmanager" --sdk_root="$sdk" "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;27.2.12479018" "cmake;3.22.1" "platform-tools" >/dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode keystore
+        env:
+          ZEPHYR_KEYSTORE_BASE64: ${{ secrets.ZEPHYR_KEYSTORE_BASE64 }}
+        run: |
+          [[ -n "${ZEPHYR_KEYSTORE_BASE64}" ]] || { echo "secret ZEPHYR_KEYSTORE_BASE64 is not set" >&2; exit 1; }
+          keystore="${RUNNER_TEMP}/zephyr-release.jks"
+          printf '%s' "${ZEPHYR_KEYSTORE_BASE64}" | base64 -d > "$keystore"
+          chmod 600 "$keystore"
+          echo "ZEPHYR_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+
+      - name: ABI init script (x86_64 only, for the emulator)
+        run: |
+          cat > "${RUNNER_TEMP}/abi-x86.gradle" <<'EOF2'
+          allprojects {
+              afterEvaluate { p ->
+                  if (p.plugins.hasPlugin('com.android.application')) {
+                      p.android.productFlavors.all { f ->
+                          f.ndk.abiFilters.clear()
+                          f.ndk.abiFilters.add('x86_64')
+                      }
+                  }
+              }
+          }
+          EOF2
+
+      - name: Build QA APK
+        timeout-minutes: 120
+        env:
+          ZEPHYR_KEYSTORE_PASSWORD: ${{ secrets.ZEPHYR_KEYSTORE_PASSWORD }}
+          ZEPHYR_KEY_ALIAS: ${{ secrets.ZEPHYR_KEY_ALIAS }}
+          ZEPHYR_KEY_PASSWORD: ${{ secrets.ZEPHYR_KEY_PASSWORD }}
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+        run: |
+          [[ -n "${TG_API_ID}" && -n "${TG_API_HASH}" ]] || { echo "TG_API_ID/TG_API_HASH secrets missing" >&2; exit 1; }
+          chmod +x ./gradlew
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx6g \
+            --init-script "${RUNNER_TEMP}/abi-x86.gradle" \
+            -PZEPHYR_VERSION_NAME="0.0.0-qa" \
+            assembleAfatRelease
+
+      - name: Collect APK
+        run: |
+          mapfile -t apks < <(find TMessagesProj_App/build/outputs/apk -type f -name '*.apk')
+          (( ${#apks[@]} == 1 )) || { echo "expected one APK, found ${#apks[@]}" >&2; exit 1; }
+          mkdir -p dist
+          cp "${apks[0]}" dist/zephyr-screens.apk
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-screens-apk
+          path: dist/zephyr-screens.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/zephyr-release.jks"
+
+  emulator:
+    needs: [plan, build]
+    # run even when the build was skipped (apk_run_id given)
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout (test scripts)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download QA APK (this run)
+        if: ${{ needs.plan.outputs.reuse == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: zephyr-screens-apk
+          path: apk
+
+      - name: Download QA APK (earlier run)
+        if: ${{ needs.plan.outputs.reuse != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: zephyr-screens-apk
+          path: apk
+          run-id: ${{ needs.plan.outputs.reuse }}
+          github-token: ${{ github.token }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pillow
+        run: pip install pillow
+
+      - name: Screenshots on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: python3 qa/screens.py --apk apk/zephyr-screens.apk --out screens-out
+
+      - name: Summary
+        if: always()
+        run: |
+          if [[ -f screens-out/report.md ]]; then cat screens-out/report.md >> "$GITHUB_STEP_SUMMARY"; else echo "no report" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Publish shots to a new branch (additive)
+        if: always()
+        run: |
+          [[ -d screens-out ]] || exit 0
+          branch="qa-screens-out-${GITHUB_RUN_ID}"
+          git config --global user.name "qa-bot"; git config --global user.email "qa-bot@users.noreply.github.com"
+          rm -rf /tmp/out && mkdir /tmp/out && cp -r screens-out/. /tmp/out/
+          cd /tmp/out && git init -q && git checkout -q -b "$branch" && git add -A && git commit -qm "Screens run ${GITHUB_RUN_ID}"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -q origin "$branch"
+          echo "Shots branch: $branch" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screens-out
+          path: screens-out
+          retention-days: 14
+          if-no-files-found: warn
