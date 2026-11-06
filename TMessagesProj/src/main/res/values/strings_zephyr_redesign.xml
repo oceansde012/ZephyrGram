@@ -61,4 +61,6 @@
     <string name="ZephyrRdClearSaved">Clear saved</string>
     <string name="ZephyrRdFilters">Filters</string>
     <string name="ZephyrRdSendQualityInfo">Applies to the longest side of the photo</string>
+    <string name="ZephyrRdPluginsTapHint">Tap a plugin to open its settings, permissions and updates.</string>
+    <string name="ZephyrRdPluginsDevHeader">For developers</string>
 </resources>

@@ -25,6 +25,11 @@ public class ZephyrPluginDetailsActivity extends UniversalFragment implements Pl
         manager.addListener(this); repository.addListener(this); return true;
     }
     @Override public void onFragmentDestroy() { manager.removeListener(this); repository.removeListener(this); super.onFragmentDestroy(); }
+    @Override public android.view.View createView(android.content.Context context) {
+        android.view.View view = super.createView(context);
+        ZephyrCards.enable(listView, false);
+        return view;
+    }
     @Override protected CharSequence getTitle() {
         PluginManager.InstalledPlugin local=manager.getInstalled(pluginId); PluginIndex.IndexEntry entry=entry();
         return entry!=null ? entry.name : local!=null ? local.name : s(R.string.ZephyrPluginDetails);

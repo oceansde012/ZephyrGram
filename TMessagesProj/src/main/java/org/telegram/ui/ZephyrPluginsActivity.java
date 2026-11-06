@@ -79,6 +79,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
     }
     @Override public View createView(Context context) {
         View view = super.createView(context);
+        ZephyrCards.enable(listView, false);
         if (repository.getIndex() == null && !repository.isLoading()) repository.refresh(null);
         return view;
     }
@@ -96,7 +97,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         for (PluginManager.InstalledPlugin plugin : manager.getInstalled()) {
             if (manager.getUpdate(plugin.id) != null) updates = true;
             if (!matches(plugin.name + " " + plugin.id)) continue;
-            String state = plugin.enabled ? s(R.string.ZephyrPluginEnabled) : s(R.string.ZephyrPluginsDisabledUser);
+            String state = plugin.version + " \u00B7 " + (plugin.enabled ? s(R.string.ZephyrPluginEnabled) : s(R.string.ZephyrPluginsDisabledUser));
             org.telegram.messenger.zephyr.plugins.PluginIndex.VersionEntry newer = manager.getUpdate(plugin.id);
             if (newer != null) state = plugin.version + " \u2192 " + newer.version;
             UItem item = UItem.asButton(0, plugin.name, state);
@@ -104,6 +105,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         }
         if (!found) items.add(UItem.asShadow(s(query.isEmpty() ? R.string.ZephyrPluginsNoneInstalled : R.string.ZephyrPluginsNothingFound)));
         if (updates) items.add(UItem.asButton(UPDATE_ALL, s(R.string.ZephyrPluginsUpdateAll)).setEnabled(!manager.isBusy()));
+        if (found) items.add(UItem.asShadow(s(R.string.ZephyrRdPluginsTapHint)));
         items.add(UItem.asHeader(s(R.string.ZephyrPluginsStore)));
         PluginIndex index = repository.getIndex();
         found = false;
@@ -115,6 +117,7 @@ public class ZephyrPluginsActivity extends UniversalFragment implements PluginMa
         if (!found) items.add(UItem.asShadow(s(repository.isLoading() ? R.string.ZephyrPluginsLoading : index == null ? R.string.ZephyrPluginsOfflineEmpty : R.string.ZephyrPluginsNothingFound)));
         if (index != null && repository.isStale()) items.add(UItem.asShadow(s(R.string.ZephyrPluginsOffline)));
         if (repository.getLastError() != null) items.add(UItem.asShadow(repository.getLastError()));
+        items.add(UItem.asHeader(s(R.string.ZephyrRdPluginsDevHeader)));
         items.add(UItem.asCheck(DEVELOPER, s(R.string.ZephyrPluginsDeveloperMode)).setChecked(manager.isDeveloperModeEnabled()));
         items.get(items.size() - 1).subtext = s(R.string.ZephyrUxPluginsDevInfo);
         if (manager.isDeveloperModeEnabled()) items.add(UItem.asButton(IMPORT, s(R.string.ZephyrPluginsInstallFromFile)));

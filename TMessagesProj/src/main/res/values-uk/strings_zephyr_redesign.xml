@@ -61,4 +61,6 @@
     <string name="ZephyrRdClearSaved">Очистити збережене</string>
     <string name="ZephyrRdFilters">Фільтри</string>
     <string name="ZephyrRdSendQualityInfo">За довгою стороною</string>
+    <string name="ZephyrRdPluginsTapHint">Натисніть на плагін, щоб відкрити його налаштування, права й оновлення.</string>
+    <string name="ZephyrRdPluginsDevHeader">Для розробників</string>
 </resources>
