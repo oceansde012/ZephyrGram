@@ -192,6 +192,7 @@ def login(dc):
     time.sleep(6)
     tb_done = False
     phone_done = False
+    phone_tries = 0
     for step in range(90):
         nodes, _ = dump()
         if step % 5 == 0:
@@ -218,16 +219,26 @@ def login(dc):
             time.sleep(3)
             continue
         edits = [n for n in nodes if n.cls.endswith("EditText")]
-        if len(edits) >= 2 and not phone_done:
+        on_phone_screen = bool(find(nodes, r"Your phone number|Ваш номер телефона|Please confirm your country code"))
+        if on_phone_screen and len(edits) >= 2:
+            if phone_done and phone_tries >= 3:
+                time.sleep(3)
+                continue
             edits.sort(key=lambda n: n.b[0])
             type_text(edits[0], "999")
             nodes, _ = dump()
             edits = sorted([n for n in nodes if n.cls.endswith("EditText")], key=lambda n: n.b[0])
             if len(edits) >= 2:
-                type_text(edits[-1], number, clear=False)
-                adb("shell input keyevent 66")
+                type_text(edits[-1], number, clear=True)
+                nodes, _ = dump()
+                done_btn = find(nodes, r"^(Done|Готово|Next|Далее)$")
+                if done_btn:
+                    tap(done_btn)
+                else:
+                    adb("shell input keyevent 66")
                 phone_done = True
-                time.sleep(4)
+                phone_tries += 1
+                time.sleep(5)
             continue
         # confirmation of the number ("Is this the correct number?" / yes)
         yes = find(nodes, r"^(Yes|Да)$")
@@ -235,9 +246,10 @@ def login(dc):
             tap(yes)
             continue
         # code entry
-        if phone_done and edits and any(re.search(r"code|код", n.label, re.I) for n in nodes):
+        if phone_done and not on_phone_screen and edits and find(nodes, r"sent|отправлен|Enter code|Введите код"):
+            tap(edits[0])
             adb(f"shell input text {code}")
-            time.sleep(4)
+            time.sleep(5)
             continue
         # registration
         if find(nodes, r"Sign Up|Регистрация|First name|Имя"):
