@@ -35,5 +35,11 @@ class Main(unittest.TestCase):
         self.assertIn("ZephyrRdClearSaved", s)
         self.assertNotIn("ZephyrHistoryClear), historyStats == null", s)
 
+
+class Colors(unittest.TestCase):
+    def test_bind_reapplies_colors(self):
+        i = W.index("public void bind(")
+        self.assertIn("applyColors();", W[i:i + 400])
+
 if __name__ == "__main__":
     unittest.main()
