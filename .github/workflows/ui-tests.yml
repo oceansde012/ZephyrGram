@@ -6,9 +6,6 @@ name: UI tests
 # Nothing is changed in the repository; the patch exists only inside the runner.
 
 on:
-  # a push to this QA branch also starts a run (workflow_dispatch is only available once the file is on main)
-  push:
-    branches: ['qa/ui-tests-**']
   workflow_dispatch:
     inputs:
       ref:
