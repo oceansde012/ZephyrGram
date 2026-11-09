@@ -59,13 +59,13 @@ public final class ZephyrCards {
                         return holder != null && isCardType(holder.getItemViewType());
                     },
                     ZephyrCards::isCardType,
-                    dp(MARGIN_DP), dp(CARD_RADIUS_DP), (canvas, rect, top, bottom, alpha) -> list.drawBackgroundRect(canvas, rect, top, bottom, alpha), false);
+                    dp(MARGIN_DP), dp(CARD_RADIUS_DP), false);
         } else {
             list.setSections(
                     view -> !(view instanceof HeaderCell || view instanceof TextInfoPrivacyCell || view instanceof ShadowSectionCell
                             || view instanceof org.telegram.ui.Cells.GraySectionCell || view instanceof org.telegram.ui.Cells.CollapseTextCell)
                             && !java.util.Objects.equals(view.getTag(), RecyclerListView.TAG_NOT_SECTION),
-                    dp(MARGIN_DP), dp(CARD_RADIUS_DP), (canvas, rect, top, bottom, alpha) -> list.drawBackgroundRect(canvas, rect, top, bottom, alpha), false);
+                    dp(MARGIN_DP), dp(CARD_RADIUS_DP), false);
         }
         list.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
             @Override public void onChildViewAttachedToWindow(View view) { styleHeader(view); }
