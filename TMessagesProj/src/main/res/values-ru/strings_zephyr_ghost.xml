@@ -5,4 +5,6 @@
     <string name="ZephyrGhostButtonOff">Режим призрака выключен</string>
     <string name="ZephyrGhostButtonOnInfo">Прочтения, набор текста, статус «в сети» и просмотры историй скрыты. Удерживайте призрака для тонкой настройки.</string>
     <string name="ZephyrStoryViewInvisibly">Посмотреть незаметно</string>
+    <string name="ZephyrGhostMarkRead">Отправить отметку о прочтении</string>
+    <string name="ZephyrGhostMarkReadDone">Отметка о прочтении отправлена</string>
 </resources>

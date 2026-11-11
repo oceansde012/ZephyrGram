@@ -206,6 +206,7 @@ import org.telegram.messenger.utils.tlutils.TlUtils;
 import org.telegram.messenger.voip.VoIPService;
 import org.telegram.messenger.zephyr.ZephyrConfig;
 import org.telegram.messenger.zephyr.ZephyrSavedMessages;
+import org.telegram.messenger.zephyr.ZephyrGhost;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -1740,6 +1741,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int zephyr_recent_actions = 3004;
     private final static int zephyr_plugins = 3005;
     private final static int zephyr_plugin_header_button = 3006;
+    private final static int zephyr_mark_read = 3007;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3961,6 +3963,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id >= zephyr_permissions && id <= zephyr_recent_actions) {
                     openZephyrAdminShortcut(id);
+                } else if (id == zephyr_mark_read) {
+                    zephyrSendReadReceipt();
                 } else if (id == zephyr_plugin_header_button) {
                     org.telegram.messenger.zephyr.plugins.PluginHeaderButton.onClick(pluginHeaderButtonItemId, currentAccount, getDialogId(), ChatActivity.this);
                 } else if (org.telegram.messenger.zephyr.plugins.PluginMenus.isPluginItemId(id)) {
@@ -4482,6 +4486,10 @@ public class ChatActivity extends BaseFragment implements
             }
             if (themeDelegate.isThemeChangeAvailable(true)) {
                 headerItem.lazilyAddSubItem(change_colors, R.drawable.msg_background, LocaleController.getString(R.string.SetWallpapers));
+            }
+            if (ZephyrConfig.ghostNoRead && chatMode == MODE_DEFAULT && !isTopic && currentEncryptedChat == null && !UserObject.isUserSelf(currentUser)) {
+                // ZephyrGram: read receipts are held back by ghost mode, this sends one by hand
+                headerItem.lazilyAddSubItem(zephyr_mark_read, R.drawable.msg_markread, LocaleController.getString(R.string.ZephyrGhostMarkRead));
             }
             if (chatMode == MODE_DEFAULT) {
                 headerItem.lazilyAddSubItem(zephyr_plugins, R.drawable.msg_customize, LocaleController.getString(R.string.ZephyrPlugins));
@@ -46650,6 +46658,24 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         ZephyrPluginsQuickMenu.showForChat(ChatActivity.this, headerItem, currentAccount, dialog_id, currentChat == null ? currentUser : null);
+    }
+
+    /** Ghost mode, "don't send read receipts": sends one receipt for everything received in this chat so far. */
+    private void zephyrSendReadReceipt() {
+        int maxId = 0;
+        final TLRPC.Dialog zephyrDialog = getMessagesController().dialogs_dict.get(dialog_id);
+        if (zephyrDialog != null) {
+            maxId = zephyrDialog.top_message;
+        }
+        for (int a = 0, N = messages.size(); a < N && a < 50; a++) {
+            final MessageObject obj = messages.get(a);
+            if (obj != null && obj.messageOwner != null && !obj.isSponsored() && !obj.messageOwner.zephyrDeleted && obj.getDialogId() == dialog_id) {
+                maxId = Math.max(maxId, obj.getId());
+            }
+        }
+        if (ZephyrGhost.sendReadReceipt(currentAccount, dialog_id, maxId)) {
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.done, LocaleController.getString(R.string.ZephyrGhostMarkReadDone)).show();
+        }
     }
 
     private void openZephyrAdminShortcut(int id) {

@@ -5,4 +5,6 @@
     <string name="ZephyrGhostButtonOff">Режим привида вимкнено</string>
     <string name="ZephyrGhostButtonOnInfo">Прочитання, набір тексту, статус «в мережі» та перегляди історій приховано. Утримуйте привида для тонкого налаштування.</string>
     <string name="ZephyrStoryViewInvisibly">Переглянути непомітно</string>
+    <string name="ZephyrGhostMarkRead">Надіслати позначку про прочитання</string>
+    <string name="ZephyrGhostMarkReadDone">Позначку про прочитання надіслано</string>
 </resources>

@@ -94,7 +94,7 @@ public class ZephyrFiltersActivity extends UniversalFragment {
                 ((TextCheckCell) view).setChecked(value);
             }
             item.checked = value;
-        } else if (item.id == ID_ADD) {
+        } else if (item.id == ID_ADD || item.id == ID_ADD + 100) { // the "no filters yet" row adds one, too
             showEditor(null);
         } else if (item.id == ID_TEST) {
             showTest();
@@ -184,7 +184,9 @@ public class ZephyrFiltersActivity extends UniversalFragment {
         final EditText chat = addField(root, context, LocaleController.getString(R.string.ZephyrFilterChat), existing == null || existing.dialogId == 0 ? "" : String.valueOf(existing.dialogId), true);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(LocaleController.getString(existing == null ? R.string.ZephyrFilterNew : R.string.Edit));
+        // id == 0: a draft that failed validation and is shown again, still a new filter
+        final boolean isNew = existing == null || existing.id == 0;
+        builder.setTitle(LocaleController.getString(isNew ? R.string.ZephyrFilterNew : R.string.Edit));
         builder.setView(root);
         builder.setPositiveButton(LocaleController.getString(R.string.Save), (d, w) -> {
             Filter f = existing == null ? new Filter() : existing.copy();
@@ -194,11 +196,12 @@ public class ZephyrFiltersActivity extends UniversalFragment {
             f.matchCase = matchCase.isChecked();
             f.senderId = parseLong(sender.getText());
             f.dialogId = parseLong(chat.getText());
-            if (existing == null) {
+            if (isNew) {
                 f.enabled = true;
             }
             if (!f.isValid()) {
                 org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(R.raw.error, LocaleController.getString(R.string.ZephyrFilterInvalid)).show();
+                showEditor(f); // keep what was typed instead of losing it with the closed dialog
                 return;
             }
             ZephyrMessageFilters.put(f);

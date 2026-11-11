@@ -43,6 +43,8 @@ public class ZephyrUpdater {
 
     private static final String RELEASES_URL = "https://api.github.com/repos/oceansde012/ZephyrGram/releases/latest";
     private static final long AUTO_CHECK_INTERVAL = 24L * 60 * 60 * 1000;
+    /** After a failed silent check (no network, GitHub rate limit) the next one runs in an hour, not in a day. */
+    private static final long RETRY_INTERVAL = 60L * 60 * 1000;
     private static final int MAX_CHANGELOG_LENGTH = 1500;
     private static final String APK_MIME = "application/vnd.android.package-archive";
 
@@ -85,11 +87,17 @@ public class ZephyrUpdater {
         ZephyrConfig.setLastUpdateCheck(now);
         WeakReference<Activity> activityRef = new WeakReference<>(activity);
         check((result, release) -> {
+            if (result == RESULT_ERROR) {
+                ZephyrConfig.setLastUpdateCheck(System.currentTimeMillis() - AUTO_CHECK_INTERVAL + RETRY_INTERVAL);
+                return;
+            }
             if (result != RESULT_UPDATE) {
                 return;
             }
             Activity a = activityRef.get();
             if (!isUsable(a) || SharedConfig.isWaitingForPasscodeEnter || ApplicationLoader.mainInterfacePaused) {
+                // Found an update but could not offer it (app in background, passcode screen): ask again on the next resume.
+                ZephyrConfig.setLastUpdateCheck(0);
                 return;
             }
             showUpdateDialog(a, null, release);
@@ -305,6 +313,9 @@ public class ZephyrUpdater {
     private static void showUpdateDialog(Activity activity, BaseFragment fragment, Release release) {
         StringBuilder message = new StringBuilder(LocaleController.formatString(
                 R.string.ZephyrUpdateAvailableText, release.version, currentVersion()));
+        if (release.apkSize > 0) {
+            message.append("\nAPK: ").append(AndroidUtilities.formatFileSize(release.apkSize));
+        }
         if (!TextUtils.isEmpty(release.changelog)) {
             message.append("\n\n").append(release.changelog);
         }

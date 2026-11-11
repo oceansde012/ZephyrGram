@@ -41,6 +41,9 @@ public class ZephyrMessageFilters {
         private volatile Pattern compiled;
         private volatile boolean compileFailed;
         private volatile boolean budgetLogged;
+        /** {pattern, Boolean}: result of the last regex syntax check, so that it runs once per pattern and not per message. */
+        private volatile Object[] regexCheck;
+        private volatile String lowerPattern;
 
         JSONObject toJson() throws Exception {
             JSONObject o = new JSONObject();
@@ -87,11 +90,19 @@ public class ZephyrMessageFilters {
                 return false;
             }
             if (regex && !pattern.isEmpty()) {
-                try {
-                    Pattern.compile(pattern);
-                } catch (Throwable e) {
-                    return false;
+                final String current = pattern;
+                Object[] check = regexCheck;
+                if (check == null || !current.equals(check[0])) {
+                    boolean ok;
+                    try {
+                        Pattern.compile(current);
+                        ok = true;
+                    } catch (Throwable e) {
+                        ok = false;
+                    }
+                    regexCheck = check = new Object[]{current, ok};
                 }
+                return (Boolean) check[1];
             }
             return true;
         }
@@ -111,7 +122,11 @@ public class ZephyrMessageFilters {
                 if (matchCase) {
                     return text.contains(pattern);
                 }
-                return text.toLowerCase().contains(pattern.toLowerCase());
+                String lower = lowerPattern;
+                if (lower == null) {
+                    lowerPattern = lower = pattern.toLowerCase();
+                }
+                return text.toLowerCase().contains(lower);
             }
             if (compileFailed) {
                 return false;

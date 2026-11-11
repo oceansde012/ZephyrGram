@@ -152,7 +152,7 @@ public class ZephyrEditHistoryActivity extends BaseFragment {
         String time = date != 0
                 ? LocaleController.formatDateChat(date, true) + ", " + LocaleController.getInstance().getFormatterDay().format(date * 1000L)
                 : "";
-        header.setText(TextUtils.isEmpty(time) ? title : title + "  -  " + time);
+        header.setText(TextUtils.isEmpty(time) ? title : title + " · " + time);
         card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         TextView body = new TextView(context);

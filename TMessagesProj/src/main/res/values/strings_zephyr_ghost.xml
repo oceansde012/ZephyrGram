@@ -5,4 +5,6 @@
     <string name="ZephyrGhostButtonOff">Ghost mode off</string>
     <string name="ZephyrGhostButtonOnInfo">Read receipts, typing, online status and story views are hidden. Long-press the ghost to fine-tune.</string>
     <string name="ZephyrStoryViewInvisibly">View invisibly</string>
+    <string name="ZephyrGhostMarkRead">Send read receipt</string>
+    <string name="ZephyrGhostMarkReadDone">Read receipt sent</string>
 </resources>
